@@ -19,4 +19,17 @@ public interface HttpClient extends AutoCloseable {
         // default do nothing
     }
 
+    /**
+     * HTTP response.
+     * 
+     * @author fmjsjx
+     *
+     * @param <T> Type of response content
+     * 
+     * @since 1.0
+     */
+    interface Response<T> {
+
+    }
+
 }
