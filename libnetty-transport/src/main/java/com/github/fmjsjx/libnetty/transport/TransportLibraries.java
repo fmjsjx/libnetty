@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public final class TransportLibraries {
+final class TransportLibraries {
 
     private static final class DefaultLibraryHolder {
         private static final TransportLibrary defaultLibrary;
@@ -65,7 +65,7 @@ public final class TransportLibraries {
      * 
      * @return the default {@link TransportLibrary}
      */
-    public static final TransportLibrary getDefault() {
+    static final TransportLibrary getDefault() {
         return DefaultLibraryHolder.defaultLibrary;
     }
 

@@ -16,6 +16,16 @@ import io.netty.channel.ServerChannel;
 public interface TransportLibrary {
 
     /**
+     * Returns default {@link TransportLibrary} instance, native library is
+     * preferred.
+     * 
+     * @return the default {@link TransportLibrary}
+     */
+    static TransportLibrary getDefault() {
+        return TransportLibraries.getDefault();
+    }
+
+    /**
      * Returns the class of {@link Channel}.
      * 
      * @return the {@link Class} of {@link Channel}
