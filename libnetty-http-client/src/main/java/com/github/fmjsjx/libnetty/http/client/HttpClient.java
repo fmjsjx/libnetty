@@ -2,6 +2,7 @@ package com.github.fmjsjx.libnetty.http.client;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
@@ -13,14 +14,12 @@ import javax.net.ssl.SSLContext;
 import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContext;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.ToString;
 
 /**
  * Main interface for an HTTP client.
@@ -145,42 +144,51 @@ public interface HttpClient extends AutoCloseable {
         ByteBuf content();
 
     }
-    
-    @ToString
-    @AllArgsConstructor(access = AccessLevel.PACKAGE)
-    class DefaultRequest implements Request {
 
-        private final HttpMethod method;
-        private final URI uri;
-        private final HttpHeaders headers;
-        private final HttpHeaders trailingHeaders;
-        private final ByteBuf content;
-
-        @Override
-        public HttpMethod method() {
-            return method;
-        }
-
-        @Override
-        public URI uri() {
-            return uri;
-        }
-
-        @Override
-        public HttpHeaders headers() {
-            return headers;
-        }
-
-        @Override
-        public HttpHeaders trailingHeaders() {
-            return trailingHeaders;
+    /**
+     * Builder for {@link Request}
+     * 
+     * @since 1.0
+     * 
+     * @author fmjsjx
+     */
+    @SuppressWarnings("unchecked")
+    abstract class RequestBuilder<Self extends RequestBuilder<?>> {
+        
+        protected HttpMethod method;
+        protected URI uri;
+        protected HttpHeaders headers;
+        protected HttpHeaders trailingHeaders;
+        protected ByteBuf content;
+        
+        public Self uri(URI uri) {
+            this.uri = Objects.requireNonNull(uri, "uri must not be null");
+            return (Self) this;
         }
         
-        @Override
-        public ByteBuf content() {
-            return content;
+        public Self method(HttpMethod method, ByteBuf content) {
+            this.method = Objects.requireNonNull(method, "method must not be null");
+            this.content = content == null ? Unpooled.EMPTY_BUFFER : content;
+            return (Self) this;            
         }
+        
+        public Self get() {
+            return method(HttpMethod.GET, null);
+        }
+        
+        public Self options() {
+            return method(HttpMethod.OPTIONS, null);
+        }
+        
+        // TODO
 
+        public Request build() {
+            // TODO
+            return build0();
+        }
+        
+        protected abstract Request build0();
+        
     }
 
     /**
@@ -257,37 +265,6 @@ public interface HttpClient extends AutoCloseable {
          * @return the content of this {@link Response}.
          */
         T content();
-
-    }
-
-    @ToString
-    @AllArgsConstructor(access = AccessLevel.PACKAGE)
-    class DefaultResponse<T> implements Response<T> {
-
-        private final HttpVersion version;
-        private final HttpResponseStatus status;
-        private final HttpHeaders headers;
-        private final T content;
-
-        @Override
-        public HttpVersion version() {
-            return version;
-        }
-
-        @Override
-        public HttpResponseStatus status() {
-            return status;
-        }
-
-        @Override
-        public HttpHeaders headers() {
-            return headers;
-        }
-
-        @Override
-        public T content() {
-            return content;
-        }
 
     }
 
