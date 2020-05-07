@@ -13,12 +13,13 @@ import javax.net.ssl.SSLContext;
 import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContext;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.ToString;
 
 /**
@@ -141,9 +142,43 @@ public interface HttpClient extends AutoCloseable {
          * 
          * @return the {@link ByteBuf} content of this {@link Request}
          */
-        default ByteBuf content() {
-            // the default is empty
-            return Unpooled.EMPTY_BUFFER;
+        ByteBuf content();
+
+    }
+    
+    @ToString
+    @AllArgsConstructor(access = AccessLevel.PACKAGE)
+    class DefaultRequest implements Request {
+
+        private final HttpMethod method;
+        private final URI uri;
+        private final HttpHeaders headers;
+        private final HttpHeaders trailingHeaders;
+        private final ByteBuf content;
+
+        @Override
+        public HttpMethod method() {
+            return method;
+        }
+
+        @Override
+        public URI uri() {
+            return uri;
+        }
+
+        @Override
+        public HttpHeaders headers() {
+            return headers;
+        }
+
+        @Override
+        public HttpHeaders trailingHeaders() {
+            return trailingHeaders;
+        }
+        
+        @Override
+        public ByteBuf content() {
+            return content;
         }
 
     }
@@ -226,19 +261,13 @@ public interface HttpClient extends AutoCloseable {
     }
 
     @ToString
+    @AllArgsConstructor(access = AccessLevel.PACKAGE)
     class DefaultResponse<T> implements Response<T> {
 
         private final HttpVersion version;
         private final HttpResponseStatus status;
         private final HttpHeaders headers;
         private final T content;
-
-        DefaultResponse(HttpVersion version, HttpResponseStatus status, HttpHeaders headers, T content) {
-            this.version = version;
-            this.status = status;
-            this.headers = headers;
-            this.content = content;
-        }
 
         @Override
         public HttpVersion version() {
