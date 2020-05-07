@@ -1,4 +1,4 @@
-package com.github.fmjsjx.libnetty.http.client;
+package com.github.fmjsjx.libnetty.http.client.exception;
 
 /**
  * Base HTTP runtime exception.
@@ -29,6 +29,15 @@ public class HttpRuntimeException extends RuntimeException {
      */
     public HttpRuntimeException(Throwable cause) {
         super(cause);
+    }
+
+    /**
+     * Constructs a new HTTP runtime exception with the specified detail message.
+     * 
+     * @param message the detail message
+     */
+    public HttpRuntimeException(String message) {
+        super(message);
     }
 
 }

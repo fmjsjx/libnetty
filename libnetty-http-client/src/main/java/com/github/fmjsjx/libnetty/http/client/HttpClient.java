@@ -10,6 +10,8 @@ import java.util.concurrent.Executor;
 
 import javax.net.ssl.SSLContext;
 
+import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -17,6 +19,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContext;
+import lombok.ToString;
 
 /**
  * Main interface for an HTTP client.
@@ -45,6 +48,10 @@ public interface HttpClient extends AutoCloseable {
     /**
      * Sends the given request asynchronously using this client with the given
      * response content handler.
+     * 
+     * <p>
+     * <b>Note: The returned {@link CompletableFuture} will run on the netty
+     * threads!</b>
      * 
      * @param <T>            the response content type
      * @param request        the request
@@ -215,6 +222,43 @@ public interface HttpClient extends AutoCloseable {
          * @return the content of this {@link Response}.
          */
         T content();
+
+    }
+
+    @ToString
+    class DefaultResponse<T> implements Response<T> {
+
+        private final HttpVersion version;
+        private final HttpResponseStatus status;
+        private final HttpHeaders headers;
+        private final T content;
+
+        DefaultResponse(HttpVersion version, HttpResponseStatus status, HttpHeaders headers, T content) {
+            this.version = version;
+            this.status = status;
+            this.headers = headers;
+            this.content = content;
+        }
+
+        @Override
+        public HttpVersion version() {
+            return version;
+        }
+
+        @Override
+        public HttpResponseStatus status() {
+            return status;
+        }
+
+        @Override
+        public HttpHeaders headers() {
+            return headers;
+        }
+
+        @Override
+        public T content() {
+            return content;
+        }
 
     }
 
