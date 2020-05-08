@@ -15,6 +15,7 @@ import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -109,6 +110,15 @@ public interface HttpClient extends AutoCloseable {
     interface Request {
 
         /**
+         * Returns a builder for {@link Request}.
+         * 
+         * @return a {@link RequestBuilder}
+         */
+        static RequestBuilder<?> builder() {
+            return new DefaultRequest.Builder();
+        }
+
+        /**
          * Returns the HTTP method of this {@link Request}.
          *
          * @return the {@link HttpMethod} of this {@link Request}
@@ -154,41 +164,137 @@ public interface HttpClient extends AutoCloseable {
      */
     @SuppressWarnings("unchecked")
     abstract class RequestBuilder<Self extends RequestBuilder<?>> {
-        
+
         protected HttpMethod method;
         protected URI uri;
         protected HttpHeaders headers;
         protected HttpHeaders trailingHeaders;
         protected ByteBuf content;
-        
+
         public Self uri(URI uri) {
             this.uri = Objects.requireNonNull(uri, "uri must not be null");
             return (Self) this;
         }
-        
-        public Self method(HttpMethod method, ByteBuf content) {
+
+        protected Self method(HttpMethod method, ByteBuf content) {
             this.method = Objects.requireNonNull(method, "method must not be null");
             this.content = content == null ? Unpooled.EMPTY_BUFFER : content;
-            return (Self) this;            
+            return (Self) this;
         }
-        
+
         public Self get() {
             return method(HttpMethod.GET, null);
         }
-        
+
         public Self options() {
             return method(HttpMethod.OPTIONS, null);
         }
-        
-        // TODO
+
+        public Self post(ByteBuf content) {
+            return method(HttpMethod.POST, content);
+        }
+
+        public Self put(ByteBuf content) {
+            return method(HttpMethod.PUT, content);
+        }
+
+        public Self patch(ByteBuf content) {
+            return method(HttpMethod.PATCH, content);
+        }
+
+        public Self delete(ByteBuf content) {
+            return method(HttpMethod.DELETE, content);
+        }
+
+        public Self head(ByteBuf content) {
+            return method(HttpMethod.HEAD, null);
+        }
+
+        protected HttpHeaders ensureHeaders() {
+            if (headers == null) {
+                headers = new DefaultHttpHeaders();
+            }
+            return headers;
+        }
+
+        public Self header(CharSequence name, Object value) {
+            ensureHeaders().add(name, value);
+            return (Self) this;
+        }
+
+        public Self header(CharSequence name, int value) {
+            ensureHeaders().addInt(name, value);
+            return (Self) this;
+        }
+
+        public Self header(CharSequence name, Iterable<?> values) {
+            ensureHeaders().add(name, values);
+            return (Self) this;
+        }
+
+        public Self setHeader(CharSequence name, Object value) {
+            ensureHeaders().set(name, value);
+            return (Self) this;
+        }
+
+        public Self setHeader(CharSequence name, int value) {
+            ensureHeaders().setInt(name, value);
+            return (Self) this;
+        }
+
+        public Self setHeader(CharSequence name, Iterable<?> values) {
+            ensureHeaders().set(name, values);
+            return (Self) this;
+        }
+
+        private HttpHeaders ensureTrailingHeaders() {
+            if (trailingHeaders == null) {
+                trailingHeaders = new DefaultHttpHeaders();
+            }
+            return trailingHeaders;
+        }
+
+        public Self trailing(CharSequence name, Object value) {
+            ensureTrailingHeaders().add(name, value);
+            return (Self) this;
+        }
+
+        public Self trailing(CharSequence name, int value) {
+            ensureTrailingHeaders().addInt(name, value);
+            return (Self) this;
+        }
+
+        public Self trailing(CharSequence name, Iterable<?> values) {
+            ensureTrailingHeaders().add(name, values);
+            return (Self) this;
+        }
+
+        public Self setTrailing(CharSequence name, Object value) {
+            ensureTrailingHeaders().set(name, value);
+            return (Self) this;
+        }
+
+        public Self setTrailing(CharSequence name, int value) {
+            ensureTrailingHeaders().setInt(name, value);
+            return (Self) this;
+        }
+
+        public Self setTrailing(CharSequence name, Iterable<?> values) {
+            ensureTrailingHeaders().set(name, values);
+            return (Self) this;
+        }
 
         public Request build() {
-            // TODO
+            ensureHeaders();
+            ensureTrailingHeaders();
+            if (method == null) {
+                get();
+            }
             return build0();
         }
-        
+
         protected abstract Request build0();
-        
+
     }
 
     /**
