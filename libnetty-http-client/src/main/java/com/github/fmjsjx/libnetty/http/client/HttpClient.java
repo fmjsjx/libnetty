@@ -110,7 +110,18 @@ public interface HttpClient extends AutoCloseable {
     interface Request {
 
         /**
-         * Returns a builder for {@link Request}.
+         * Returns a HTTP request builder with the specific {@code URI}.
+         * 
+         * @param uri the {@link URI}
+         * 
+         * @return a {@link RequestBuilder}
+         */
+        static RequestBuilder<?> builder(URI uri) {
+            return new DefaultRequest.Builder().uri(uri);
+        }
+
+        /**
+         * Returns a HTTP request builder.
          * 
          * @return a {@link RequestBuilder}
          */
@@ -171,45 +182,102 @@ public interface HttpClient extends AutoCloseable {
         protected HttpHeaders trailingHeaders;
         protected ByteBuf content;
 
+        /**
+         * Sets the {@code URI} for this request.
+         * 
+         * @param uri the {@link URI}
+         * @return this builder
+         */
         public Self uri(URI uri) {
             this.uri = Objects.requireNonNull(uri, "uri must not be null");
             return (Self) this;
         }
 
+        /**
+         * Sets the HTTP method and content for this request.
+         * 
+         * @param method  the {@link HttpMethod}
+         * @param content a {@link ByteBuf}
+         * @return this builder
+         */
         protected Self method(HttpMethod method, ByteBuf content) {
             this.method = Objects.requireNonNull(method, "method must not be null");
             this.content = content == null ? Unpooled.EMPTY_BUFFER : content;
             return (Self) this;
         }
 
+        /**
+         * Sets the HTTP method to GET for this request.
+         * 
+         * @return this builder
+         */
         public Self get() {
             return method(HttpMethod.GET, null);
         }
 
+        /**
+         * Sets the HTTP method to OPTIONS for this request.
+         * 
+         * @return this builder
+         */
         public Self options() {
             return method(HttpMethod.OPTIONS, null);
         }
 
+        /**
+         * Sets the HTTP method to HEAD for this request.
+         * 
+         * @return this builder
+         */
+        public Self head() {
+            return method(HttpMethod.HEAD, null);
+        }
+
+        /**
+         * Sets the HTTP method to POST for this request.
+         * 
+         * @param content the HTTP content
+         * @return this builder
+         */
         public Self post(ByteBuf content) {
             return method(HttpMethod.POST, content);
         }
 
+        /**
+         * Sets the HTTP method to PUT for this request.
+         * 
+         * @param content the HTTP content
+         * @return this builder
+         */
         public Self put(ByteBuf content) {
             return method(HttpMethod.PUT, content);
         }
 
+        /**
+         * Sets the HTTP method to PATCH for this request.
+         * 
+         * @param content the HTTP content
+         * @return this builder
+         */
         public Self patch(ByteBuf content) {
             return method(HttpMethod.PATCH, content);
         }
 
+        /**
+         * Sets the HTTP method to DELETE for this request.
+         * 
+         * @param content the HTTP content
+         * @return this builder
+         */
         public Self delete(ByteBuf content) {
             return method(HttpMethod.DELETE, content);
         }
 
-        public Self head(ByteBuf content) {
-            return method(HttpMethod.HEAD, null);
-        }
-
+        /**
+         * Ensure the HTTP headers for this request.
+         * 
+         * @return this builder
+         */
         protected HttpHeaders ensureHeaders() {
             if (headers == null) {
                 headers = new DefaultHttpHeaders();
@@ -217,36 +285,83 @@ public interface HttpClient extends AutoCloseable {
             return headers;
         }
 
+        /**
+         * Adds a new header with the specified name and value for this request.
+         * 
+         * @param name  the name of the header being added
+         * @param value the value of the header being added
+         * @return this builder
+         */
         public Self header(CharSequence name, Object value) {
             ensureHeaders().add(name, value);
             return (Self) this;
         }
 
+        /**
+         * Adds a new header with the specified name and value for this request.
+         * 
+         * @param name  the name of the header being added
+         * @param value the value of the header being added
+         * @return this builder
+         */
         public Self header(CharSequence name, int value) {
             ensureHeaders().addInt(name, value);
             return (Self) this;
         }
 
+        /**
+         * Adds a new header with the specified name and values for this request.
+         * 
+         * @param name   the name of the header being added
+         * @param values the values of the header being added
+         * @return this builder
+         */
         public Self header(CharSequence name, Iterable<?> values) {
             ensureHeaders().add(name, values);
             return (Self) this;
         }
 
+        /**
+         * Sets a header with the specified name and value for this request.
+         * 
+         * @param name  the name of the header being set
+         * @param value the value of the header being set
+         * @return this builder
+         */
         public Self setHeader(CharSequence name, Object value) {
             ensureHeaders().set(name, value);
             return (Self) this;
         }
 
+        /**
+         * Sets a header with the specified name and value for this request.
+         * 
+         * @param name  the name of the header being set
+         * @param value the value of the header being set
+         * @return this builder
+         */
         public Self setHeader(CharSequence name, int value) {
             ensureHeaders().setInt(name, value);
             return (Self) this;
         }
 
+        /**
+         * Sets a header with the specified name and values for this request.
+         * 
+         * @param name   the name of the header being set
+         * @param values the values of the header being set
+         * @return this builder
+         */
         public Self setHeader(CharSequence name, Iterable<?> values) {
             ensureHeaders().set(name, values);
             return (Self) this;
         }
 
+        /**
+         * Ensure the HTTP trailing headers for this request.
+         * 
+         * @return this builder
+         */
         private HttpHeaders ensureTrailingHeaders() {
             if (trailingHeaders == null) {
                 trailingHeaders = new DefaultHttpHeaders();
@@ -254,37 +369,88 @@ public interface HttpClient extends AutoCloseable {
             return trailingHeaders;
         }
 
+        /**
+         * Adds a new trailing header with the specified name and value for this
+         * request.
+         * 
+         * @param name  the name of the trailing header being added
+         * @param value the value of the trailing header being added
+         * @return this builder
+         */
         public Self trailing(CharSequence name, Object value) {
             ensureTrailingHeaders().add(name, value);
             return (Self) this;
         }
 
+        /**
+         * Adds a new trailing header with the specified name and value for this
+         * request.
+         * 
+         * @param name  the name of the trailing header being added
+         * @param value the value of the trailing header being added
+         * @return this builder
+         */
         public Self trailing(CharSequence name, int value) {
             ensureTrailingHeaders().addInt(name, value);
             return (Self) this;
         }
 
+        /**
+         * Adds a new trailing header with the specified name and values for this
+         * request.
+         * 
+         * @param name   the name of the trailing header being added
+         * @param values the values of the trailing header being added
+         * @return this builder
+         */
         public Self trailing(CharSequence name, Iterable<?> values) {
             ensureTrailingHeaders().add(name, values);
             return (Self) this;
         }
 
+        /**
+         * Sets a trailing header with the specified name and value for this request.
+         * 
+         * @param name  the name of the trailing header being set
+         * @param value the value of the trailing header being set
+         * @return this builder
+         */
         public Self setTrailing(CharSequence name, Object value) {
             ensureTrailingHeaders().set(name, value);
             return (Self) this;
         }
 
+        /**
+         * Sets a trailing header with the specified name and value for this request.
+         * 
+         * @param name  the name of the trailing header being set
+         * @param value the value of the trailing header being set
+         * @return this builder
+         */
         public Self setTrailing(CharSequence name, int value) {
             ensureTrailingHeaders().setInt(name, value);
             return (Self) this;
         }
 
+        /**
+         * Sets a trailing header with the specified name and values for this request.
+         * 
+         * @param name   the name of the trailing header being set
+         * @param values the values of the trailing header being set
+         * @return this builder
+         */
         public Self setTrailing(CharSequence name, Iterable<?> values) {
             ensureTrailingHeaders().set(name, values);
             return (Self) this;
         }
 
+        /**
+         * Returns a new HTTP request built from the current state of this builder.
+         * 
+         * @return a {@link Request}
+         */
         public Request build() {
+            Objects.requireNonNull(uri, "uri must not be null");
             ensureHeaders();
             ensureTrailingHeaders();
             if (method == null) {
