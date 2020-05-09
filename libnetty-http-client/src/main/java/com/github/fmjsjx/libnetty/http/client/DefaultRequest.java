@@ -2,8 +2,8 @@ package com.github.fmjsjx.libnetty.http.client;
 
 import java.net.URI;
 
-import com.github.fmjsjx.libnetty.http.client.HttpClient.Request;
-import com.github.fmjsjx.libnetty.http.client.HttpClient.RequestBuilder;
+import com.github.fmjsjx.libnetty.http.client.HttpClient.ClientWrappedRequest;
+import com.github.fmjsjx.libnetty.http.client.HttpClient.ClientWrappedRequestBuilder;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -14,7 +14,9 @@ import lombok.ToString;
 
 @ToString
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
-class DefaultRequest implements Request {
+class DefaultRequest implements ClientWrappedRequest {
+
+    private final HttpClient wrappedClient;
 
     private final HttpMethod method;
     private final URI uri;
@@ -46,14 +48,27 @@ class DefaultRequest implements Request {
     public ByteBuf content() {
         return content;
     }
-    
-    static final class Builder extends RequestBuilder<Builder> {
+
+    @Override
+    public HttpClient wrappedClient() {
+        return wrappedClient;
+    }
+
+    static final class Builder extends ClientWrappedRequestBuilder<Builder> {
+
+        Builder(HttpClient wrappedClient) {
+            super(wrappedClient);
+        }
+
+        Builder() {
+            this(null);
+        }
 
         @Override
-        protected Request build0() {
-            return new DefaultRequest(method, uri, headers, trailingHeaders, content);
+        protected ClientWrappedRequest build0() {
+            return new DefaultRequest(wrappedClient, method, uri, headers, trailingHeaders, content);
         }
-        
+
     }
 
 }

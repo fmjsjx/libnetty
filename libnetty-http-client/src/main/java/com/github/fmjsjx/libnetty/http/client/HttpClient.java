@@ -1,7 +1,10 @@
 package com.github.fmjsjx.libnetty.http.client;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
+
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -11,6 +14,7 @@ import java.util.concurrent.Executor;
 
 import javax.net.ssl.SSLContext;
 
+import com.github.fmjsjx.libnetty.http.HttpUtil;
 import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
 
 import io.netty.buffer.ByteBuf;
@@ -21,6 +25,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.AsciiString;
 
 /**
  * Main interface for an HTTP client.
@@ -44,6 +49,26 @@ public interface HttpClient extends AutoCloseable {
     @Override
     default void close() {
         // default do nothing
+    }
+
+    /**
+     * Returns a new {@link ClientWrappedRequestBuilder}.
+     * 
+     * @return a {@code ClientWrappedRequestBuilder}
+     */
+    default ClientWrappedRequestBuilder<?> request() {
+        return new DefaultRequest.Builder(this);
+    }
+
+    /**
+     * Returns a new {@link ClientWrappedRequestBuilder} with the specific
+     * {@code URI}.
+     * 
+     * @param uri the {@link URI}
+     * @return a {@code ClientWrappedRequestBuilder}
+     */
+    default ClientWrappedRequestBuilder<?> request(URI uri) {
+        return request().uri(uri);
     }
 
     /**
@@ -207,70 +232,83 @@ public interface HttpClient extends AutoCloseable {
         }
 
         /**
-         * Sets the HTTP method to GET for this request.
+         * Returns a new HTTP GET request built from the current state of this builder.
          * 
-         * @return this builder
+         * @return a {@link Request}
          */
-        public Self get() {
-            return method(HttpMethod.GET, null);
+        public Request get() {
+            return method(HttpMethod.GET, null).build();
         }
 
         /**
-         * Sets the HTTP method to OPTIONS for this request.
+         * Returns a new HTTP OPTIONS request built from the current state of this
+         * builder.
          * 
          * @return this builder
          */
-        public Self options() {
-            return method(HttpMethod.OPTIONS, null);
+        public Request options() {
+            return method(HttpMethod.OPTIONS, null).build();
         }
 
         /**
-         * Sets the HTTP method to HEAD for this request.
+         * Returns a new HTTP HEAD request built from the current state of this builder.
          * 
          * @return this builder
          */
-        public Self head() {
-            return method(HttpMethod.HEAD, null);
+        public Request head() {
+            return method(HttpMethod.HEAD, null).build();
         }
 
         /**
-         * Sets the HTTP method to POST for this request.
+         * Returns a new HTTP TRACE request built from the current state of this
+         * builder.
+         * 
+         * @return this builder
+         */
+        public Request trace() {
+            return method(HttpMethod.TRACE, null).build();
+        }
+
+        /**
+         * Returns a new HTTP POST request built from the current state of this builder.
          * 
          * @param content the HTTP content
          * @return this builder
          */
-        public Self post(ByteBuf content) {
-            return method(HttpMethod.POST, content);
+        public Request post(ByteBuf content) {
+            return method(HttpMethod.POST, content).build();
         }
 
         /**
-         * Sets the HTTP method to PUT for this request.
+         * Returns a new HTTP PUT request built from the current state of this builder.
          * 
          * @param content the HTTP content
          * @return this builder
          */
-        public Self put(ByteBuf content) {
-            return method(HttpMethod.PUT, content);
+        public Request put(ByteBuf content) {
+            return method(HttpMethod.PUT, content).build();
         }
 
         /**
-         * Sets the HTTP method to PATCH for this request.
+         * Returns a new HTTP PATCH request built from the current state of this
+         * builder.
          * 
          * @param content the HTTP content
          * @return this builder
          */
-        public Self patch(ByteBuf content) {
-            return method(HttpMethod.PATCH, content);
+        public Request patch(ByteBuf content) {
+            return method(HttpMethod.PATCH, content).build();
         }
 
         /**
-         * Sets the HTTP method to DELETE for this request.
+         * Returns a new HTTP DELETE request built from the current state of this
+         * builder.
          * 
          * @param content the HTTP content
          * @return this builder
          */
-        public Self delete(ByteBuf content) {
-            return method(HttpMethod.DELETE, content);
+        public Request delete(ByteBuf content) {
+            return method(HttpMethod.DELETE, content).build();
         }
 
         /**
@@ -355,6 +393,29 @@ public interface HttpClient extends AutoCloseable {
         public Self setHeader(CharSequence name, Iterable<?> values) {
             ensureHeaders().set(name, values);
             return (Self) this;
+        }
+
+        /**
+         * Sets the {@code content-type} header with the specified value for this
+         * request.
+         * 
+         * @param value the value of the {@code content-type}
+         * @return this builder
+         */
+        public Self contentType(CharSequence value) {
+            return setHeader(CONTENT_TYPE, value);
+        }
+
+        /**
+         * Sets the {@code content-type} header with the specified value for this
+         * request.
+         * 
+         * @param value   the value of the {@code content-type}
+         * @param charset the {@link Charset} of the {@code content-type}
+         * @return this builder
+         */
+        public Self contentType(CharSequence contentType, Charset charset) {
+            return contentType(HttpUtil.contentType(AsciiString.of(contentType), charset));
         }
 
         /**
@@ -449,17 +510,137 @@ public interface HttpClient extends AutoCloseable {
          * 
          * @return a {@link Request}
          */
-        public Request build() {
+        protected Request build() {
             Objects.requireNonNull(uri, "uri must not be null");
             ensureHeaders();
             ensureTrailingHeaders();
-            if (method == null) {
-                get();
-            }
             return build0();
         }
 
         protected abstract Request build0();
+
+    }
+
+    /**
+     * A HTTP request with a {@link HttpClient} wrapped.
+     * 
+     * @since 1.0
+     * 
+     * @author fmjsjx
+     */
+    interface ClientWrappedRequest extends Request {
+
+        /**
+         * Returns the wrapped HTTP client.
+         * 
+         * @return a {@link HttpClient}
+         */
+        HttpClient wrappedClient();
+
+        /**
+         * Sends this request asynchronously using the wrapped client with the given
+         * response content handler.
+         * 
+         * <p>
+         * <b>Note: The returned {@link CompletableFuture} will run on the netty
+         * threads!</b>
+         * 
+         * @param <T>            the response content type
+         * @param contentHandler the response content handler
+         * @return a {@code CompletableFuture<HttpClient.Response<T>>}
+         */
+        default <T> CompletableFuture<Response<T>> sendAsync(HttpContentHandler<T> contentHandler) {
+            return wrappedClient().sendAsync(this, contentHandler);
+        }
+
+        /**
+         * Sends this request asynchronously using the wrapped client with the given
+         * response content handler.
+         * 
+         * @param <T>            the response content type
+         * @param request        the request
+         * @param contentHandler the response content handler
+         * @param executor       the executor to use for asynchronous execution
+         * @return a {@code CompletableFuture<HttpClient.Response<T>>}
+         */
+        default <T> CompletableFuture<Response<T>> sendAsync(HttpContentHandler<T> contentHandler, Executor executor) {
+            return wrappedClient().sendAsync(this, contentHandler, executor);
+        }
+
+        /**
+         * Sends this request using the wrapped client, blocking if necessary to get the
+         * response.
+         * 
+         * @param <T>            the response content type
+         * @param contentHandler the response content handler
+         * @return the response
+         * @throws IOException          if an I/O error occurs when sending or receiving
+         * @throws InterruptedException if the operation is interrupted
+         * @throws HttpRuntimeException if any other error occurs
+         */
+        default <T> Response<T> send(HttpContentHandler<T> contentHandler)
+                throws IOException, InterruptedException, HttpRuntimeException {
+            return wrappedClient().send(this, contentHandler);
+        }
+
+    }
+
+    abstract class ClientWrappedRequestBuilder<Self extends ClientWrappedRequestBuilder<?>>
+            extends RequestBuilder<Self> {
+
+        protected final HttpClient wrappedClient;
+
+        protected ClientWrappedRequestBuilder(HttpClient wrappedClient) {
+            this.wrappedClient = wrappedClient;
+        }
+
+        @Override
+        public ClientWrappedRequest get() {
+            return (ClientWrappedRequest) super.get();
+        }
+
+        @Override
+        public ClientWrappedRequest options() {
+            return (ClientWrappedRequest) super.options();
+        }
+
+        @Override
+        public ClientWrappedRequest head() {
+            return (ClientWrappedRequest) super.head();
+        }
+
+        @Override
+        public ClientWrappedRequest trace() {
+            return (ClientWrappedRequest) super.trace();
+        }
+
+        @Override
+        public ClientWrappedRequest post(ByteBuf content) {
+            return (ClientWrappedRequest) super.post(content);
+        }
+
+        @Override
+        public ClientWrappedRequest put(ByteBuf content) {
+            return (ClientWrappedRequest) super.put(content);
+        }
+
+        @Override
+        public ClientWrappedRequest patch(ByteBuf content) {
+            return (ClientWrappedRequest) super.patch(content);
+        }
+
+        @Override
+        public ClientWrappedRequest delete(ByteBuf content) {
+            return (ClientWrappedRequest) super.delete(content);
+        }
+
+        @Override
+        protected abstract ClientWrappedRequest build0();
+
+        @Override
+        protected ClientWrappedRequest build() {
+            return (ClientWrappedRequest) super.build();
+        }
 
     }
 
