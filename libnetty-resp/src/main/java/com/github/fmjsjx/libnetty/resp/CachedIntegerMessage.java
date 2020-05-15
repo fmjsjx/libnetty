@@ -5,9 +5,23 @@ import static com.github.fmjsjx.libnetty.resp.RespConstants.TYPE_LENGTH;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * The cached implementation of the {@link RespIntegerMessage}.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public class CachedIntegerMessage extends AbstractCachedRespMessage<CachedIntegerMessage>
         implements RespIntegerMessage {
 
+    /**
+     * Returns a new {@link CachedIntegerMessage} with the specific {@code value}
+     * given.
+     * 
+     * @param value the value
+     * @return a {@code CachedIntegerMessage}
+     */
     public static final CachedIntegerMessage create(long value) {
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
         int length = bytes.length;
@@ -34,10 +48,11 @@ public class CachedIntegerMessage extends AbstractCachedRespMessage<CachedIntege
         return new CachedIntegerMessage(content, fullContent, value);
     }
 
+    @Override
     public long value() {
         return value;
     }
-    
+
     @Override
     public String toString() {
         return getClass().getSimpleName() + "[" + type() + value + "]";

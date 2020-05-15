@@ -9,6 +9,15 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 
+/**
+ * The abstract implementation of the {@link CachedRespMessage}.
+ *
+ * @param <Self> the type of the Super Class
+ * 
+ * @since 1.0
+ * 
+ * @author fmjsjx
+ */
 public abstract class AbstractCachedRespMessage<Self extends CachedRespMessage> extends AbstractRespContent<Self>
         implements CachedRespMessage {
 

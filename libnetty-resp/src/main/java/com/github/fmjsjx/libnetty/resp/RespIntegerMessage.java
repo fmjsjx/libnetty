@@ -2,8 +2,21 @@ package com.github.fmjsjx.libnetty.resp;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * An interface defines a RESP Integer message. Combines the {@link RespMessage}
+ * and {@link RespContent}.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public interface RespIntegerMessage extends RespMessage, RespContent {
 
+    /**
+     * Returns the value.
+     * 
+     * @return the value
+     */
     long value();
 
     @Override
@@ -29,5 +42,5 @@ public interface RespIntegerMessage extends RespMessage, RespContent {
 
     @Override
     RespIntegerMessage touch(Object hint);
-    
+
 }

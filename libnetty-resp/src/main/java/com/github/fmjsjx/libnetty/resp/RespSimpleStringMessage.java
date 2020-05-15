@@ -4,10 +4,28 @@ import java.nio.charset.Charset;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * An interface defines a RESP Simple String message. Combines the
+ * {@link RespMessage} and {@link RespContent}.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public interface RespSimpleStringMessage extends RespMessage, RespContent {
 
+    /**
+     * Returns the value string.
+     * 
+     * @return the value
+     */
     String value();
-    
+
+    /**
+     * Returns the {@link Charset} of the value string.
+     * 
+     * @return a {@code charset}
+     */
     Charset charset();
 
     @Override

@@ -12,10 +12,26 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.AsciiString;
 
+/**
+ * The cached implementation of {@link RespBulkStringMessage} with {@code nil}
+ * value.
+ * 
+ * <p>
+ * This class is implemented in singleton pattern.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public class CachedNullMessage extends AbstractCachedRespMessage<CachedNullMessage> implements RespBulkStringMessage {
 
     static final CachedNullMessage instance = new CachedNullMessage();
 
+    /**
+     * Returns the <b>SINGLETON</b> {@link CachedNullMessage} instance.
+     * 
+     * @return a {@code CachedNullMessage}
+     */
     public static final CachedNullMessage instance() {
         return instance;
     }
@@ -94,7 +110,7 @@ public class CachedNullMessage extends AbstractCachedRespMessage<CachedNullMessa
     public String textValue(Charset charset) {
         return null;
     }
-    
+
     @Override
     public AsciiString asciiValue() {
         return null;

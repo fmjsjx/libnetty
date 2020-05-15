@@ -16,29 +16,72 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
+/**
+ * The cached implementation of the {@link RespBulkStringMessage}.
+ * 
+ * @since 1.0
+ * 
+ * @author fmjsjx
+ */
 public class CachedBulkStringMessage extends AbstractCachedRespMessage<CachedBulkStringMessage>
         implements RespBulkStringMessage {
 
+    /**
+     * Returns a new {@link CachedBulkStringMessage} with the specific {@code value}
+     * given.
+     * 
+     * @param value the value
+     * @return a {@code CachedBulkStringMessage}
+     */
     public static final CachedBulkStringMessage create(int value) {
         CachedBulkStringMessage bulkString = createAscii(Integer.toString(value));
         bulkString.cachedNumbers.put(Integer.class, value);
         return bulkString;
     }
 
+    /**
+     * Returns a new {@link CachedBulkStringMessage} with the specific {@code value}
+     * given.
+     * 
+     * @param value the value
+     * @return a {@code CachedBulkStringMessage}
+     */
     public static final CachedBulkStringMessage create(long value) {
         CachedBulkStringMessage bulkString = createAscii(Long.toString(value));
         bulkString.cachedNumbers.put(Long.class, value);
         return bulkString;
     }
 
+    /**
+     * Returns a new {@link CachedBulkStringMessage} with the specific {@code value}
+     * given.
+     * 
+     * @param value the value
+     * @return a {@code CachedBulkStringMessage}
+     */
     public static final CachedBulkStringMessage createAscii(CharSequence value) {
         return create(value, CharsetUtil.US_ASCII);
     }
 
+    /**
+     * Returns a new {@link CachedBulkStringMessage} with the specific {@code value}
+     * given.
+     * 
+     * @param value the value
+     * @return a {@code CachedBulkStringMessage}
+     */
     public static final CachedBulkStringMessage createUtf8(CharSequence value) {
         return create(value, CharsetUtil.UTF_8);
     }
 
+    /**
+     * Returns a new {@link CachedBulkStringMessage} with the specific {@code value}
+     * given.
+     * 
+     * @param value   the value
+     * @param charset the {@link Charset} of the value
+     * @return a {@code CachedBulkStringMessage}
+     */
     public static final CachedBulkStringMessage create(CharSequence value, Charset charset) {
         String text = value.toString();
         byte[] bytes = text.getBytes(charset);

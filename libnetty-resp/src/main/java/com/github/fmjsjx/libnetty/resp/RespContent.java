@@ -20,6 +20,13 @@ import io.netty.util.CharsetUtil;
 public interface RespContent extends RespObject, ByteBufHolder {
 
     /**
+     * Returns the content value as {@link Integer} type.
+     * 
+     * @return an {@code Integer} value
+     */
+    Integer toInteger();
+
+    /**
      * Returns the content value as {@link Long} type.
      * 
      * @return a {@code Long} value

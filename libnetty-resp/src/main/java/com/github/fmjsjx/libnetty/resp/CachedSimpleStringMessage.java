@@ -8,17 +8,46 @@ import java.nio.charset.Charset;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.CharsetUtil;
 
+/**
+ * The cached implementation of the {@link RespSimpleStringMessage}.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public class CachedSimpleStringMessage extends AbstractCachedRespMessage<CachedSimpleStringMessage>
         implements RespSimpleStringMessage {
 
+    /**
+     * Returns a new cached {@link CachedSimpleStringMessage} with the specific
+     * {@code message} and {@code US-ASCII} character set.
+     * 
+     * @param message the value message
+     * @return a {@code CachedSimpleStringMessage}
+     */
     public static final CachedSimpleStringMessage createAscii(CharSequence message) {
         return create(message, CharsetUtil.US_ASCII);
     }
 
+    /**
+     * Returns a new cached {@link CachedSimpleStringMessage} with the specific
+     * {@code message} and {@code UTF-8} character set.
+     * 
+     * @param message the value message
+     * @return a {@code CachedSimpleStringMessage}
+     */
     public static final CachedSimpleStringMessage createUtf8(CharSequence message) {
         return create(message, CharsetUtil.UTF_8);
     }
 
+    /**
+     * Returns a new cached {@link CachedSimpleStringMessage} with the specific
+     * {@code message} and {@code charset} given.
+     * 
+     * @param message the value message
+     * @param charset the {@link Charset} of the message
+     * @return a {@code CachedSimpleStringMessage}
+     */
     public static final CachedSimpleStringMessage create(CharSequence message, Charset charset) {
         String value = message.toString();
         byte[] bytes = value.getBytes(charset);

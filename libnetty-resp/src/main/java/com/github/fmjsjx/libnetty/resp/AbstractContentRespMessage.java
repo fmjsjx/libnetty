@@ -2,6 +2,16 @@ package com.github.fmjsjx.libnetty.resp;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * The abstract implementation of the {@link RespMessage}, combines the
+ * {@link RespMessage} and {@link RespContent}.
+ * 
+ * @param <Self> the type of the Super Class
+ *
+ * @since 1.0
+ * 
+ * @author fmjsjx
+ */
 public abstract class AbstractContentRespMessage<Self extends RespContent> extends AbstractRespContent<Self>
         implements RespMessage {
 

@@ -4,6 +4,7 @@ import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_LENGTH;
 import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_SHORT;
 
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -17,10 +18,27 @@ import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.AbstractReferenceCounted;
 
+/**
+ * The default implementation of {@link RespArrayMessage}.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public class DefaultArrayMessage extends AbstractReferenceCounted implements RespArrayMessage {
 
+    /**
+     * The empty array instance (immutable).
+     */
     public static final DefaultArrayMessage EMPTY = new EmptyArrayMessage();
 
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc  the allocator to allocate {@link ByteBuf}s
+     * @param values the number values
+     * @return a {@code DefaultArrayMessage}
+     */
     public static final DefaultArrayMessage bulkStringArrayLong(ByteBufAllocator alloc,
             Collection<? extends Number> values) {
         if (values.isEmpty()) {
@@ -31,6 +49,13 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         return new DefaultArrayMessage(list);
     }
 
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc  the allocator to allocate {@link ByteBuf}s
+     * @param values the number values
+     * @return a {@code DefaultArrayMessage}
+     */
     public static final DefaultArrayMessage bulkStringArray(ByteBufAllocator alloc, long... values) {
         if (values.length == 0) {
             return EMPTY;
@@ -40,6 +65,13 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         return new DefaultArrayMessage(list);
     }
 
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc  the allocator to allocate {@link ByteBuf}s
+     * @param values the number values
+     * @return a {@code DefaultArrayMessage}
+     */
     public static final DefaultArrayMessage bulkStringArray(ByteBufAllocator alloc, int... values) {
         if (values.length == 0) {
             return EMPTY;
@@ -49,6 +81,13 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         return new DefaultArrayMessage(list);
     }
 
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc  the allocator to allocate {@link ByteBuf}s
+     * @param values the string values with {@code US-ASCII} character set
+     * @return a {@code DefaultArrayMessage}
+     */
     public static final DefaultArrayMessage bulkStringArrayAscii(ByteBufAllocator alloc,
             Collection<? extends CharSequence> values) {
         if (values.isEmpty()) {
@@ -59,6 +98,13 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         return new DefaultArrayMessage(list);
     }
 
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc  the allocator to allocate {@link ByteBuf}s
+     * @param values the string values with {@code US-ASCII} character set
+     * @return a {@code DefaultArrayMessage}
+     */
     public static final DefaultArrayMessage bulkStringArrayAscii(ByteBufAllocator alloc, CharSequence... values) {
         if (values.length == 0) {
             return EMPTY;
@@ -68,6 +114,13 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         return new DefaultArrayMessage(list);
     }
 
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc  the allocator to allocate {@link ByteBuf}s
+     * @param values the string values with {@code UTF-8} character set
+     * @return a {@code DefaultArrayMessage}
+     */
     public static final DefaultArrayMessage bulkStringArrayUtf8(ByteBufAllocator alloc,
             Collection<? extends CharSequence> values) {
         if (values.isEmpty()) {
@@ -78,6 +131,13 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         return new DefaultArrayMessage(list);
     }
 
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc  the allocator to allocate {@link ByteBuf}s
+     * @param values the string values with {@code UTF-8} character set
+     * @return a {@code DefaultArrayMessage}
+     */
     public static final DefaultArrayMessage bulkStringArrayUtf8(ByteBufAllocator alloc, CharSequence... values) {
         if (values.length == 0) {
             return EMPTY;
@@ -87,6 +147,14 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         return new DefaultArrayMessage(list);
     }
 
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc   the allocator to allocate {@link ByteBuf}s
+     * @param charset the {@link Charset} of the string values
+     * @param values  the string values
+     * @return a {@code DefaultArrayMessage}
+     */
     public static final DefaultArrayMessage bulkStringArray(ByteBufAllocator alloc, Charset charset,
             CharSequence... values) {
         if (values.length == 0) {
@@ -97,6 +165,14 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         return new DefaultArrayMessage(list);
     }
 
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc   the allocator to allocate {@link ByteBuf}s
+     * @param charset the {@link Charset} of the string values
+     * @param values  the string values
+     * @return a {@code DefaultArrayMessage}
+     */
     public static final DefaultArrayMessage bulkStringArray(ByteBufAllocator alloc, Charset charset,
             Collection<? extends CharSequence> values) {
         if (values.isEmpty()) {
@@ -109,16 +185,42 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
 
     private final List<? extends RespMessage> values;
 
+    /**
+     * Constructs a {@link DefaultArrayMessage} containing the values of the
+     * specified array.
+     * 
+     * @param values a {@link RespMessage} array
+     */
     public DefaultArrayMessage(RespMessage... values) {
         this(Arrays.stream(values).collect(Collectors.toList()));
     }
 
+    /**
+     * Constructs a {@link DefaultArrayMessage} containing the values of the
+     * specified list.
+     * 
+     * @param values a {@link RespMessage} list
+     */
     public DefaultArrayMessage(List<? extends RespMessage> values) {
         this.values = Objects.requireNonNull(values, "values must not be null");
     }
 
+    /**
+     * Constructs a {@link DefaultArrayMessage} containing the values of the
+     * specified collection.
+     * 
+     * @param values a {@link RespMessage} collection
+     */
+    public DefaultArrayMessage(Collection<? extends RespMessage> values) {
+        this((values instanceof List) ? (List<? extends RespMessage>) values
+                : values.stream().collect(Collectors.toList()));
+    }
+
+    /**
+     * Constructs a {@link DefaultArrayMessage}.
+     */
     public DefaultArrayMessage() {
-        this(Collections.emptyList());
+        this(new ArrayList<>());
     }
 
     @Override
@@ -168,6 +270,10 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         private static final ByteBuf sizeBuf = Unpooled
                 .unreleasableBuffer(UnpooledByteBufAllocator.DEFAULT.buffer(1 + EOL_LENGTH, 1 + EOL_LENGTH)
                         .writeBytes(RespCodecUtil.longToAsciiBytes(0)).writeShort(EOL_SHORT).asReadOnly());
+
+        private EmptyArrayMessage() {
+            super(Collections.emptyList());
+        }
 
         @Override
         public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
