@@ -1,7 +1,6 @@
 package com.github.fmjsjx.libnetty.resp;
 
 import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_LENGTH;
-import static com.github.fmjsjx.libnetty.resp.RespConstants.POSITIVE_INT_MAX_LENGTH;
 import static com.github.fmjsjx.libnetty.resp.RespConstants.RESP_MESSAGE_MAX_LENGTH;
 
 import java.util.ArrayList;
@@ -11,21 +10,36 @@ import com.github.fmjsjx.libnetty.resp.exception.RespDecoderException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ByteProcessor;
-import io.netty.util.CharsetUtil;
 
+/**
+ * Decodes {@link ByteBuf}s to {@link RedisRequest}s.
+ *
+ * @author fmjsjx
+ */
 public class RedisRequestDecoder extends RespMessageDecoder {
 
     private static final RespDecoderException REDIS_REQUEST_ELEMENTS_ONLY_SUPPORT_BULK_STRINGS = new RespDecoderException(
             "redis request elements only support Bulk Strings");
 
-    private ArrayList<RespBulkStringMessage> bulkStrings;
-
     private final boolean supportInlineCommand;
 
+    protected int arraySize;
+    protected int currentBulkStringLength;
+
+    private ArrayList<RespBulkStringMessage> bulkStrings;
+
+    /**
+     * Constructs a new {@link RedisRequestDecoder}.
+     */
     public RedisRequestDecoder() {
         this(false);
     }
 
+    /**
+     * Constructs a new {@link RedisRequestDecoder}.
+     * 
+     * @param supportInlineCommand
+     */
     public RedisRequestDecoder(boolean supportInlineCommand) {
         this(supportInlineCommand, RespConstants.RESP_INLINE_MESSAGE_MAX_LENGTH);
     }
@@ -40,6 +54,7 @@ public class RedisRequestDecoder extends RespMessageDecoder {
         this.supportInlineCommand = supportInlineCommand;
     }
 
+    @Override
     protected boolean decodeInline(ByteBuf in, List<Object> out) {
         byte typeValue = in.getByte(in.readerIndex());
         if (bulkStrings == null) {
@@ -75,6 +90,24 @@ public class RedisRequestDecoder extends RespMessageDecoder {
             }
         }
         return true;
+    }
+
+    @Override
+    protected void resetDecoder() {
+        super.resetDecoder();
+        bulkStrings = null;
+    }
+
+    private void decodeArrayHeader(ByteBuf inlineBytes, List<Object> out) {
+        int size = decodeArrayHeader(inlineBytes);
+        if (size == 0) {
+            out.add(RespMessages.emptyArray());
+            resetDecoder();
+        } else {
+            arraySize = size;
+            bulkStrings = new ArrayList<>(size);
+            state = State.DECODE_INLINE;
+        }
     }
 
     private void decodeBulkStringLength(ByteBuf inlineBytes, List<Object> out) {
@@ -118,23 +151,6 @@ public class RedisRequestDecoder extends RespMessageDecoder {
             out.add(new RedisRequest(new DefaultArrayMessage(commands)));
         }
         resetDecoder();
-    }
-
-    private int parseLength(ByteBuf byteBuf) {
-        final int readableBytes = byteBuf.readableBytes();
-        final boolean negative = readableBytes > 0 && byteBuf.getByte(byteBuf.readerIndex()) == '-';
-        final int extraOneByteForNegative = negative ? 1 : 0;
-        if (readableBytes <= extraOneByteForNegative) {
-            throw new RespDecoderException("no number to parse: " + byteBuf.toString(CharsetUtil.US_ASCII));
-        }
-        if (readableBytes > POSITIVE_INT_MAX_LENGTH + extraOneByteForNegative) {
-            throw new RespDecoderException(
-                    "too many characters to be a valid RESP Integer: " + byteBuf.toString(CharsetUtil.US_ASCII));
-        }
-        if (negative) {
-            return -parsePostiveInt(byteBuf.skipBytes(extraOneByteForNegative));
-        }
-        return parsePostiveInt(byteBuf);
     }
 
     private void outputRequest(List<Object> out) {

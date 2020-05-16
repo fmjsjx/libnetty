@@ -196,12 +196,12 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
     }
 
     /**
-     * Constructs a {@link DefaultArrayMessage} containing the values of the
-     * specified list.
+     * Constructs a {@link DefaultArrayMessage} containing the specified list
+     * {@code values}.
      * 
      * @param values a {@link RespMessage} list
      */
-    public DefaultArrayMessage(List<? extends RespMessage> values) {
+    DefaultArrayMessage(List<? extends RespMessage> values) {
         this.values = Objects.requireNonNull(values, "values must not be null");
     }
 
@@ -212,8 +212,7 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
      * @param values a {@link RespMessage} collection
      */
     public DefaultArrayMessage(Collection<? extends RespMessage> values) {
-        this((values instanceof List) ? (List<? extends RespMessage>) values
-                : values.stream().collect(Collectors.toList()));
+        this(new ArrayList<>(values));
     }
 
     /**

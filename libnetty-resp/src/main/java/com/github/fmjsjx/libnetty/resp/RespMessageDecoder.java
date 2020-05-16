@@ -1,8 +1,9 @@
 package com.github.fmjsjx.libnetty.resp;
 
-import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
+import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_LENGTH;
+import static com.github.fmjsjx.libnetty.resp.RespConstants.POSITIVE_INT_MAX_LENGTH;
+import static com.github.fmjsjx.libnetty.resp.RespConstants.TYPE_LENGTH;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -13,7 +14,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.util.ByteProcessor;
+import io.netty.util.CharsetUtil;
 
+/**
+ * Decodes {@link ByteBuf}s to {@link RespMessage}s.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public abstract class RespMessageDecoder extends ByteToMessageDecoder {
 
     protected static final RespDecoderException TOO_LONG_BULK_STRING_MESSAGE = new RespDecoderException(
@@ -77,12 +86,7 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
 
     protected State state = State.DECODE_INLINE;
 
-    protected int arraySize;
-    protected int currentBulkStringLength;
-
-    protected ArrayList<RespBulkStringMessage> bulkStrings;
-
-    public RespMessageDecoder(int maxInlineMessageLength, boolean useCompositeCumulator) {
+    protected RespMessageDecoder(int maxInlineMessageLength, boolean useCompositeCumulator) {
         this.maxInlineMessageLength = maxInlineMessageLength;
         if (useCompositeCumulator) {
             setCumulator(COMPOSITE_CUMULATOR);
@@ -121,56 +125,36 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
 
     protected void resetDecoder() {
         state = State.DECODE_INLINE;
-        bulkStrings = null;
     }
 
-    protected boolean decodeInline(ByteBuf in, List<Object> out) {
-        byte typeValue = in.getByte(in.readerIndex());
-        switch (typeValue) {
-        case TYPE_ARRAY:
-            ByteBuf inlineBytes = readLine(in);
-            if (inlineBytes == null) {
-                checkInlineLength(in);
-                return false;
-            }
-            decodeArrayHeader(inlineBytes, out);
-            break;
-        case TYPE_BULK_STRING:
-            // TODO bulk string
-            break;
-        case TYPE_INTEGER:
-            // TODO integer
-            break;
-        case TYPE_SIMPLE_STRING:
-            // TODO simple string
-            break;
-        case TYPE_ERROR:
-            // TODO error
-            break;
-        default:
-            // TODO in-line commands
-            break;
-        }
-        return true;
-    }
+    protected abstract boolean decodeInline(ByteBuf in, List<Object> out);
 
-    protected void decodeArrayHeader(ByteBuf inlineBytes, List<Object> out) {
+    protected int decodeArrayHeader(ByteBuf inlineBytes) {
         requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
-        int size = parsePostiveInt(inlineBytes);
-        if (size == 0) {
-            out.add(RespMessages.emptyArray());
-            resetDecoder();
-        } else {
-            arraySize = size;
-            bulkStrings = new ArrayList<>(size);
-            state = State.DECODE_INLINE;
-        }
+        return parsePostiveInt(inlineBytes);
     }
 
     protected int parsePostiveInt(ByteBuf byteBuf) {
         toPositiveIntProcessor.reset();
         byteBuf.forEachByte(toPositiveIntProcessor);
         return toPositiveIntProcessor.value();
+    }
+
+    protected int parseLength(ByteBuf byteBuf) {
+        final int readableBytes = byteBuf.readableBytes();
+        final boolean negative = readableBytes > 0 && byteBuf.getByte(byteBuf.readerIndex()) == '-';
+        final int extraOneByteForNegative = negative ? 1 : 0;
+        if (readableBytes <= extraOneByteForNegative) {
+            throw new RespDecoderException("no number to parse: " + byteBuf.toString(CharsetUtil.US_ASCII));
+        }
+        if (readableBytes > POSITIVE_INT_MAX_LENGTH + extraOneByteForNegative) {
+            throw new RespDecoderException(
+                    "too many characters to be a valid RESP Integer: " + byteBuf.toString(CharsetUtil.US_ASCII));
+        }
+        if (negative) {
+            return -parsePostiveInt(byteBuf.skipBytes(extraOneByteForNegative));
+        }
+        return parsePostiveInt(byteBuf);
     }
 
     protected abstract boolean decodeBulkStringContent(ByteBuf in, List<Object> out);
