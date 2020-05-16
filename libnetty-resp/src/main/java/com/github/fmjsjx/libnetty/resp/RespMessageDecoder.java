@@ -28,9 +28,6 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
     protected static final RespDecoderException TOO_LONG_BULK_STRING_MESSAGE = new RespDecoderException(
             "too long Bulk String message");
 
-    protected static final RespDecoderException DECODING_OF_INLINE_COMMANDS_DISABLED = new RespDecoderException(
-            "decoding of inline commands is disabled");
-
     protected static final RespDecoderException NO_NUMBER_TO_PARSE = new RespDecoderException("no number to parse");
 
     protected static final void requireReadable(ByteBuf inlineBytes, Supplier<RespDecoderException> errorSupplier) {
@@ -86,11 +83,8 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
 
     protected State state = State.DECODE_INLINE;
 
-    protected RespMessageDecoder(int maxInlineMessageLength, boolean useCompositeCumulator) {
+    protected RespMessageDecoder(int maxInlineMessageLength) {
         this.maxInlineMessageLength = maxInlineMessageLength;
-        if (useCompositeCumulator) {
-            setCumulator(COMPOSITE_CUMULATOR);
-        }
     }
 
     protected void checkInlineLength(ByteBuf inlineBytes) {

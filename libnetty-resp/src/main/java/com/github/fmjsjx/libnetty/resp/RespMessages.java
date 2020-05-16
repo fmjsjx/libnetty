@@ -6,24 +6,56 @@ import java.util.Optional;
 
 import io.netty.buffer.ByteBufAllocator;
 
+/**
+ * Provides static factory method for {@link RespMessage}s.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public class RespMessages {
 
+    /**
+     * Returns {@code +OK}.
+     * 
+     * @return a {@code RespSimpleStringMessage}
+     */
     public static final RespSimpleStringMessage ok() {
         return OK;
     }
 
+    /**
+     * Returns {@code +PONG}.
+     * 
+     * @return a {@code RespSimpleStringMessage}
+     */
     public static final RespSimpleStringMessage pong() {
         return PONG;
     }
 
+    /**
+     * Returns {@code nil}.
+     * 
+     * @return a {@code RespBulkStringMessage}
+     */
     public static final RespBulkStringMessage nil() {
         return NULL;
     }
 
+    /**
+     * Returns {@code :0};
+     * 
+     * @return a {@code RespIntegerMessage}
+     */
     public static final RespIntegerMessage zero() {
         return ZERO;
     }
 
+    /**
+     * Returns {@code :1};
+     * 
+     * @return a {@code RespIntegerMessage}
+     */
     public static final RespIntegerMessage one() {
         return ONE;
     }

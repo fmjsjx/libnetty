@@ -14,43 +14,55 @@ import io.netty.util.ByteProcessor;
 /**
  * Decodes {@link ByteBuf}s to {@link RedisRequest}s.
  *
+ * @since 1.0
+ * 
  * @author fmjsjx
  */
 public class RedisRequestDecoder extends RespMessageDecoder {
+
+    private static final RespDecoderException DECODING_OF_INLINE_COMMANDS_DISABLED = new RespDecoderException(
+            "decoding of inline commands is disabled");
 
     private static final RespDecoderException REDIS_REQUEST_ELEMENTS_ONLY_SUPPORT_BULK_STRINGS = new RespDecoderException(
             "redis request elements only support Bulk Strings");
 
     private final boolean supportInlineCommand;
 
-    protected int arraySize;
-    protected int currentBulkStringLength;
+    private int arraySize;
+    private int currentBulkStringLength;
 
     private ArrayList<RespBulkStringMessage> bulkStrings;
 
     /**
-     * Constructs a new {@link RedisRequestDecoder}.
+     * Constructs a new {@link RedisRequestDecoder} using default
+     * {@code maxInlineMessageLength} ({@code 65536}) and does not support <b>inline
+     * command</b>.
      */
     public RedisRequestDecoder() {
         this(false);
     }
 
     /**
-     * Constructs a new {@link RedisRequestDecoder}.
+     * Constructs a new {@link RedisRequestDecoder} using default
+     * {@code maxInlineMessageLength} ({@code 65536}).
      * 
-     * @param supportInlineCommand
+     * @param supportInlineCommand if {@code true} then this decoder will support
+     *                             <b>inline command</b>
      */
     public RedisRequestDecoder(boolean supportInlineCommand) {
         this(supportInlineCommand, RespConstants.RESP_INLINE_MESSAGE_MAX_LENGTH);
     }
 
+    /**
+     * Constructs a new {@link RedisRequestDecoder} using specified
+     * {@code maxInlineMessageLength}.
+     * 
+     * @param supportInlineCommand   if {@code true} then this decoder will support
+     *                               <b>inline command</b>
+     * @param maxInlineMessageLength the maximum length of the <b>inline message</b>
+     */
     public RedisRequestDecoder(boolean supportInlineCommand, int maxInlineMessageLength) {
-        this(supportInlineCommand, maxInlineMessageLength, false);
-    }
-
-    public RedisRequestDecoder(boolean supportInlineCommand, int maxInlineMessageLength,
-            boolean useCompositeCumulator) {
-        super(maxInlineMessageLength, useCompositeCumulator);
+        super(maxInlineMessageLength);
         this.supportInlineCommand = supportInlineCommand;
     }
 

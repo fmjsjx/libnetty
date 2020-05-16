@@ -5,6 +5,13 @@ import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.AsciiString;
 
+/**
+ * In-package accessible constants of RESP.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 class RespConstants {
 
     static final int TYPE_LENGTH = 1;
@@ -41,7 +48,7 @@ class RespConstants {
     static final byte TYPE_ERROR = '-';
     static final byte TYPE_INTEGER = ':';
 
-    public static final AsciiString ERR = AsciiString.cached("ERR");
+    static final AsciiString ERR = AsciiString.cached("ERR");
 
     private RespConstants() {
     }

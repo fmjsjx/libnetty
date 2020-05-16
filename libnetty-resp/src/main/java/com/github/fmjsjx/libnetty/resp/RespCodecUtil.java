@@ -10,6 +10,13 @@ import io.netty.util.ByteProcessor;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.PlatformDependent;
 
+/**
+ * In-package accessible utility class for RESP CODEC.
+ *
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 class RespCodecUtil {
 
     static byte[] longToAsciiBytes(long value) {
