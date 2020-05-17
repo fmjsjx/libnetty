@@ -14,19 +14,51 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
+/**
+ * The default implementation of {@link RespBulkStringMessage}.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public class DefaultBulkStringMessage extends AbstractContentRespMessage<DefaultBulkStringMessage>
         implements RespBulkStringMessage {
 
+    /**
+     * Creates a new {@link DefaultBulkStringMessage} with the specified value
+     * encoded in {@code UTF-8} character set.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the value encoded in {@code UTF-8}
+     * @return a {@code DefaultBulkStringMessage}
+     */
     public static final DefaultBulkStringMessage createUtf8(ByteBufAllocator alloc, CharSequence value) {
         return new DefaultBulkStringMessage(ByteBufUtil.writeUtf8(alloc, value), null, value.toString(),
                 CharsetUtil.UTF_8, null);
     }
 
+    /**
+     * Creates a new {@link DefaultBulkStringMessage} with the specified value
+     * encoded in {@code UTF-8} character set.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the value encoded in {@code US-ASCII}
+     * @return a {@code DefaultBulkStringMessage}
+     */
     public static final DefaultBulkStringMessage createAscii(ByteBufAllocator alloc, CharSequence value) {
         return new DefaultBulkStringMessage(ByteBufUtil.writeAscii(alloc, value), null, value.toString(),
                 CharsetUtil.US_ASCII, AsciiString.of(value));
     }
 
+    /**
+     * Creates a new {@link DefaultBulkStringMessage} with the specified value
+     * encoded in specified {@link Charset}.
+     * 
+     * @param alloc   the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value   the value
+     * @param charset the {@code Charset} of the value
+     * @return a {@code DefaultBulkStringMessage}
+     */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, CharSequence value, Charset charset) {
         if (charset.equals(CharsetUtil.UTF_8)) {
             return createUtf8(alloc, value);
@@ -37,6 +69,14 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
                 value.toString(), charset, null);
     }
 
+    /**
+     * Creates a new {@link DefaultBulkStringMessage} with the specified integer
+     * value.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the integer value
+     * @return a {@code DefaultBulkStringMessage}
+     */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, int value) {
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
         ByteBuf content = alloc.buffer(bytes.length);
@@ -44,6 +84,13 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
         return new DefaultBulkStringMessage(content, Integer.valueOf(value), null, null, ascii);
     }
 
+    /**
+     * Creates a new {@link DefaultBulkStringMessage} with the specified long value.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the long value
+     * @return a {@code DefaultBulkStringMessage}
+     */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, long value) {
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
         ByteBuf content = alloc.buffer(bytes.length);
@@ -51,6 +98,14 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
         return new DefaultBulkStringMessage(content, Long.valueOf(value), null, null, ascii);
     }
 
+    /**
+     * Creates a new {@link DefaultBulkStringMessage} with the specified double
+     * value.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the double value
+     * @return a {@code DefaultBulkStringMessage}
+     */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, double value) {
         byte[] bytes = RespCodecUtil.doubleToAsciiBytes(value);
         ByteBuf content = alloc.buffer(bytes.length);
@@ -63,6 +118,12 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
     private Charset cachedCharset;
     private AsciiString cachedAscii;
 
+    /**
+     * Constructs a new {@link DefaultBulkStringMessage} with the specified
+     * {@link ByteBuf} content.
+     * 
+     * @param content a {@code ByteBuf}
+     */
     public DefaultBulkStringMessage(ByteBuf content) {
         super(content);
     }
@@ -175,6 +236,11 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
         return cachedAscii;
     }
 
+    /**
+     * Returns the cached {@link Charset}.
+     * 
+     * @return a {@code Charset}.
+     */
     public Charset charset() {
         return cachedCharset;
     }

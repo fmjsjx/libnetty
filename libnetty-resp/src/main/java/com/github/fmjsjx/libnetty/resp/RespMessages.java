@@ -4,6 +4,7 @@ import static com.github.fmjsjx.libnetty.resp.CachedRespMessages.*;
 
 import java.util.Optional;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 
 /**
@@ -60,6 +61,13 @@ public class RespMessages {
         return ONE;
     }
 
+    /**
+     * Returns the {@link RespIntegerMessage} with the specified {@code value}.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the value
+     * @return a {@code RespIntegerMessage}
+     */
     public static final RespIntegerMessage integer(ByteBufAllocator alloc, int value) {
         Optional<CachedIntegerMessage> optionalInteger = cachedIntegerMessage(value);
         if (optionalInteger.isPresent()) {
@@ -69,6 +77,13 @@ public class RespMessages {
         }
     }
 
+    /**
+     * Returns the {@link RespIntegerMessage} with the specified {@code value}.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the value
+     * @return a {@code RespIntegerMessage}
+     */
     public static final RespIntegerMessage integer(ByteBufAllocator alloc, long value) {
         Optional<CachedIntegerMessage> optionalInteger = cachedIntegerMessage(value);
         if (optionalInteger.isPresent()) {
@@ -78,22 +93,65 @@ public class RespMessages {
         }
     }
 
+    /**
+     * Returns the error:
+     * 
+     * <pre>
+     * {@code
+     *     -NOAUTH Authentication required.
+     * }
+     * </pre>
+     * 
+     * @return a {@code RespErrorMessage}
+     */
     public static final RespErrorMessage noauth() {
         return NOAUTH;
     }
 
+    /**
+     * Returns the error:
+     * 
+     * <pre>
+     * {@code
+     *     -ERR value is not an integer or out of range
+     * }
+     * </pre>
+     * 
+     * @return a {@code RespErrorMessage}
+     */
     public static final RespErrorMessage valueIsNotAnIntegerOrOutOfRange() {
         return ERR_VALUE_IS_NOT_AN_INTEGER_OR_OUT_OF_RANGE;
     }
 
+    /**
+     * Returns the error:
+     * 
+     * <pre>
+     * {@code
+     *     -ERR increment or decrement would overflow
+     * }
+     * </pre>
+     * 
+     * @return a {@code RespErrorMessage}
+     */
     public static final RespErrorMessage incrementOrDecrementWouldOverflow() {
         return ERR_INCREMENT_OR_DECREMENT_WOULD_OVERFLOW;
     }
 
+    /**
+     * Returns the empty {@link RespArrayMessage}.
+     * 
+     * @return an empty {@code RespArrayMessage}
+     */
     public static final RespArrayMessage emptyArray() {
         return EMPTY_ARRAY;
     }
 
+    /**
+     * Returns the empty {@link RespBulkStringMessage}.
+     * 
+     * @return an empty {@code RespBulkStringMessage}
+     */
     public static final RespBulkStringMessage emptyBulk() {
         return EMPTY_BULK;
     }

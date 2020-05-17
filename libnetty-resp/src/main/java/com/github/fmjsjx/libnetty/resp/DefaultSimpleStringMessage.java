@@ -9,18 +9,50 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.util.CharsetUtil;
 
+/**
+ * The default implementation of {@link RespSimpleStringMessage}.
+ * 
+ * @since 1.0
+ *
+ * @author fmjsjx
+ */
 public class DefaultSimpleStringMessage extends AbstractContentRespMessage<DefaultSimpleStringMessage>
         implements RespSimpleStringMessage {
 
+    /**
+     * Creates a new {@link DefaultSimpleStringMessage} with the specified
+     * {@code value} encoded in {@code UTF-8} character set.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the value encoded in {@code UTF-8}
+     * @return a {@code DefaultSimpleStringMessage}
+     */
     public static final DefaultSimpleStringMessage createUtf8(ByteBufAllocator alloc, CharSequence value) {
         return new DefaultSimpleStringMessage(ByteBufUtil.writeUtf8(alloc, value), value.toString(), CharsetUtil.UTF_8);
     }
 
+    /**
+     * Creates a new {@link DefaultSimpleStringMessage} with the specified
+     * {@code value} encoded in {@code US-ASCII} character set.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the value encoded in {@code US-ASCII}
+     * @return a {@code DefaultSimpleStringMessage}
+     */
     public static final DefaultSimpleStringMessage createAscii(ByteBufAllocator alloc, CharSequence value) {
         return new DefaultSimpleStringMessage(ByteBufUtil.writeAscii(alloc, value), value.toString(),
                 CharsetUtil.US_ASCII);
     }
 
+    /**
+     * Creates a new {@link DefaultSimpleStringMessage} with the specified
+     * {@code value} encoded in the specified {@link Charset}.
+     * 
+     * @param alloc   the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value   the value
+     * @param charset the {@code Charset} of the value
+     * @return a {@code DefaultSimpleStringMessage}
+     */
     public static final DefaultSimpleStringMessage create(ByteBufAllocator alloc, CharSequence value, Charset charset) {
         return new DefaultSimpleStringMessage(ByteBufUtil.encodeString(alloc, CharBuffer.wrap(value), charset),
                 value.toString(), charset);
