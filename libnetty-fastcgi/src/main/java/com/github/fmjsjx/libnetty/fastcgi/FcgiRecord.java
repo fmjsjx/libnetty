@@ -1,27 +1,27 @@
 package com.github.fmjsjx.libnetty.fastcgi;
 
 /**
- * A {@code Fast-CGI} record.
+ * A FastCGI record.
  * 
  * @since 1.0
  *
  * @author fmjsjx
  */
-public interface FastCGIRecord extends FastCGIObject {
+public interface FcgiRecord extends FcgiObject {
 
     /**
-     * Returns the FastCGI protocol version.
+     * Returns the FastCGI protocol version of this record.
      * 
-     * @return the version number
+     * @return the {@link FcgiVersion}
      */
-    byte version();
+    FcgiVersion protocolVersion();
 
     /**
-     * Returns the type of this record.
+     * Returns the FastCGI record type of this record.
      * 
-     * @return the type number
+     * @return the {@link FcgiRecordType}
      */
-    byte type();
+    FcgiRecordType type();
 
     /**
      * Returns the FastCGI request to which this record belongs.
