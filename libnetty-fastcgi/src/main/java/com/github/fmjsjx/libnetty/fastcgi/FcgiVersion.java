@@ -12,7 +12,7 @@ public class FcgiVersion {
     /**
      * Version {@code 1}.
      */
-    public static final FcgiVersion FCGI_VERSION_1 = new FcgiVersion(1);
+    public static final FcgiVersion VERSION_1 = new FcgiVersion(1);
 
     /**
      * Returns the {@link FcgiVersion} instance representing the specified version.
@@ -22,7 +22,7 @@ public class FcgiVersion {
      */
     public static final FcgiVersion valueOf(int version) {
         if (version == 1) {
-            return FCGI_VERSION_1;
+            return VERSION_1;
         }
         return new FcgiVersion(version);
     }
