@@ -44,4 +44,26 @@ public interface FcgiRecord extends FcgiObject {
      */
     int paddingLength();
 
+    /**
+     * Returns this object as the specified type.
+     * 
+     * @param <T>  the type of this object to be cast
+     * @param type the class of the type
+     * @return this object
+     */
+    default <T extends FcgiRecord> T as(Class<T> type) {
+        return type.cast(this);
+    }
+
+    /**
+     * Returns this object as the specified type.
+     * 
+     * @param <T> the type of this object to be cast
+     * @return this object
+     */
+    @SuppressWarnings("unchecked")
+    default <T extends FcgiRecord> T as() {
+        return (T) this;
+    }
+
 }
