@@ -44,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 @Slf4j
 public class SimpleHttpClient implements HttpClient {
@@ -54,7 +54,7 @@ public class SimpleHttpClient implements HttpClient {
      * 
      * @since 1.0
      * 
-     * @author fmjsjx
+     * @author MJ Fang
      */
     @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Builder {

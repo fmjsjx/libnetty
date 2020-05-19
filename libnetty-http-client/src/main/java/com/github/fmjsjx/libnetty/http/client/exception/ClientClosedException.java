@@ -7,7 +7,7 @@ import com.github.fmjsjx.libnetty.http.client.HttpClient;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class ClientClosedException extends HttpRuntimeException {
 

@@ -9,7 +9,7 @@ import io.netty.handler.codec.DecoderException;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class RespDecoderException extends DecoderException implements Supplier<RespDecoderException> {
 

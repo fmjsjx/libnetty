@@ -11,7 +11,7 @@ import io.netty.channel.ServerChannel;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public interface TransportLibrary {
 

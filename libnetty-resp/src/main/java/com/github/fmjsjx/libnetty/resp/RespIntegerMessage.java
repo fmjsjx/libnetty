@@ -8,7 +8,7 @@ import io.netty.buffer.ByteBuf;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public interface RespIntegerMessage extends RespMessage, RespContent {
 

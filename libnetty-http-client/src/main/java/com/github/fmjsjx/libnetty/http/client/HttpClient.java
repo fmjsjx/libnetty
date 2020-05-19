@@ -32,7 +32,7 @@ import io.netty.util.AsciiString;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public interface HttpClient extends AutoCloseable {
 
@@ -130,7 +130,7 @@ public interface HttpClient extends AutoCloseable {
      * 
      * @since 1.0
      * 
-     * @author fmjsjx
+     * @author MJ Fang
      */
     interface Request {
 
@@ -196,7 +196,7 @@ public interface HttpClient extends AutoCloseable {
      * 
      * @since 1.0
      * 
-     * @author fmjsjx
+     * @author MJ Fang
      */
     @SuppressWarnings("unchecked")
     abstract class RequestBuilder<Self extends RequestBuilder<?>> {
@@ -526,7 +526,7 @@ public interface HttpClient extends AutoCloseable {
      * 
      * @since 1.0
      * 
-     * @author fmjsjx
+     * @author MJ Fang
      */
     interface ClientWrappedRequest extends Request {
 
@@ -651,7 +651,7 @@ public interface HttpClient extends AutoCloseable {
      * 
      * @since 1.0
      * 
-     * @author fmjsjx
+     * @author MJ Fang
      */
     interface Response<T> {
 

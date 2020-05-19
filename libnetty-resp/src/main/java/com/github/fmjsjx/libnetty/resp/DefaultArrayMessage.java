@@ -23,7 +23,7 @@ import io.netty.util.AbstractReferenceCounted;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class DefaultArrayMessage extends AbstractReferenceCounted implements RespArrayMessage {
 

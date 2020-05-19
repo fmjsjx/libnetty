@@ -11,7 +11,7 @@ import io.netty.buffer.UnpooledByteBufAllocator;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class RespMessageType {
 

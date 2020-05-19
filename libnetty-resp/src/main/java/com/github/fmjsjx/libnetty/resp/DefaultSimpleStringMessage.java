@@ -14,7 +14,7 @@ import io.netty.util.CharsetUtil;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class DefaultSimpleStringMessage extends AbstractContentRespMessage<DefaultSimpleStringMessage>
         implements RespSimpleStringMessage {

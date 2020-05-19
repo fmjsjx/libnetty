@@ -12,7 +12,7 @@ import io.netty.channel.kqueue.KQueueServerDomainSocketChannel;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class KQueueDomainTransportLibrary implements TransportLibrary {
 

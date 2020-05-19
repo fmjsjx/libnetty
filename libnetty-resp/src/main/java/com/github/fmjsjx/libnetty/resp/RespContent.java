@@ -15,7 +15,7 @@ import io.netty.util.CharsetUtil;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public interface RespContent extends RespObject, ByteBufHolder {
 

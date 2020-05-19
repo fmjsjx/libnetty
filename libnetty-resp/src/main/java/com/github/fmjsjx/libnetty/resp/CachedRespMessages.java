@@ -11,7 +11,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 @SuppressWarnings("unchecked")
 public class CachedRespMessages {

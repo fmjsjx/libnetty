@@ -16,7 +16,7 @@ import io.netty.util.ByteProcessor;
  *
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class RedisRequestDecoder extends RespMessageDecoder {
 

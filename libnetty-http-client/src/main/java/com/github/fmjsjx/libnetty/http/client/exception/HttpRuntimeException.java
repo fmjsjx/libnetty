@@ -5,7 +5,7 @@ package com.github.fmjsjx.libnetty.http.client.exception;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class HttpRuntimeException extends RuntimeException {
 

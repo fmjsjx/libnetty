@@ -1,10 +1,14 @@
 package com.github.fmjsjx.libnetty.http;
 
 import io.netty.util.AsciiString;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+/**
+ * HTTP header X names.
+ * 
+ * @since 1.0
+ * 
+ * @author MJ Fang
+ */
 public final class HttpHeaderXNames {
 
     /**
@@ -24,4 +28,6 @@ public final class HttpHeaderXNames {
      */
     public static final AsciiString X_REAL_IP = AsciiString.cached("x-real-ip");
 
+    private HttpHeaderXNames() {
+    }
 }

@@ -11,7 +11,7 @@ import io.netty.channel.epoll.EpollSocketChannel;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class EpollTransportLibrary implements TransportLibrary {
 

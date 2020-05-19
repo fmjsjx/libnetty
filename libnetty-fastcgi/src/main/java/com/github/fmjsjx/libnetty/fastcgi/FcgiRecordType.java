@@ -7,7 +7,7 @@ import java.util.stream.Stream;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class FcgiRecordType {
 

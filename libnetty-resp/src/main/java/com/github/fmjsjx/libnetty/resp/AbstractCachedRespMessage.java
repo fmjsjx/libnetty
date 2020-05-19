@@ -16,7 +16,7 @@ import io.netty.buffer.UnpooledByteBufAllocator;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public abstract class AbstractCachedRespMessage<Self extends CachedRespMessage> extends AbstractRespContent<Self>
         implements CachedRespMessage {

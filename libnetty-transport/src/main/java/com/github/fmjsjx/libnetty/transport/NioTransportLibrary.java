@@ -14,7 +14,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class NioTransportLibrary implements TransportLibrary {
 

@@ -5,7 +5,7 @@ package com.github.fmjsjx.libnetty.fastcgi;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public interface FcgiRecord extends FcgiObject {
 

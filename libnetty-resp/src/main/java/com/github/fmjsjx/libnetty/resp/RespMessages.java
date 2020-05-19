@@ -12,7 +12,7 @@ import io.netty.buffer.ByteBufAllocator;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class RespMessages {
 

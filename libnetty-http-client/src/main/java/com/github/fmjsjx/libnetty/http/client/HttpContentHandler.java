@@ -9,7 +9,7 @@ import io.netty.buffer.ByteBuf;
  *
  * @param <T> type of the content
  * 
- * @author fmjsjx
+ * @author MJ Fang
  * 
  * @since 1.0
  */

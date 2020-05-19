@@ -11,7 +11,7 @@ import io.netty.channel.kqueue.KQueueSocketChannel;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class KQueueTransportLibrary implements TransportLibrary {
 

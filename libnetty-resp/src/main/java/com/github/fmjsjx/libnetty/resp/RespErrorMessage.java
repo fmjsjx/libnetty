@@ -11,7 +11,7 @@ import io.netty.util.AsciiString;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public interface RespErrorMessage extends RespMessage, RespContent {
 

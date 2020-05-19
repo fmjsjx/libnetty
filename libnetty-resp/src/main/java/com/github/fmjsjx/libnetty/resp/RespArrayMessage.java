@@ -7,7 +7,7 @@ import java.util.List;
  *
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public interface RespArrayMessage extends RespMessage {
 

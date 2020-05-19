@@ -17,7 +17,7 @@ import io.netty.util.CharsetUtil;
  *
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class DefaultErrorMessage extends AbstractContentRespMessage<DefaultErrorMessage> implements RespErrorMessage {
 

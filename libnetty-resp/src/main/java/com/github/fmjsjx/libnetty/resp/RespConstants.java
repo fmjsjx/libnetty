@@ -10,7 +10,7 @@ import io.netty.util.AsciiString;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 class RespConstants {
 

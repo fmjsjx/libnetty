@@ -12,7 +12,7 @@ import io.netty.channel.epoll.EpollServerDomainSocketChannel;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class EpollDomainTransportLibrary implements TransportLibrary {
 

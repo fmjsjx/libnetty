@@ -15,7 +15,7 @@ import io.netty.util.internal.PlatformDependent;
  *
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 class RespCodecUtil {
 

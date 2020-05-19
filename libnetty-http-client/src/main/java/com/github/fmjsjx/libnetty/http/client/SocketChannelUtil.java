@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SocketChannelUtil {

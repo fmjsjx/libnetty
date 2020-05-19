@@ -19,7 +19,7 @@ import io.netty.util.CharsetUtil;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class DefaultBulkStringMessage extends AbstractContentRespMessage<DefaultBulkStringMessage>
         implements RespBulkStringMessage {

@@ -21,7 +21,7 @@ import io.netty.util.CharsetUtil;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class CachedBulkStringMessage extends AbstractCachedRespMessage<CachedBulkStringMessage>
         implements RespBulkStringMessage {

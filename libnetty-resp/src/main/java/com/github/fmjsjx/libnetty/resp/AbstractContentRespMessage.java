@@ -10,7 +10,7 @@ import io.netty.buffer.ByteBuf;
  *
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public abstract class AbstractContentRespMessage<Self extends RespContent> extends AbstractRespContent<Self>
         implements RespMessage {

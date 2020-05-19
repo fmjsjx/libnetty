@@ -21,7 +21,7 @@ import io.netty.util.AsciiString;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public class CachedNullMessage extends AbstractCachedRespMessage<CachedNullMessage> implements RespBulkStringMessage {
 

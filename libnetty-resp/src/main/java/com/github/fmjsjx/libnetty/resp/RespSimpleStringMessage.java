@@ -10,7 +10,7 @@ import io.netty.buffer.ByteBuf;
  * 
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 public interface RespSimpleStringMessage extends RespMessage, RespContent {
 

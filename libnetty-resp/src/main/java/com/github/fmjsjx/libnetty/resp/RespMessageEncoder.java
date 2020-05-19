@@ -15,7 +15,7 @@ import io.netty.handler.codec.MessageToMessageEncoder;
  *
  * @since 1.0
  *
- * @author fmjsjx
+ * @author MJ Fang
  */
 @Sharable
 public class RespMessageEncoder extends MessageToMessageEncoder<RespMessage> {

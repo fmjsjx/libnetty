@@ -12,7 +12,7 @@ import io.netty.util.ReferenceCounted;
  * 
  * @since 1.0
  * 
- * @author fmjsjx
+ * @author MJ Fang
  */
 public interface RespMessage extends RespObject, ReferenceCounted {
 
