@@ -1,5 +1,7 @@
 package com.github.fmjsjx.libnetty.fastcgi;
 
+import java.util.Objects;
+
 /**
  * The abstract implementation of {@link FcgiRecord}.
  * 
@@ -19,7 +21,7 @@ public abstract class AbstractFcgiRecord implements FcgiRecord {
      * @param requestId       the request id of this record
      */
     protected AbstractFcgiRecord(FcgiVersion protocolVersion, int requestId) {
-        this.protocolVersion = protocolVersion;
+        this.protocolVersion = Objects.requireNonNull(protocolVersion, "protocolVersion must not be null");
         this.requestId = requestId;
     }
 

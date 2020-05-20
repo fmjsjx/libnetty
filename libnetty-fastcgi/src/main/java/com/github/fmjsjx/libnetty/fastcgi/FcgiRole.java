@@ -14,15 +14,15 @@ public class FcgiRole {
     /**
      * {@code FCGI_RESPONDER 1}
      */
-    public static final FcgiRole RESPONDER = new FcgiRole("RESPONDER", 1);
+    public static final FcgiRole RESPONDER = new FcgiRole("FCGI_RESPONDER", 1);
     /**
      * {@code FCGI_AUTHORIZER 2}
      */
-    public static final FcgiRole AUTHORIZER = new FcgiRole("AUTHORIZER", 2);
+    public static final FcgiRole AUTHORIZER = new FcgiRole("FCGI_AUTHORIZER", 2);
     /**
      * {@code FCGI_FILTER 3}
      */
-    public static final FcgiRole FILTER = new FcgiRole("FILTER", 3);
+    public static final FcgiRole FILTER = new FcgiRole("FCGI_FILTER", 3);
 
     private static final Optional<FcgiRole> R1 = Optional.of(RESPONDER);
     private static final Optional<FcgiRole> R2 = Optional.of(AUTHORIZER);
