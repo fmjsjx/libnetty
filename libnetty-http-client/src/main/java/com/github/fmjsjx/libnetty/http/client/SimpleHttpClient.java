@@ -251,7 +251,8 @@ public class SimpleHttpClient implements HttpClient {
             Executor executor) {
         URI uri = request.uri();
         boolean ssl = "https".equals(uri.getScheme());
-        int port = uri.getPort() == -1 ? (ssl ? 443 : 80) : uri.getPort();
+        boolean defaultPort = uri.getPort() == -1;
+        int port = defaultPort ? (ssl ? 443 : 80) : uri.getPort();
         String host = uri.getHost();
         InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
         CompletableFuture<Response<T>> future = new CompletableFuture<>();
@@ -269,15 +270,17 @@ public class SimpleHttpClient implements HttpClient {
                         cp.addLast(new SimpleHttpClientHandler<>(future, contentHandler, executor));
                     }
                 });
-        String path = uri.getPath();
+        String path = uri.getRawPath();
+        String query = uri.getRawQuery();
+        String requestUri = query == null ? path : path + "?" + query;
         b.connect(address).addListener((ChannelFuture cf) -> {
             if (cf.isDone()) {
                 if (cf.isSuccess()) {
                     HttpHeaders headers = request.headers();
                     ByteBuf content = request.content();
                     DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, request.method(),
-                            path, content, headers, request.trailingHeaders());
-                    headers.set(HOST, host);
+                            requestUri, content, headers, request.trailingHeaders());
+                    headers.set(HOST, defaultPort ? host : host + ":" + port);
                     int contentLength = content.readableBytes();
                     if (contentLength > 0) {
                         headers.setInt(CONTENT_LENGTH, contentLength);
