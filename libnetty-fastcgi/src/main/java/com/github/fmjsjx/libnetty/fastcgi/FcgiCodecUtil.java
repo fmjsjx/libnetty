@@ -19,29 +19,34 @@ class FcgiCodecUtil {
         out.writeByte(record.paddingLength());
         out.writeZero(1);
     }
-    
+
     static final int getVersion(ByteBuf buf) {
         return buf.getByte(0);
     }
-    
+
     static final int getType(ByteBuf buf) {
         return buf.getByte(1);
     }
-    
+
     static final int getRequestId(ByteBuf buf) {
         return buf.getUnsignedShort(2);
     }
-    
+
     static final int getContentLength(ByteBuf buf) {
         return buf.getUnsignedShort(3);
     }
-    
+
     static final int getPaddingLength(ByteBuf buf) {
         return buf.getUnsignedByte(5);
     }
-    
+
     static final int getDataLength(ByteBuf buf) {
         return getContentLength(buf) + getPaddingLength(buf);
+    }
+
+    static final int calculatePaddingLength(int contentLength) {
+        int r8 = contentLength % 8;
+        return r8 != 0 ? 8 - r8 : 0;
     }
 
     private FcgiCodecUtil() {
