@@ -44,11 +44,11 @@ public abstract class AbstractFcgiRecord implements FcgiRecord {
     }
 
     protected void bodyToString(StringBuilder builder) {
-        builder.append(bodyToString());
+        builder.append('"').append(bodyToString()).append('"');
     }
 
     protected String bodyToString() {
-        return "\"\"";
+        return "";
     }
 
 }

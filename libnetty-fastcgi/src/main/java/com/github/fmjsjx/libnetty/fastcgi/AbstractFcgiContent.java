@@ -3,6 +3,7 @@ package com.github.fmjsjx.libnetty.fastcgi;
 import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.CharsetUtil;
 
 /**
  * The abstract implementation of {@link FcgiContent}.
@@ -24,6 +25,11 @@ public abstract class AbstractFcgiContent<Self extends AbstractFcgiContent<?>> e
     @Override
     public ByteBuf content() {
         return content;
+    }
+
+    @Override
+    protected String bodyToString() {
+        return content.toString(CharsetUtil.UTF_8);
     }
 
     @Override
