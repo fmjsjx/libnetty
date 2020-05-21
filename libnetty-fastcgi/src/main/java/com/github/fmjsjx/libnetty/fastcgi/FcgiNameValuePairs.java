@@ -246,8 +246,7 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
             } else {
                 hasValue = true;
             }
-            builder.append("(\"").append(pair.name().replace("\"", "\\\"")).append("\", \"")
-                    .append(pair.value().replace("\"", "\\\"")).append("\")");
+            builder.append("(\"").append(pair.name).append("\", \"").append(pair.value).append("\")");
         }
         builder.append('}');
     }
