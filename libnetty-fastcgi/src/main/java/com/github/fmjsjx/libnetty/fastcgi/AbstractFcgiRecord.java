@@ -11,8 +11,8 @@ import java.util.Objects;
  */
 public abstract class AbstractFcgiRecord implements FcgiRecord {
 
-    private final FcgiVersion protocolVersion;
-    private final int requestId;
+    protected final FcgiVersion protocolVersion;
+    protected final int requestId;
 
     /**
      * Constants a new instance.
