@@ -132,12 +132,8 @@ public class FcgiBeginRequest extends AbstractFcgiRecord {
     }
 
     @Override
-    public String toString() {
-        return "{FCGI_BEGIN_REQUEST, " + requestId() + ", {" + role.name() + ", " + flagsToString() + "}}";
-    }
-
-    private String flagsToString() {
-        return isKeepConn() ? "FCGI_KEEP_CONN" : "0";
+    protected void bodyToString(StringBuilder builder) {
+        builder.append('{').append(role.name()).append(", ").append(isKeepConn() ? "FCGI_KEEP_CONN" : "0").append('}');
     }
 
 }

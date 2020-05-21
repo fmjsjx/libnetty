@@ -16,48 +16,48 @@ public class FcgiRecordType {
     /**
      * {@code FCGI_BEGIN_REQUEST 1}
      */
-    public static final FcgiRecordType BEGIN_REQUEST = new FcgiRecordType("BEGIN_REQUEST", FCGI_BEGIN_REQUEST);
+    public static final FcgiRecordType BEGIN_REQUEST = new FcgiRecordType("FCGI_BEGIN_REQUEST", FCGI_BEGIN_REQUEST);
     /**
      * {@code FCGI_ABORT_REQUEST 2}
      */
-    public static final FcgiRecordType ABORT_REQUEST = new FcgiRecordType("ABORT_REQUEST", FCGI_ABORT_REQUEST);
+    public static final FcgiRecordType ABORT_REQUEST = new FcgiRecordType("FCGI_ABORT_REQUEST", FCGI_ABORT_REQUEST);
     /**
      * {@code FCGI_END_REQUEST 3}
      */
-    public static final FcgiRecordType END_REQUEST = new FcgiRecordType("END_REQUEST", FCGI_END_REQUEST);
+    public static final FcgiRecordType END_REQUEST = new FcgiRecordType("FCGI_END_REQUEST", FCGI_END_REQUEST);
     /**
      * {@code FCGI_PARAMS 4}
      */
-    public static final FcgiRecordType PARAMS = new FcgiRecordType("PARAMS", FCGI_PARAMS);
+    public static final FcgiRecordType PARAMS = new FcgiRecordType("FCGI_PARAMS", FCGI_PARAMS);
     /**
      * {@code FCGI_STDIN 5}
      */
-    public static final FcgiRecordType STDIN = new FcgiRecordType("STDIN", FCGI_STDIN);
+    public static final FcgiRecordType STDIN = new FcgiRecordType("FCGI_STDIN", FCGI_STDIN);
     /**
      * {@code FCGI_STDOUT 6}
      */
-    public static final FcgiRecordType STDOUT = new FcgiRecordType("STDOUT", FCGI_STDOUT);
+    public static final FcgiRecordType STDOUT = new FcgiRecordType("FCGI_STDOUT", FCGI_STDOUT);
     /**
      * {@code FCGI_STDERR 7}
      */
-    public static final FcgiRecordType STDERR = new FcgiRecordType("STDERR", FCGI_STDERR);
+    public static final FcgiRecordType STDERR = new FcgiRecordType("FCGI_STDERR", FCGI_STDERR);
     /**
      * {@code FCGI_DATA 8}
      */
-    public static final FcgiRecordType DATA = new FcgiRecordType("DATA", FCGI_DATA);
+    public static final FcgiRecordType DATA = new FcgiRecordType("FCGI_DATA", FCGI_DATA);
     /**
      * {@code FCGI_GET_VALUES 9}
      */
-    public static final FcgiRecordType GET_VALUES = new FcgiRecordType("GET_VALUES", FCGI_GET_VALUES);
+    public static final FcgiRecordType GET_VALUES = new FcgiRecordType("FCGI_GET_VALUES", FCGI_GET_VALUES);
     /**
      * {@code FCGI_GET_VALUES_RESULT 10}
      */
-    public static final FcgiRecordType GET_VALUES_RESULT = new FcgiRecordType("GET_VALUES_RESULT",
+    public static final FcgiRecordType GET_VALUES_RESULT = new FcgiRecordType("FCGI_GET_VALUES_RESULT",
             FCGI_GET_VALUES_RESULT);
     /**
      * {@code FCGI_UNKNOWN_TYPE 11}
      */
-    public static final FcgiRecordType UNKNOWN_TYPE = new FcgiRecordType("UNKNOWN_TYPE", FCGI_UNKNOWN_TYPE);
+    public static final FcgiRecordType UNKNOWN_TYPE = new FcgiRecordType("FCGI_UNKNOWN_TYPE", FCGI_UNKNOWN_TYPE);
 
     private static final FcgiRecordType[] values;
 
@@ -76,7 +76,7 @@ public class FcgiRecordType {
         if (type > 0 && type < values.length) {
             return values[type];
         }
-        return new FcgiRecordType("UNKNOWN_TYPE", type, true);
+        return new FcgiRecordType("FCGI_UNKNOWN_TYPE", type, true);
     }
 
     private final String name;

@@ -53,6 +53,30 @@ class FcgiCodecUtil {
         return r8 != 0 ? 8 - r8 : 0;
     }
 
+    static final int calculateNameValuePairLength(byte[] name, byte[] value) {
+        return calculateVariableLengthSize(name.length) + calculateVariableLengthSize(value.length) + name.length
+                + value.length;
+    }
+
+    static final int calculateVariableLengthSize(int length) {
+        return length < (1 << 7) ? 1 : 4;
+    }
+
+    static final void encodeNameValuePair(byte[] name, byte[] value, ByteBuf out) {
+        encodeVariableLength(name.length, out);
+        encodeVariableLength(value.length, out);
+        out.writeBytes(name);
+        out.writeBytes(value);
+    }
+
+    static final void encodeVariableLength(int length, ByteBuf out) {
+        if (length < (1 << 7)) {
+            out.writeByte(length);
+        } else {
+            out.writeInt(length | (1 << 31));
+        }
+    }
+
     private FcgiCodecUtil() {
     }
 

@@ -1,12 +1,14 @@
 package com.github.fmjsjx.libnetty.fastcgi;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * The abstract implementation of {@code FastCGI Name-Value Pairs}.
@@ -17,15 +19,20 @@ import java.util.function.BiConsumer;
  */
 public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> extends AbstractFcgiRecord {
 
-    protected final Map<String, String> pairs;
+    protected final LinkedHashMap<String, NameValuePair> pairs = new LinkedHashMap<>();
 
     protected FcgiNameValuePairs(FcgiVersion protocolVersion, int requestId) {
-        this(protocolVersion, requestId, new LinkedHashMap<String, String>());
+        super(protocolVersion, requestId);
     }
 
-    protected FcgiNameValuePairs(FcgiVersion protocolVersion, int requestId, Map<String, String> pairs) {
-        super(protocolVersion, requestId);
-        this.pairs = pairs;
+    /**
+     * Performs the given action for each {@code Name-Value Pair} in this
+     * {@link FcgiNameValuePairs}.
+     * 
+     * @param action the action to be performed
+     */
+    public void forEach(Consumer<NameValuePair> action) {
+        pairs.values().forEach(action);
     }
 
     /**
@@ -35,7 +42,7 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
      * @param action the action to be performed
      */
     public void forEach(BiConsumer<String, String> action) {
-        pairs.forEach(action);
+        forEach(p -> action.accept(p.name, p.value));
     }
 
     /**
@@ -45,10 +52,19 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
      * @param value the value of the pair
      * @return this instance
      */
-    @SuppressWarnings("unchecked")
     public Self put(String name, Object value) {
-        Objects.requireNonNull(value, "value must not be null");
-        pairs.put(name, value.toString());
+        return put(new NameValuePair(name, value));
+    }
+
+    /**
+     * Put a {@code Name-Value Pair}.
+     * 
+     * @param pair the pair
+     * @return this instance
+     */
+    @SuppressWarnings("unchecked")
+    public Self put(NameValuePair pair) {
+        pairs.put(pair.name(), pair);
         return (Self) this;
     }
 
@@ -57,11 +73,20 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
      * {@link FcgiNameValuePairs} if present.
      * 
      * @param name the name of the pair
-     * @return the previous value of the pair with {@code name}, or {@code null} if
-     *         there was pair for {@code name}.
+     * @return an {@code Optional<NameValuePair>}
      */
-    public String remove(String name) {
-        return pairs.remove(name);
+    public Optional<NameValuePair> remove(String name) {
+        return Optional.ofNullable(pairs.remove(name));
+    }
+
+    /**
+     * Returns the {@code Name-Value Pair} with the specified {@code name}.
+     * 
+     * @param name the name of the pair
+     * @return an {@code Optional<NameValuePair>}
+     */
+    public Optional<NameValuePair> get(String name) {
+        return Optional.ofNullable(pairs.get(name));
     }
 
     /**
@@ -71,8 +96,8 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
      * @param name the name of the pair
      * @return an {@code Optional<String>}
      */
-    public Optional<String> get(String name) {
-        return Optional.ofNullable(pairs.get(name));
+    public Optional<String> getValue(String name) {
+        return get(name).map(NameValuePair::value);
     }
 
     /**
@@ -84,11 +109,11 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
      * @throws NumberFormatException if the value can't be parsed to {@code int}
      */
     public OptionalInt getInt(String name) throws NumberFormatException {
-        String value = pairs.get(name);
-        if (value == null) {
+        NameValuePair pair = pairs.get(name);
+        if (pair == null) {
             return OptionalInt.empty();
         }
-        return OptionalInt.of(Integer.parseInt(value));
+        return OptionalInt.of(pair.intValue());
     }
 
     /**
@@ -100,11 +125,11 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
      * @throws NumberFormatException if the value can't be parsed to {@code long}
      */
     public OptionalLong getLong(String name) throws NumberFormatException {
-        String value = pairs.get(name);
-        if (value == null) {
+        NameValuePair pair = pairs.get(name);
+        if (pair == null) {
             return OptionalLong.empty();
         }
-        return OptionalLong.of(Long.parseLong(value));
+        return OptionalLong.of(pair.longValue());
     }
 
     /**
@@ -114,6 +139,101 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
      */
     public Iterable<String> names() {
         return pairs.keySet();
+    }
+
+    /**
+     * Returns the number of pairs in this {@link FcgiNameValuePairs}.
+     * 
+     * @return the number of pairs
+     */
+    public int size() {
+        return pairs.size();
+    }
+
+    /**
+     * Returns an unmodifiable collection of pairs in this
+     * {@link FcgiNameValuePairs}.
+     * 
+     * @return an {@code unmodifiable} collection
+     */
+    public Collection<NameValuePair> pairs() {
+        return Collections.unmodifiableCollection(pairs.values());
+    }
+
+    /**
+     * A Name-Value Pair.
+     * 
+     * @since 1.0
+     *
+     * @author MJ Fang
+     */
+    public static final class NameValuePair {
+
+        private final String name;
+        private final String value;
+
+        protected NameValuePair(String name, Object value) {
+            this.name = Objects.requireNonNull(name, "name must not be null");
+            this.value = Objects.requireNonNull(value, "value must not be null").toString();
+        }
+
+        protected NameValuePair(String name, String value) {
+            this.name = Objects.requireNonNull(name, "name must not be null");
+            this.value = Objects.requireNonNull(value, "value must not be null");
+        }
+
+        /**
+         * Returns the name of this pair.
+         * 
+         * @return the name of this pair
+         */
+        public String name() {
+            return name;
+        }
+
+        /**
+         * Returns the value of this pair.
+         * 
+         * @return the value of this pair
+         */
+        public String value() {
+            return value;
+        }
+
+        /**
+         * Returns the {@code int} value of this pair.
+         * 
+         * @return the value of this pair as {@code int} type
+         * @throws NumberFormatException if the value can't be parsed to {@code int}
+         */
+        public int intValue() throws NumberFormatException {
+            return Integer.parseInt(value);
+        }
+
+        /**
+         * Returns the {@code long} value of this pair.
+         * 
+         * @return the value of this pair as {@code long} type
+         * @throws NumberFormatException if the value can't be parsed to {@code long}
+         */
+        public long longValue() throws NumberFormatException {
+            return Long.parseLong(value);
+        }
+
+        @Override
+        public int hashCode() {
+            return name.hashCode() ^ value.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof NameValuePair) {
+                NameValuePair other = (NameValuePair) obj;
+                return name.equals(other.name) && value.equals(other.value);
+            }
+            return false;
+        }
+
     }
 
 }

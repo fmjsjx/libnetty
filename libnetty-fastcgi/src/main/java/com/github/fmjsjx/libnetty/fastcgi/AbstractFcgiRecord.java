@@ -35,4 +35,20 @@ public abstract class AbstractFcgiRecord implements FcgiRecord {
         return requestId;
     }
 
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder().append('{').append(type().name()).append(", ").append(requestId())
+                .append(", ");
+        bodyToString(builder);
+        return builder.append('}').toString();
+    }
+
+    protected void bodyToString(StringBuilder builder) {
+        builder.append(bodyToString());
+    }
+
+    protected String bodyToString() {
+        return "\"\"";
+    }
+
 }
