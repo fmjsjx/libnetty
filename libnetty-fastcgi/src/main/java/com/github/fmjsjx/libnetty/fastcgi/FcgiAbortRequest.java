@@ -7,7 +7,7 @@ package com.github.fmjsjx.libnetty.fastcgi;
  *
  * @author MJ Fang
  */
-public class FcgiAbortRequest extends AbstractFcgiRecord {
+public class FcgiAbortRequest extends AbstractFcgiRecord implements FcgiMessage {
 
     /**
      * Constructs a new {@link FcgiAbortRequest} instance.

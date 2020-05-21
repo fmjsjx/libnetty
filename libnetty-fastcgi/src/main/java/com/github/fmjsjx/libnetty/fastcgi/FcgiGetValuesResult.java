@@ -7,7 +7,7 @@ package com.github.fmjsjx.libnetty.fastcgi;
  *
  * @author MJ Fang
  */
-public class FcgiGetValuesResult extends FcgiNameValuePairs<FcgiGetValuesResult> {
+public class FcgiGetValuesResult extends FcgiNameValuePairs<FcgiGetValuesResult> implements FcgiMessage {
 
     /**
      * Constructs a new {@link FcgiGetValuesResult} instance.

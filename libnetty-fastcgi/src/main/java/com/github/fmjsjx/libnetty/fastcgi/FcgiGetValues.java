@@ -11,7 +11,7 @@ import java.util.LinkedHashSet;
  *
  * @author MJ Fang
  */
-public class FcgiGetValues extends AbstractFcgiRecord {
+public class FcgiGetValues extends AbstractFcgiRecord implements FcgiMessage {
 
     /**
      * {@code FCGI_MAX_CONNS}

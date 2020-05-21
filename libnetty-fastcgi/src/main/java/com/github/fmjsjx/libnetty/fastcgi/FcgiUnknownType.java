@@ -7,7 +7,7 @@ package com.github.fmjsjx.libnetty.fastcgi;
  *
  * @author MJ Fang
  */
-public class FcgiUnknownType extends AbstractFcgiRecord {
+public class FcgiUnknownType extends AbstractFcgiRecord implements FcgiMessage {
 
     private final int type;
 
