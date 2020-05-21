@@ -3,7 +3,7 @@ package com.github.fmjsjx.libnetty.fastcgi;
 import java.util.Optional;
 
 /**
- * A FastCGI Role.
+ * A FastCGI role.
  * 
  * @since 1.0
  *
@@ -73,7 +73,7 @@ public class FcgiRole {
 
     @Override
     public String toString() {
-        return "FcgiRole(" + name + "," + role + ")";
+        return "FcgiRole(" + name + ", " + role + ")";
     }
 
 }

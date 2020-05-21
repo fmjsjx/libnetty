@@ -135,7 +135,7 @@ public class FcgiRecordType {
 
     @Override
     public String toString() {
-        return "FcgiRecordType(" + name + "," + type + ")";
+        return "FcgiRecordType(" + name + ", " + type + (isUnknown() ? "UNKNOWN" : "") + ")";
     }
 
 }
