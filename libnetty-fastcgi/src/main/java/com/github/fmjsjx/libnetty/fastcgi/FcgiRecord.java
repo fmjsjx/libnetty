@@ -35,14 +35,18 @@ public interface FcgiRecord extends FcgiObject {
      * 
      * @return the length of the content data
      */
-    int contentLength();
+    default int contentLength() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Returns the number of bytes in the padding data component of this record.
      * 
      * @return the length of the padding data
      */
-    int paddingLength();
+    default int paddingLength() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Returns this object as the specified type.
