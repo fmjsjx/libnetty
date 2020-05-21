@@ -12,16 +12,24 @@ import io.netty.buffer.ByteBuf;
 class FcgiCodecUtil {
 
     static final void encodeRecordHeader(FcgiRecord record, ByteBuf out) {
-        encodeHeaderWithoutLengths(record, out);
-        out.writeShort(record.contentLength());
-        out.writeByte(record.paddingLength());
-        out.writeZero(1);
+        encodeRecordHeaderWithoutLengths(record, out);
+        encodeRecordHeaderLengths(record.contentLength(), record.paddingLength(), out);
     }
 
-    static void encodeHeaderWithoutLengths(FcgiRecord record, ByteBuf out) {
+    static void encodeRecordHeaderWithoutLengths(FcgiRecord record, ByteBuf out) {
         out.writeByte(record.protocolVersion().version());
         out.writeByte(record.type().type());
         out.writeShort(record.requestId());
+    }
+
+    static void encodeRecordHeaderLengths(int contentLength, int paddingLength, ByteBuf out) {
+        out.writeShort(contentLength);
+        out.writeByte(paddingLength);
+        out.writeZero(1);
+    }
+
+    static void encodeRecordHeaderLengths(int contentLength, ByteBuf out) {
+        encodeRecordHeaderLengths(contentLength, calculatePaddingLength(contentLength), out);
     }
 
     static final int getVersion(ByteBuf buf) {
