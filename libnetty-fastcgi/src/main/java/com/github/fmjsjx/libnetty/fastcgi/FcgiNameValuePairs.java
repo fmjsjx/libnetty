@@ -236,4 +236,20 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
 
     }
 
+    @Override
+    protected void bodyToString(StringBuilder builder) {
+        builder.append('{');
+        boolean hasValue = false;
+        for (NameValuePair pair : pairs()) {
+            if (hasValue) {
+                builder.append(", ");
+            } else {
+                hasValue = true;
+            }
+            builder.append("(\"").append(pair.name().replace("\"", "\\\"")).append("\", \"")
+                    .append(pair.value().replace("\"", "\\\"")).append("\")");
+        }
+        builder.append('}');
+    }
+
 }
