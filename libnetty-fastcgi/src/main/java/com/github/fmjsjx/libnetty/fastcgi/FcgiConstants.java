@@ -75,6 +75,11 @@ final class FcgiConstants {
      */
     static final byte FCGI_KEEP_CONN = 1;
 
+    /**
+     * Empty value bytes.
+     */
+    static final byte[] EMPTY_VALUE = new byte[0];
+
     private FcgiConstants() {
     }
 

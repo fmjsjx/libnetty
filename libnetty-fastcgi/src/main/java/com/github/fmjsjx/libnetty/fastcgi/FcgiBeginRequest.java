@@ -69,6 +69,15 @@ public class FcgiBeginRequest extends AbstractFcgiRecord {
     }
 
     /**
+     * Returns the number of {@code flags}.
+     * 
+     * @return the number of {@code flags}
+     */
+    public int flags() {
+        return flags;
+    }
+
+    /**
      * Returns {@code true} if the flags of this {@link FcgiBeginRequest} contains
      * the specified {@code flag}.
      * 
