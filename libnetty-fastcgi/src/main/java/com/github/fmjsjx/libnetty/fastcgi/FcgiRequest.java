@@ -23,7 +23,7 @@ public class FcgiRequest extends AbstractReferenceCounted implements FcgiMessage
     private final Optional<FcgiData> data;
 
     /**
-     * Constructs a new {@link FcgiRequest} instance with {@code responder} role.
+     * Constructs a new {@link FcgiRequest} instance with {@code FCGI_RESPONDER} role.
      * 
      * @param protocolVersion the {@code FcgiVersion}
      * @param requestId       the request id
