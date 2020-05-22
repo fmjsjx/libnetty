@@ -1,14 +1,14 @@
 package com.github.fmjsjx.libnetty.fastcgi;
 
-import static com.github.fmjsjx.libnetty.fastcgi.FcgiConstants.*;
+import static com.github.fmjsjx.libnetty.fastcgi.FcgiConstants.EMPTY_VALUE;
+import static com.github.fmjsjx.libnetty.fastcgi.FcgiConstants.FCGI_HEADER_LEN;
+import static com.github.fmjsjx.libnetty.fastcgi.FcgiConstants.FCGI_MAX_CONTENT_LENGTH;
 
 import java.util.List;
 
 import com.github.fmjsjx.libnetty.fastcgi.FcgiNameValuePairs.NameValuePair;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageEncoder;
@@ -26,33 +26,6 @@ import io.netty.util.CharsetUtil;
  */
 @Sharable
 public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
-
-    private static final ByteBuf[] paddingBufs = new ByteBuf[256];
-
-    private static final ByteBuf createPaddingBuf(int paddingLength) {
-        return Unpooled.unreleasableBuffer(
-                ByteBufAllocator.DEFAULT.buffer(paddingLength, paddingLength).writeZero(paddingLength).asReadOnly());
-    }
-
-    static {
-        paddingBufs[0] = Unpooled.EMPTY_BUFFER; // 0
-        for (int i = 1; i < 8; i++) {
-            paddingBufs[i] = createPaddingBuf(i);
-        }
-    }
-
-    private static final ByteBuf paddingBuf(int paddingLength) {
-        ByteBuf buf = paddingBufs[paddingLength];
-        if (buf == null) {
-            synchronized (paddingBufs) {
-                buf = paddingBufs[paddingLength];
-                if (buf == null) {
-                    paddingBufs[paddingLength] = buf = createPaddingBuf(paddingLength);
-                }
-            }
-        }
-        return buf;
-    }
 
     @Override
     protected void encode(ChannelHandlerContext ctx, FcgiMessage msg, List<Object> out) throws Exception {
@@ -77,9 +50,12 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         encodeFcgiRecord(msg.beginRequest(), buf);
         encodeFcgiRecord(msg.params(), buf);
         // encode FCGI_STDIN
-        FcgiStdin stdin = msg.stdin();
-        FcgiCodecUtil.encodeRecordHeader(stdin, buf);
-        // TODO
+        boolean hasData = msg.data().isPresent();
+        buf = encodeFcgiContent(ctx, msg.stdin(), buf, out, hasData);
+        if (hasData) {
+            // encode FCGI_DATA
+            buf = encodeFcgiContent(ctx, msg.data().get(), buf, out, false);
+        }
         out.add(buf);
     }
 
@@ -123,6 +99,40 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         // last FCGI_PARAMS record (empty)
         FcgiCodecUtil.encodeRecordHeaderWithoutLengths(params, buf);
         FcgiCodecUtil.encodeRecordHeaderLengths(0, 0, buf);
+    }
+
+    private static final ByteBuf encodeFcgiContent(ChannelHandlerContext ctx, FcgiContent msg, ByteBuf buf,
+            List<Object> out, boolean hasNext) throws Exception {
+        int contentLength = msg.contentLength();
+        if (contentLength > 0) {
+            for (; contentLength > FCGI_MAX_CONTENT_LENGTH;) {
+                FcgiCodecUtil.encodeRecordHeaderWithoutLengths(msg, buf);
+                FcgiCodecUtil.encodeRecordHeaderLengths(FCGI_MAX_CONTENT_LENGTH, 1, buf);
+                out.add(buf);
+                out.add(msg.content().readRetainedSlice(FCGI_MAX_CONTENT_LENGTH));
+                int capacity = 1 + FCGI_HEADER_LEN;
+                buf = ctx.alloc().buffer(capacity, capacity);
+                buf.writeZero(1); // write padding zero
+                contentLength -= FCGI_MAX_CONTENT_LENGTH;
+            }
+            FcgiCodecUtil.encodeRecordHeaderWithoutLengths(msg, buf);
+            int paddingLength = FcgiCodecUtil.calculatePaddingLength(contentLength);
+            FcgiCodecUtil.encodeRecordHeaderLengths(contentLength, paddingLength, buf);
+            out.add(buf);
+            out.add(msg.content());
+            int capacity = paddingLength + FCGI_HEADER_LEN;
+            if (hasNext) {
+                capacity += FCGI_HEADER_LEN;
+            }
+            buf = ctx.alloc().buffer(capacity, capacity);
+            buf.writeZero(paddingLength);
+            // write last content stream
+            FcgiCodecUtil.encodeRecordHeaderWithoutLengths(msg, buf);
+            FcgiCodecUtil.encodeRecordHeaderLengths(0, 0, buf);
+        } else {
+            FcgiCodecUtil.encodeRecordHeader(msg, buf);
+        }
+        return buf;
     }
 
     private static final void encode(ChannelHandlerContext ctx, FcgiResponse msg, List<Object> out) throws Exception {
