@@ -51,10 +51,10 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         encodeFcgiRecord(msg.params(), buf);
         // encode FCGI_STDIN
         boolean hasData = msg.data().isPresent();
-        buf = encodeFcgiContent(ctx, msg.stdin(), buf, out, hasData);
+        buf = encodeFcgiContent(ctx, msg.stdin(), buf, out, hasData ? FCGI_HEADER_LEN : 0);
         if (hasData) {
             // encode FCGI_DATA
-            buf = encodeFcgiContent(ctx, msg.data().get(), buf, out, false);
+            buf = encodeFcgiContent(ctx, msg.data().get(), buf, out, 0);
         }
         out.add(buf);
     }
@@ -102,7 +102,7 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
     }
 
     private static final ByteBuf encodeFcgiContent(ChannelHandlerContext ctx, FcgiContent msg, ByteBuf buf,
-            List<Object> out, boolean hasNext) throws Exception {
+            List<Object> out, int nextLength) throws Exception {
         int contentLength = msg.contentLength();
         if (contentLength > 0) {
             for (; contentLength > FCGI_MAX_CONTENT_LENGTH;) {
@@ -120,10 +120,7 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
             FcgiCodecUtil.encodeRecordHeaderLengths(contentLength, paddingLength, buf);
             out.add(buf);
             out.add(msg.content());
-            int capacity = paddingLength + FCGI_HEADER_LEN;
-            if (hasNext) {
-                capacity += FCGI_HEADER_LEN;
-            }
+            int capacity = paddingLength + FCGI_HEADER_LEN + nextLength;
             buf = ctx.alloc().buffer(capacity, capacity);
             buf.writeZero(paddingLength);
             // write last content stream
@@ -136,7 +133,24 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
     }
 
     private static final void encode(ChannelHandlerContext ctx, FcgiResponse msg, List<Object> out) throws Exception {
-        // TODO
+        ByteBuf buf = ctx.alloc().buffer();
+        // encode FCGI_STDOUT
+        boolean hasStderr = msg.stderr().isPresent();
+        buf = encodeFcgiContent(ctx, msg.stdout(), buf, out, hasStderr ? FCGI_HEADER_LEN : FCGI_HEADER_LEN + 8);
+        if (hasStderr) {
+            // encode FCGI_STDERR
+            buf = encodeFcgiContent(ctx, msg.stderr().get(), buf, out, FCGI_HEADER_LEN + 8);
+        }
+        FcgiEndRequest endRequest = msg.endRequest();
+        encodeFcgiRecord(endRequest, buf);
+        out.add(buf);
+    }
+
+    private static final void encodeFcgiRecord(FcgiEndRequest endRequest, ByteBuf buf) {
+        FcgiCodecUtil.encodeRecordHeader(endRequest, buf);
+        buf.writeInt(endRequest.appStatus());
+        buf.writeByte(endRequest.protocolStatus().status());
+        buf.writeZero(endRequest.paddingLength());
     }
 
     private static final void encode(ChannelHandlerContext ctx, FcgiAbortRequest msg, List<Object> out)
