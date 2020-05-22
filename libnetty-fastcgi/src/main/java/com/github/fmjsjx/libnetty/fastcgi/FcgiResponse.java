@@ -72,20 +72,12 @@ public class FcgiResponse extends AbstractReferenceCounted implements FcgiMessag
         }
     }
 
-    /**
-     * Returns the {@link FcgiVersion}.
-     * 
-     * @return the {@code FcgiVersion}
-     */
+    @Override
     public FcgiVersion protocolVersion() {
         return protocolVersion;
     }
 
-    /**
-     * Returns the request id.
-     * 
-     * @return the request id
-     */
+    @Override
     public int requestId() {
         return requestId;
     }

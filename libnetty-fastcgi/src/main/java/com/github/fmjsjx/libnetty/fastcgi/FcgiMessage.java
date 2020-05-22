@@ -9,4 +9,18 @@ package com.github.fmjsjx.libnetty.fastcgi;
  */
 public interface FcgiMessage extends FcgiObject {
 
+    /**
+     * Returns the {@link FcgiVersion}.
+     * 
+     * @return the {@code FcgiVersion}
+     */
+    FcgiVersion protocolVersion();
+
+    /**
+     * Returns the request id.
+     * 
+     * @return the request id
+     */
+    int requestId();
+
 }

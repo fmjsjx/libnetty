@@ -23,7 +23,8 @@ public class FcgiRequest extends AbstractReferenceCounted implements FcgiMessage
     private final Optional<FcgiData> data;
 
     /**
-     * Constructs a new {@link FcgiRequest} instance with {@code FCGI_RESPONDER} role.
+     * Constructs a new {@link FcgiRequest} instance with {@code FCGI_RESPONDER}
+     * role.
      * 
      * @param protocolVersion the {@code FcgiVersion}
      * @param requestId       the request id
@@ -69,20 +70,12 @@ public class FcgiRequest extends AbstractReferenceCounted implements FcgiMessage
         }
     }
 
-    /**
-     * Returns the {@link FcgiVersion}.
-     * 
-     * @return the {@code FcgiVersion}
-     */
+    @Override
     public FcgiVersion protocolVersion() {
         return protocolVersion;
     }
 
-    /**
-     * Returns the request id.
-     * 
-     * @return the request id
-     */
+    @Override
     public int requestId() {
         return requestId;
     }
