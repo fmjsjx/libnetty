@@ -29,6 +29,14 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
                 if (!in.isReadable(FCGI_HEADER_LEN + contentLength + paddingLength)) {
                     return;
                 }
+                FcgiVersion version = FcgiVersion.valueOf(FcgiCodecUtil.getVersion(in));
+                int requestId = FcgiCodecUtil.getVersion(in);
+                FcgiRecordType type = FcgiRecordType.valueOf(FcgiCodecUtil.getType(in));
+                if (type.isUnknown()) {
+                    FcgiUnknownType unknownType = new FcgiUnknownType(version, requestId, type.type());
+                    ctx.writeAndFlush(unknownType);
+                    in.skipBytes(FCGI_HEADER_LEN + contentLength + paddingLength);
+                }
                 // TODO Auto-generated method stub
             }
         } catch (Exception e) {
