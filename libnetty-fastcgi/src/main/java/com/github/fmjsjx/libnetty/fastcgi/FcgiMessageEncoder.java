@@ -121,25 +121,34 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
             int paddingLength = FcgiCodecUtil.calculatePaddingLength(contentLength);
             FcgiCodecUtil.encodeRecordHeaderLengths(contentLength, paddingLength, buf);
             out.add(buf);
-            ByteBuf subContent = content.readRetainedSlice(FCGI_MAX_CONTENT_LENGTH);
-            out.add(subContent);
+            out.add(content.retain());
             int capacity = paddingLength + FCGI_HEADER_LEN + nextLength;
             buf = ctx.alloc().buffer(capacity, capacity);
             buf.writeZero(paddingLength);
-            // write last content stream
-            FcgiCodecUtil.encodeRecordHeaderWithoutLengths(msg, buf);
-            FcgiCodecUtil.encodeRecordHeaderLengths(0, 0, buf);
-        } else {
-            FcgiCodecUtil.encodeRecordHeader(msg, buf);
         }
+        // write last content stream
+        FcgiCodecUtil.encodeRecordHeaderWithoutLengths(msg, buf);
+        FcgiCodecUtil.encodeRecordHeaderLengths(0, 0, buf);
         return buf;
     }
 
     private static final void encode(ChannelHandlerContext ctx, FcgiResponse msg, List<Object> out) throws Exception {
-        ByteBuf buf = ctx.alloc().buffer();
-        // encode FCGI_STDOUT
+        FcgiStdout stdout = msg.stdout();
         boolean hasStderr = msg.stderr().isPresent();
-        buf = encodeFcgiContent(ctx, msg.stdout(), buf, out, hasStderr ? FCGI_HEADER_LEN : FCGI_HEADER_LEN + 8);
+        ByteBuf buf;
+        if (stdout.contentLength() == 0) {
+            if (hasStderr) {
+                int capacity = FCGI_HEADER_LEN + FCGI_HEADER_LEN;
+                buf = ctx.alloc().buffer(capacity, capacity);
+            } else {
+                int capacity = FCGI_HEADER_LEN + FCGI_HEADER_LEN + 8;
+                buf = ctx.alloc().buffer(capacity, capacity);
+            }
+        } else {
+            buf = ctx.alloc().buffer(FCGI_HEADER_LEN, FCGI_HEADER_LEN);
+        }
+        // encode FCGI_STDOUT
+        buf = encodeFcgiContent(ctx, stdout, buf, out, hasStderr ? FCGI_HEADER_LEN : FCGI_HEADER_LEN + 8);
         if (hasStderr) {
             // encode FCGI_STDERR
             buf = encodeFcgiContent(ctx, msg.stderr().get(), buf, out, FCGI_HEADER_LEN + 8);
