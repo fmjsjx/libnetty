@@ -76,7 +76,7 @@ public class FcgiRecordType {
         if (type > 0 && type < values.length) {
             return values[type];
         }
-        return new FcgiRecordType("FCGI_UNKNOWN_TYPE", type, true);
+        return new FcgiRecordType("UNKNOWN", type, true);
     }
 
     private final String name;

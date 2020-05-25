@@ -1,7 +1,5 @@
 package com.github.fmjsjx.libnetty.fastcgi;
 
-import java.util.Optional;
-
 /**
  * A FastCGI protocol status.
  * 
@@ -28,37 +26,38 @@ public class FcgiProtocolStatus {
      */
     public static final FcgiProtocolStatus UNKNOWN_ROLE = new FcgiProtocolStatus("FCGI_UNKNOWN_ROLE", 3);
 
-    private static final Optional<FcgiProtocolStatus> R0 = Optional.of(REQUEST_COMPLETE);
-    private static final Optional<FcgiProtocolStatus> R1 = Optional.of(CANT_MPX_CONN);
-    private static final Optional<FcgiProtocolStatus> R2 = Optional.of(OVERLOADED);
-    private static final Optional<FcgiProtocolStatus> R3 = Optional.of(UNKNOWN_ROLE);
-
     /**
      * Returns the {@link FcgiProtocolStatus} instance representing the specified
      * {@code status}.
      * 
      * @param status the number of the status
-     * @return an {@code Optional<FcgiProtocolStatus>}
+     * @return a {@code FcgiProtocolStatus}
      */
-    public static final Optional<FcgiProtocolStatus> valueOf(int status) {
-        if (status == 1) {
-            return R0;
+    public static final FcgiProtocolStatus valueOf(int status) {
+        if (status == 0) {
+            return REQUEST_COMPLETE;
+        } else if (status == 1) {
+            return CANT_MPX_CONN;
         } else if (status == 2) {
-            return R1;
+            return OVERLOADED;
         } else if (status == 3) {
-            return R2;
-        } else if (status == 4) {
-            return R3;
+            return UNKNOWN_ROLE;
         }
-        return Optional.empty();
+        return new FcgiProtocolStatus("UNKNOWN", status, true);
     }
 
     private final String name;
     private final int status;
+    private final boolean unknown;
 
     FcgiProtocolStatus(String name, int status) {
+        this(name, status, false);
+    }
+
+    FcgiProtocolStatus(String name, int status, boolean unknown) {
         this.name = name;
         this.status = status;
+        this.unknown = unknown;
     }
 
     /**
@@ -77,6 +76,15 @@ public class FcgiProtocolStatus {
      */
     public int status() {
         return status;
+    }
+
+    /**
+     * Returns {@code true} if this status is unknown.
+     * 
+     * @return {@code true} if this status is unknown
+     */
+    public boolean isUnknown() {
+        return unknown;
     }
 
     @Override

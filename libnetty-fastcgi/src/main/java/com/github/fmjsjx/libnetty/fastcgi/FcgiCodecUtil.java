@@ -33,23 +33,23 @@ class FcgiCodecUtil {
     }
 
     static final int getVersion(ByteBuf buf) {
-        return buf.getByte(0);
+        return buf.getByte(buf.readerIndex());
     }
 
     static final int getType(ByteBuf buf) {
-        return buf.getByte(1);
+        return buf.getByte(buf.readerIndex() + 1);
     }
 
     static final int getRequestId(ByteBuf buf) {
-        return buf.getUnsignedShort(2);
+        return buf.getUnsignedShort(buf.readerIndex() + 2);
     }
 
     static final int getContentLength(ByteBuf buf) {
-        return buf.getUnsignedShort(3);
+        return buf.getUnsignedShort(buf.readerIndex() + 3);
     }
 
     static final int getPaddingLength(ByteBuf buf) {
-        return buf.getUnsignedByte(5);
+        return buf.getUnsignedByte(buf.readerIndex() + 5);
     }
 
     static final int getDataLength(ByteBuf buf) {
@@ -82,6 +82,16 @@ class FcgiCodecUtil {
             out.writeByte(length);
         } else {
             out.writeInt(length | (1 << 31));
+        }
+    }
+
+    static final int decodeVariableLength(ByteBuf in) {
+        int length = in.getUnsignedByte(in.readerIndex());
+        if ((length & (1 << 7)) == 0) {
+            in.skipBytes(1);
+            return length;
+        } else {
+            return in.readInt() & (1 << 31);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.fastcgi;
 
+import java.util.Objects;
 import java.util.Optional;
 
 import io.netty.buffer.ByteBuf;
@@ -20,6 +21,14 @@ public class FcgiResponse extends AbstractReferenceCounted implements FcgiMessag
     private final FcgiStdout stdout;
     private final Optional<FcgiStderr> stderr;
     private final FcgiEndRequest endRequest;
+
+    FcgiResponse(FcgiEndRequest endRequest, FcgiStdout stdout, FcgiStderr stderr) {
+        this.endRequest = Objects.requireNonNull(endRequest, "endRequest must not be null");
+        this.stdout = Objects.requireNonNull(stdout, "stdout must not be null");
+        this.stderr = Optional.ofNullable(stderr);
+        this.protocolVersion = endRequest.protocolVersion();
+        this.requestId = endRequest.requestId();
+    }
 
     /**
      * Constructs a new {@link FcgiResponse} instance with protocolStatus

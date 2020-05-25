@@ -1,7 +1,5 @@
 package com.github.fmjsjx.libnetty.fastcgi;
 
-import java.util.Optional;
-
 /**
  * A FastCGI role.
  * 
@@ -24,33 +22,35 @@ public class FcgiRole {
      */
     public static final FcgiRole FILTER = new FcgiRole("FCGI_FILTER", 3);
 
-    private static final Optional<FcgiRole> R1 = Optional.of(RESPONDER);
-    private static final Optional<FcgiRole> R2 = Optional.of(AUTHORIZER);
-    private static final Optional<FcgiRole> R3 = Optional.of(FILTER);
-
     /**
      * Returns the {@link FcgiRole} instance representing the specified role.
      * 
      * @param role the number of the role
      * @return a {@code FcgiRole}
      */
-    public static final Optional<FcgiRole> valueOf(int role) {
+    public static final FcgiRole valueOf(int role) {
         if (role == 1) {
-            return R1;
+            return RESPONDER;
         } else if (role == 2) {
-            return R2;
+            return AUTHORIZER;
         } else if (role == 3) {
-            return R3;
+            return FILTER;
         }
-        return Optional.empty();
+        return new FcgiRole("UNKNOWN", role, true);
     }
 
     private final String name;
     private final int role;
+    private final boolean unknown;
 
     FcgiRole(String name, int role) {
+        this(name, role, false);
+    }
+
+    FcgiRole(String name, int role, boolean unknown) {
         this.name = name;
         this.role = role;
+        this.unknown = unknown;
     }
 
     /**
@@ -69,6 +69,15 @@ public class FcgiRole {
      */
     public int role() {
         return role;
+    }
+
+    /**
+     * Returns {@code true} if this role is unknown.
+     * 
+     * @return {@code true} if this role is unknown
+     */
+    public boolean isUnknown() {
+        return unknown;
     }
 
     @Override

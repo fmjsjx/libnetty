@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.fastcgi;
 
+import java.util.Objects;
 import java.util.Optional;
 
 import io.netty.buffer.ByteBuf;
@@ -21,6 +22,16 @@ public class FcgiRequest extends AbstractReferenceCounted implements FcgiMessage
     private final FcgiParams params;
     private final FcgiStdin stdin;
     private final Optional<FcgiData> data;
+
+    FcgiRequest(FcgiBeginRequest beginRequest, FcgiParams params, FcgiStdin stdin, FcgiData data) {
+        this.beginRequest = Objects.requireNonNull(beginRequest, "beginRequest must not be null");
+        this.params = Objects.requireNonNull(params, "params must not be null");
+        this.stdin = Objects.requireNonNull(stdin, "stdin must not be null");
+        this.data = Optional.ofNullable(data);
+
+        this.protocolVersion = beginRequest.protocolVersion();
+        this.requestId = beginRequest.requestId();
+    }
 
     /**
      * Constructs a new {@link FcgiRequest} instance with {@code FCGI_RESPONDER}
