@@ -47,7 +47,7 @@ import lombok.extern.slf4j.Slf4j;
  * @author MJ Fang
  */
 @Slf4j
-public class SimpleHttpClient implements HttpClient {
+public class SimpleHttpClient extends AbstractHttpClient {
 
     /**
      * Builder of {@link SimpleHttpClient}.
@@ -191,8 +191,6 @@ public class SimpleHttpClient implements HttpClient {
         return builder().build();
     }
 
-    private final EventLoopGroup group;
-    private final SslContext sslContext;
     private final boolean shutdownGroupOnClose;
     private final int timeoutSeconds;
     private final int maxContentLength;
@@ -203,17 +201,11 @@ public class SimpleHttpClient implements HttpClient {
 
     SimpleHttpClient(EventLoopGroup group, SslContext sslContext, boolean shutdownGroupOnClose, int timeoutSeconds,
             int maxContentLength) {
-        this.group = group;
-        this.sslContext = sslContext;
+        super(group, sslContext);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.channelClass = SocketChannelUtil.fromEventLoopGroup(group);
-    }
-
-    @Override
-    public SslContext sslContext() {
-        return sslContext;
     }
 
     @Override
