@@ -45,11 +45,11 @@ class FcgiCodecUtil {
     }
 
     static final int getContentLength(ByteBuf buf) {
-        return buf.getUnsignedShort(buf.readerIndex() + 3);
+        return buf.getUnsignedShort(buf.readerIndex() + 4);
     }
 
     static final int getPaddingLength(ByteBuf buf) {
-        return buf.getUnsignedByte(buf.readerIndex() + 5);
+        return buf.getUnsignedByte(buf.readerIndex() + 6);
     }
 
     static final int getDataLength(ByteBuf buf) {

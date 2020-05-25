@@ -40,12 +40,12 @@ public class FcgiUnknownType extends AbstractFcgiRecord implements FcgiMessage {
 
     @Override
     public int contentLength() {
-        return 1;
+        return 8;
     }
 
     @Override
     public int paddingLength() {
-        return 7;
+        return 0;
     }
 
     @Override

@@ -51,12 +51,12 @@ public class FcgiBeginRequest extends AbstractFcgiRecord {
 
     @Override
     public int contentLength() {
-        return 3;
+        return 8;
     }
 
     @Override
     public int paddingLength() {
-        return 5;
+        return 0;
     }
 
     /**

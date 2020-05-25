@@ -29,6 +29,7 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         try {
             for (;;) {
+                System.err.println(in.toString(CharsetUtil.UTF_8));
                 if (!in.isReadable(FCGI_HEADER_LEN)) {
                     return;
                 }
@@ -41,11 +42,16 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
                 FcgiVersion version = FcgiVersion.valueOf(FcgiCodecUtil.getVersion(in));
                 int requestId = FcgiCodecUtil.getVersion(in);
                 FcgiRecordType type = FcgiRecordType.valueOf(FcgiCodecUtil.getType(in));
+                System.err.println(version);
+                System.err.println(requestId);
+                System.err.println(type);
+                System.err.println("contentLength = " + contentLength);
+                System.err.println("paddingLength = " + paddingLength);
                 ByteBuf content = contentLength == 0 ? Unpooled.EMPTY_BUFFER
                         : in.slice(in.readerIndex() + FCGI_HEADER_LEN, contentLength);
                 in.skipBytes(fullLength);
                 if (type == FcgiRecordType.BEGIN_REQUEST) {
-                    FcgiBeginRequest beginRequest = decodeBeginRequest(in, version, requestId);
+                    FcgiBeginRequest beginRequest = decodeBeginRequest(content, version, requestId);
                     FcgiRequestBuilder builder = new FcgiRequestBuilder(beginRequest);
                     map.put(requestId, builder);
                 } else if (type == FcgiRecordType.ABORT_REQUEST) {

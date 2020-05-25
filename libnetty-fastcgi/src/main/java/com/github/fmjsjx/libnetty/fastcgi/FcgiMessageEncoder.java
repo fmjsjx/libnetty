@@ -1,8 +1,6 @@
 package com.github.fmjsjx.libnetty.fastcgi;
 
-import static com.github.fmjsjx.libnetty.fastcgi.FcgiConstants.EMPTY_VALUE;
-import static com.github.fmjsjx.libnetty.fastcgi.FcgiConstants.FCGI_HEADER_LEN;
-import static com.github.fmjsjx.libnetty.fastcgi.FcgiConstants.FCGI_MAX_CONTENT_LENGTH;
+import static com.github.fmjsjx.libnetty.fastcgi.FcgiConstants.*;
 
 import java.util.List;
 
@@ -63,7 +61,7 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         FcgiCodecUtil.encodeRecordHeader(beginRequest, buf);
         buf.writeShort(beginRequest.role().role());
         buf.writeByte(beginRequest.flags());
-        buf.writeZero(beginRequest.paddingLength());
+        buf.writeZero(5);
     }
 
     private static final void encodeFcgiRecord(FcgiParams params, ByteBuf buf) {
@@ -85,31 +83,35 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
                 FcgiCodecUtil.encodeRecordHeaderWithoutLengths(params, buf);
                 lengthsIndex = buf.writerIndex();
                 buf.writeZero(4);
-                contentLength = 0;
+                contentLength = length;
             } else {
                 contentLength += length;
-                FcgiCodecUtil.encodeNameValuePair(name, value, buf);
             }
+            FcgiCodecUtil.encodeNameValuePair(name, value, buf);
         }
-        int paddingLength = FcgiCodecUtil.calculatePaddingLength(contentLength);
-        buf.writeZero(paddingLength);
-        // set contentLength & paddingLength on record header
-        buf.setShort(lengthsIndex, contentLength);
-        buf.setByte(lengthsIndex + 2, paddingLength);
-        // last FCGI_PARAMS record (empty)
-        FcgiCodecUtil.encodeRecordHeaderWithoutLengths(params, buf);
-        FcgiCodecUtil.encodeRecordHeaderLengths(0, 0, buf);
+        if (contentLength > 0) {
+            int paddingLength = FcgiCodecUtil.calculatePaddingLength(contentLength);
+            buf.writeZero(paddingLength);
+            // set contentLength & paddingLength on record header
+            buf.setShort(lengthsIndex, contentLength);
+            buf.setByte(lengthsIndex + 2, paddingLength);
+            // last FCGI_PARAMS record (empty)
+            FcgiCodecUtil.encodeRecordHeaderWithoutLengths(params, buf);
+            FcgiCodecUtil.encodeRecordHeaderLengths(0, 0, buf);
+        }
     }
 
     private static final ByteBuf encodeFcgiContent(ChannelHandlerContext ctx, FcgiContent msg, ByteBuf buf,
             List<Object> out, int nextLength) throws Exception {
-        int contentLength = msg.contentLength();
+        ByteBuf content = msg.content();
+        int contentLength = content.readableBytes();
         if (contentLength > 0) {
             for (; contentLength > FCGI_MAX_CONTENT_LENGTH;) {
                 FcgiCodecUtil.encodeRecordHeaderWithoutLengths(msg, buf);
                 FcgiCodecUtil.encodeRecordHeaderLengths(FCGI_MAX_CONTENT_LENGTH, 1, buf);
                 out.add(buf);
-                out.add(msg.content().readRetainedSlice(FCGI_MAX_CONTENT_LENGTH));
+                ByteBuf subContent = content.readRetainedSlice(FCGI_MAX_CONTENT_LENGTH);
+                out.add(subContent);
                 int capacity = 1 + FCGI_HEADER_LEN;
                 buf = ctx.alloc().buffer(capacity, capacity);
                 buf.writeZero(1); // write padding zero
@@ -119,7 +121,8 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
             int paddingLength = FcgiCodecUtil.calculatePaddingLength(contentLength);
             FcgiCodecUtil.encodeRecordHeaderLengths(contentLength, paddingLength, buf);
             out.add(buf);
-            out.add(msg.content());
+            ByteBuf subContent = content.readRetainedSlice(FCGI_MAX_CONTENT_LENGTH);
+            out.add(subContent);
             int capacity = paddingLength + FCGI_HEADER_LEN + nextLength;
             buf = ctx.alloc().buffer(capacity, capacity);
             buf.writeZero(paddingLength);
@@ -150,7 +153,7 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         FcgiCodecUtil.encodeRecordHeader(endRequest, buf);
         buf.writeInt(endRequest.appStatus());
         buf.writeByte(endRequest.protocolStatus().status());
-        buf.writeZero(endRequest.paddingLength());
+        buf.writeZero(3);
     }
 
     private static final void encode(ChannelHandlerContext ctx, FcgiAbortRequest msg, List<Object> out)
@@ -165,7 +168,7 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         ByteBuf buf = ctx.alloc().buffer(FCGI_HEADER_LEN + 8, FCGI_HEADER_LEN + 8);
         FcgiCodecUtil.encodeRecordHeader(msg, buf);
         buf.writeByte(msg.value());
-        buf.writeZero(msg.paddingLength());
+        buf.writeZero(7);
         out.add(buf);
     }
 
