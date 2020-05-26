@@ -17,6 +17,7 @@ import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
@@ -145,8 +146,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
          */
         public SimpleHttpClient build() {
             ensureSslContext();
-            return new SimpleHttpClient(TransportLibrary.getDefault().createGroup(), sslContext, true, timeoutSeconds(),
-                    maxContentLength);
+            TransportLibrary transportLibrary = TransportLibrary.getDefault();
+            return new SimpleHttpClient(transportLibrary.createGroup(), transportLibrary.channelClass(), sslContext,
+                    true, timeoutSeconds(), maxContentLength);
         }
 
         /**
@@ -157,8 +159,21 @@ public class SimpleHttpClient extends AbstractHttpClient {
          * @return a new {@link SimpleHttpClient}
          */
         public SimpleHttpClient build(EventLoopGroup group) {
+            Class<? extends Channel> channelClass = SocketChannelUtil.fromEventLoopGroup(group);
+            return build(group, channelClass);
+        }
+
+        /**
+         * Returns a new {@link SimpleHttpClient} built from the current state of this
+         * builder with given {@link EventLoopGroup}.
+         * 
+         * @param group        the {@link EventLoopGroup}
+         * @param channelClass the {@link Class} of {@link Channel}
+         * @return a new {@link SimpleHttpClient}
+         */
+        public SimpleHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new SimpleHttpClient(group, sslContext, false, timeoutSeconds(), maxContentLength);
+            return new SimpleHttpClient(group, channelClass, sslContext, false, timeoutSeconds(), maxContentLength);
         }
 
         private void ensureSslContext() {
@@ -195,17 +210,14 @@ public class SimpleHttpClient extends AbstractHttpClient {
     private final int timeoutSeconds;
     private final int maxContentLength;
 
-    private final Class<? extends SocketChannel> channelClass;
-
     private volatile boolean closed;
 
-    SimpleHttpClient(EventLoopGroup group, SslContext sslContext, boolean shutdownGroupOnClose, int timeoutSeconds,
-            int maxContentLength) {
-        super(group, sslContext);
+    SimpleHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
+            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
+        super(group, channelClass, sslContext);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
-        this.channelClass = SocketChannelUtil.fromEventLoopGroup(group);
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.github.fmjsjx.libnetty.http.client;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.ssl.SslContext;
 
@@ -16,11 +17,8 @@ import io.netty.handler.ssl.SslContext;
  */
 public class ConnectionCachedHttpClient extends AbstractHttpClient {
 
-
-
-    protected ConnectionCachedHttpClient(EventLoopGroup group, SslContext sslContext) {
-        super(group, sslContext);
-        // TODO Auto-generated constructor stub
+    ConnectionCachedHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext) {
+        super(group, channelClass, sslContext);
     }
 
     @Override
