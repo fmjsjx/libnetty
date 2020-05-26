@@ -175,32 +175,37 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
         @Override
         public void send(Request request, RequestContext requestContext) {
             final Channel channel = this.channel;
-            channel.eventLoop().execute(() -> {
-                ByteBuf content = request.content();
-                if (channel.isActive()) {
-                    this.requestContext = requestContext;
-                    HttpHeaders headers = request.headers();
-                    URI uri = request.uri();
-                    String path = uri.getRawPath();
-                    String query = uri.getRawQuery();
-                    String requestUri = query == null ? path : path + "?" + query;
-                    DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, request.method(),
-                            requestUri, content, headers, request.trailingHeaders());
-                    headers.set(HOST, headerHost);
-                    int contentLength = content.readableBytes();
-                    if (contentLength > 0) {
-                        headers.setInt(CONTENT_LENGTH, contentLength);
-                        if (!headers.contains(CONTENT_TYPE)) {
-                            headers.set(CONTENT_TYPE, contentType(APPLICATION_X_WWW_FORM_URLENCODED));
+            if (channel.isActive()) {
+                channel.eventLoop().execute(() -> {
+                    ByteBuf content = request.content();
+                    if (channel.isActive()) {
+                        this.requestContext = requestContext;
+                        HttpHeaders headers = request.headers();
+                        URI uri = request.uri();
+                        String path = uri.getRawPath();
+                        String query = uri.getRawQuery();
+                        String requestUri = query == null ? path : path + "?" + query;
+                        DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, request.method(),
+                                requestUri, content, headers, request.trailingHeaders());
+                        headers.set(HOST, headerHost);
+                        int contentLength = content.readableBytes();
+                        if (contentLength > 0) {
+                            headers.setInt(CONTENT_LENGTH, contentLength);
+                            if (!headers.contains(CONTENT_TYPE)) {
+                                headers.set(CONTENT_TYPE, contentType(APPLICATION_X_WWW_FORM_URLENCODED));
+                            }
                         }
+                        HttpUtil.setKeepAlive(req, false);
+                        channel.writeAndFlush(req);
+                    } else {
+                        ReferenceCountUtil.safeRelease(content);
+                        requestContext.future.completeExceptionally(new IOException("socket channel closed"));
                     }
-                    HttpUtil.setKeepAlive(req, false);
-                    channel.writeAndFlush(req);
-                } else {
-                    ReferenceCountUtil.safeRelease(content);
-                    requestContext.future.completeExceptionally(new IOException("socket channel closed"));
-                }
-            });
+                });
+            } else {
+                ReferenceCountUtil.safeRelease(request.content());
+                requestContext.future.completeExceptionally(new IOException("socket channel closed"));
+            }
         }
 
     }
