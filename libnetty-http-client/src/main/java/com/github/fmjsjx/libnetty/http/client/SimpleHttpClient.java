@@ -35,6 +35,7 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.util.ReferenceCountUtil;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -230,7 +231,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
     protected <T> CompletableFuture<Response<T>> sendAsync0(Request request, HttpContentHandler<T> contentHandler,
             Optional<Executor> executor) {
         URI uri = request.uri();
-        boolean ssl = "https".equals(uri.getScheme());
+        boolean ssl = "https".equalsIgnoreCase(uri.getScheme());
         boolean defaultPort = uri.getPort() == -1;
         int port = defaultPort ? (ssl ? 443 : 80) : uri.getPort();
         String host = uri.getHost();
@@ -254,25 +255,24 @@ public class SimpleHttpClient extends AbstractHttpClient {
         String query = uri.getRawQuery();
         String requestUri = query == null ? path : path + "?" + query;
         b.connect(address).addListener((ChannelFuture cf) -> {
-            if (cf.isDone()) {
-                if (cf.isSuccess()) {
-                    HttpHeaders headers = request.headers();
-                    ByteBuf content = request.content();
-                    DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, request.method(),
-                            requestUri, content, headers, request.trailingHeaders());
-                    headers.set(HOST, defaultPort ? host : host + ":" + port);
-                    int contentLength = content.readableBytes();
-                    if (contentLength > 0) {
-                        headers.setInt(CONTENT_LENGTH, contentLength);
-                        if (!headers.contains(CONTENT_TYPE)) {
-                            headers.set(CONTENT_TYPE, contentType(APPLICATION_X_WWW_FORM_URLENCODED));
-                        }
+            ByteBuf content = request.content();
+            if (cf.isSuccess()) {
+                HttpHeaders headers = request.headers();
+                DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, request.method(),
+                        requestUri, content, headers, request.trailingHeaders());
+                headers.set(HOST, defaultPort ? host : host + ":" + port);
+                int contentLength = content.readableBytes();
+                if (contentLength > 0) {
+                    headers.setInt(CONTENT_LENGTH, contentLength);
+                    if (!headers.contains(CONTENT_TYPE)) {
+                        headers.set(CONTENT_TYPE, contentType(APPLICATION_X_WWW_FORM_URLENCODED));
                     }
-                    HttpUtil.setKeepAlive(req, false);
-                    cf.channel().writeAndFlush(req);
-                } else {
-                    future.completeExceptionally(cf.cause());
                 }
+                HttpUtil.setKeepAlive(req, false);
+                cf.channel().writeAndFlush(req);
+            } else {
+                ReferenceCountUtil.safeRelease(content);
+                future.completeExceptionally(cf.cause());
             }
         });
         return future;
