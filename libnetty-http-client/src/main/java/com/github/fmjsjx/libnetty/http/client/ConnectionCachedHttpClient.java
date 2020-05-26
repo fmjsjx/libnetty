@@ -34,4 +34,10 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
         return null;
     }
 
+    @Override
+    protected void close0() {
+        // TODO Auto-generated method stub
+
+    }
+
 }

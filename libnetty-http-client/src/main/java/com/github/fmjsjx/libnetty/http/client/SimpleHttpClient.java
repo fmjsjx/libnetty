@@ -12,7 +12,6 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-import com.github.fmjsjx.libnetty.http.client.exception.ClientClosedException;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.Bootstrap;
@@ -210,8 +209,6 @@ public class SimpleHttpClient extends AbstractHttpClient {
     private final int timeoutSeconds;
     private final int maxContentLength;
 
-    private volatile boolean closed;
-
     SimpleHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
             boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
         super(group, channelClass, sslContext);
@@ -220,18 +217,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
         this.maxContentLength = maxContentLength;
     }
 
-    @Override
-    public synchronized void close() {
-        if (!closed) {
-            try {
-                close0();
-            } finally {
-                closed = true;
-            }
-        }
-    }
-
-    private void close0() {
+    protected void close0() {
         if (shutdownGroupOnClose) {
             log.debug("Shutdown {}", group);
             group.shutdownGracefully();
@@ -300,12 +286,6 @@ public class SimpleHttpClient extends AbstractHttpClient {
             }
         });
         return future;
-    }
-
-    private void ensureOpen() {
-        if (closed) {
-            throw new ClientClosedException(toString() + " already closed");
-        }
     }
 
     private static final class SimpleHttpClientHandler<T> extends SimpleChannelInboundHandler<FullHttpResponse> {
