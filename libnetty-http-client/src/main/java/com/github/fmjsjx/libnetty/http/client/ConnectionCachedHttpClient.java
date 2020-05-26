@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.http.client;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -38,6 +39,13 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
     protected void close0() {
         // TODO Auto-generated method stub
 
+    }
+
+    @Override
+    protected <T> CompletableFuture<Response<T>> sendAsync0(Request request, HttpContentHandler<T> contentHandler,
+            Optional<Executor> executor) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

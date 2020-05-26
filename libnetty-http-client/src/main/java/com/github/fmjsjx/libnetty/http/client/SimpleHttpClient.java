@@ -9,6 +9,7 @@ import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FOR
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -217,6 +218,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
         this.maxContentLength = maxContentLength;
     }
 
+    @Override
     protected void close0() {
         if (shutdownGroupOnClose) {
             log.debug("Shutdown {}", group);
@@ -225,20 +227,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
     }
 
     @Override
-    public <T> CompletableFuture<Response<T>> sendAsync(Request request, HttpContentHandler<T> contentHandler) {
-        ensureOpen();
-        return sendAsync0(request, contentHandler, null);
-    }
-
-    @Override
-    public <T> CompletableFuture<Response<T>> sendAsync(Request request, HttpContentHandler<T> contentHandler,
-            Executor executor) {
-        ensureOpen();
-        return sendAsync0(request, contentHandler, executor);
-    }
-
-    private <T> CompletableFuture<Response<T>> sendAsync0(Request request, HttpContentHandler<T> contentHandler,
-            Executor executor) {
+    protected <T> CompletableFuture<Response<T>> sendAsync0(Request request, HttpContentHandler<T> contentHandler,
+            Optional<Executor> executor) {
         URI uri = request.uri();
         boolean ssl = "https".equals(uri.getScheme());
         boolean defaultPort = uri.getPort() == -1;
@@ -292,10 +282,10 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
         private final CompletableFuture<Response<T>> future;
         private final HttpContentHandler<T> contentHandler;
-        private final Executor executor;
+        private final Optional<Executor> executor;
 
         private SimpleHttpClientHandler(CompletableFuture<Response<T>> future, HttpContentHandler<T> contentHandler,
-                Executor executor) {
+                Optional<Executor> executor) {
             this.future = future;
             this.contentHandler = contentHandler;
             this.executor = executor;
@@ -318,9 +308,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) throws Exception {
-            if (executor != null) {
+            if (executor.isPresent()) {
                 msg.retain();
-                executor.execute(() -> {
+                executor.get().execute(() -> {
                     try {
                         future.complete(buildResponse(msg));
                     } finally {

@@ -1,6 +1,9 @@
 package com.github.fmjsjx.libnetty.http.client;
 
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 import com.github.fmjsjx.libnetty.http.client.exception.ClientClosedException;
 
@@ -60,5 +63,21 @@ public abstract class AbstractHttpClient implements HttpClient {
             throw new ClientClosedException(toString() + " already closed");
         }
     }
+
+    @Override
+    public <T> CompletableFuture<Response<T>> sendAsync(Request request, HttpContentHandler<T> contentHandler) {
+        ensureOpen();
+        return sendAsync0(request, contentHandler, Optional.empty());
+    }
+
+    @Override
+    public <T> CompletableFuture<Response<T>> sendAsync(Request request, HttpContentHandler<T> contentHandler,
+            Executor executor) {
+        ensureOpen();
+        return sendAsync0(request, contentHandler, Optional.of(executor));
+    }
+
+    protected abstract <T> CompletableFuture<Response<T>> sendAsync0(Request request,
+            HttpContentHandler<T> contentHandler, Optional<Executor> executor);
 
 }
