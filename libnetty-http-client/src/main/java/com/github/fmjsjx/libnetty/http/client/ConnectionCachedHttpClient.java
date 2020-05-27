@@ -1,30 +1,43 @@
 package com.github.fmjsjx.libnetty.http.client;
 
-import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
-import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
+import static com.github.fmjsjx.libnetty.http.HttpUtil.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.channels.ClosedChannelException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeoutException;
 
+import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.ReferenceCountUtil;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -46,6 +59,8 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
     private final int timeoutSeconds;
     private final int maxContentLength;
 
+    private final ConcurrentMap<String, ConcurrentLinkedDeque<HttpConnection>> cachedPools = new ConcurrentHashMap<String, ConcurrentLinkedDeque<HttpConnection>>();
+
     ConnectionCachedHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
             boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
         super(group, channelClass, sslContext);
@@ -60,6 +75,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
             log.debug("Shutdown {}", group);
             group.shutdownGracefully();
         }
+        cachedPools.values().forEach(ConcurrentLinkedDeque::clear);
     }
 
     @Override
@@ -70,17 +86,74 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
         boolean defaultPort = uri.getPort() == -1;
         int port = defaultPort ? (ssl ? 443 : 80) : uri.getPort();
         String host = uri.getHost();
-        InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
         CompletableFuture<Response<T>> future = new CompletableFuture<>();
-        return null;
+        RequestContext<T> requestContext = new RequestContext<>(request, future, contentHandler, executor);
+        String addressKey = host + ":" + port;
+        ConcurrentLinkedDeque<HttpConnection> cachedPool = getCachedConnectionPool(addressKey);
+        Optional<HttpConnection> conn = tryPollOne(cachedPool);
+        if (conn.isPresent()) {
+            conn.get().sendAsnyc(requestContext);
+        } else {
+            InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
+            String headerHost = defaultPort ? host : host + ":" + port;
+            ConnectionCachedHttpClientHandler handler = new ConnectionCachedHttpClientHandler(address, headerHost,
+                    cachedPool);
+            Bootstrap b = new Bootstrap().group(group).channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
+                    .option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel ch) throws Exception {
+                            ChannelPipeline cp = ch.pipeline();
+                            cp.addLast(new IdleStateHandler(0, 0, timeoutSeconds));
+                            if (ssl) {
+                                cp.addLast(sslContext.newHandler(ch.alloc(), host, port));
+                            }
+                            cp.addLast(new HttpClientCodec());
+                            cp.addLast(new HttpObjectAggregator(maxContentLength));
+                            cp.addLast(handler);
+                        }
+                    });
+            b.connect(address).addListener((ChannelFuture cf) -> {
+                if (cf.isSuccess()) {
+                    handler.sendAsnyc(requestContext);
+                } else {
+                    ReferenceCountUtil.safeRelease(request.content());
+                    future.completeExceptionally(cf.cause());
+                }
+            });
+        }
+        return future;
+    }
+
+    private ConcurrentLinkedDeque<HttpConnection> getCachedConnectionPool(String addressKey) {
+        return cachedPools.computeIfAbsent(addressKey, k -> new ConcurrentLinkedDeque<>());
+    }
+
+    private static final Optional<HttpConnection> tryPollOne(ConcurrentLinkedDeque<HttpConnection> cachedPool) {
+        for (HttpConnection conn = cachedPool.pollLast(); conn != null; conn = cachedPool.pollLast()) {
+            if (conn.isActive()) {
+                return Optional.of(conn);
+            }
+        }
+        return Optional.empty();
     }
 
     @AllArgsConstructor(access = AccessLevel.PRIVATE)
-    private static final class RequestContext {
+    private static final class RequestContext<T> {
 
-        private final CompletableFuture<Object> future;
-        private final HttpContentHandler<?> contentHandler;
+        private final Request request;
+        private final CompletableFuture<? super Response<T>> future;
+        private final HttpContentHandler<T> contentHandler;
         private final Optional<Executor> executor;
+
+        private void complete(FullHttpResponse msg) {
+            complete(msg.protocolVersion(), msg.status(), msg.headers(), msg.content());
+        }
+
+        private void complete(HttpVersion version, HttpResponseStatus status, HttpHeaders headers, ByteBuf content) {
+            DefaultResponse<T> response = new DefaultResponse<>(version, status, headers,
+                    contentHandler.apply(content));
+            future.complete(response);
+        }
 
     }
 
@@ -90,70 +163,93 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
 
         Channel channel();
 
-        HttpClientHandler handler();
-
         default boolean isActive() {
             Channel channel = channel();
             return channel != null && channel.isActive();
         }
 
-        void send(Request request, RequestContext requestContext);
+        void sendAsnyc(RequestContext<?> requestContext);
 
     }
 
     @RequiredArgsConstructor
-    private final class HttpClientHandler extends SimpleChannelInboundHandler<FullHttpResponse>
+    private final class ConnectionCachedHttpClientHandler extends SimpleChannelInboundHandler<FullHttpResponse>
             implements HttpConnection {
 
         private final InetSocketAddress address;
         private final CharSequence headerHost;
-        private final ConcurrentLinkedDeque<HttpConnection> cachePool;
+        private final ConcurrentLinkedDeque<HttpConnection> cachedPool;
         private volatile Channel channel;
 
-        private RequestContext requestContext;
+        private RequestContext<?> requestContext;
 
         @Override
-        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
             this.channel = ctx.channel();
         }
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
             ctx.close();
-            if (requestContext != null) {
+            if (this.requestContext != null) {
+                RequestContext<?> requestContext = this.requestContext;
+                this.requestContext = null;
                 if (!requestContext.future.isDone()) {
                     requestContext.future.completeExceptionally(cause);
                 }
             } else {
                 // remove HttpConnection from cache pool
-                cachePool.removeFirstOccurrence(this);
+                cachedPool.removeFirstOccurrence(this);
+            }
+        }
+
+        @Override
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+            if (evt instanceof IdleStateEvent) {
+                if (((IdleStateEvent) evt).state() == IdleState.ALL_IDLE) {
+                    ctx.close();
+                    if (this.requestContext != null) {
+                        RequestContext<?> requestContext = this.requestContext;
+                        this.requestContext = null;
+                        if (!requestContext.future.isDone()) {
+                            requestContext.future.completeExceptionally(new TimeoutException());
+                        }
+                    } else {
+                        // remove HttpConnection from cache pool
+                        cachedPool.removeFirstOccurrence(this);
+                    }
+                }
             }
         }
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) throws Exception {
-            RequestContext requestContext = this.requestContext;
-            this.requestContext = null;
-            if (requestContext.executor.isPresent()) {
-                msg.retain();
-                requestContext.executor.get().execute(() -> {
-                    try {
-                        DefaultResponse<?> response = new DefaultResponse<>(msg.protocolVersion(), msg.status(),
-                                msg.headers(), requestContext.contentHandler.apply(msg.content()));
-                        requestContext.future.complete(response);
-                    } finally {
-                        msg.release();
-                    }
-                });
+            if (this.requestContext != null) {
+                RequestContext<?> requestContext = this.requestContext;
+                this.requestContext = null;
+                if (requestContext.executor.isPresent()) {
+                    msg.retain();
+                    requestContext.executor.get().execute(() -> {
+                        try {
+                            requestContext.complete(msg);
+                        } finally {
+                            msg.release();
+                        }
+                    });
+                } else {
+                    requestContext.complete(msg);
+                }
+                if (isOpen() && HttpUtil.isKeepAlive(msg)) {
+                    cachedPool.offerLast(this);
+                } else {
+                    ctx.close();
+                }
             } else {
-                DefaultResponse<?> response = new DefaultResponse<>(msg.protocolVersion(), msg.status(), msg.headers(),
-                        requestContext.contentHandler.apply(msg.content()));
-                requestContext.future.complete(response);
-            }
-            if (HttpUtil.isKeepAlive(msg)) {
-                cachePool.offerLast(this);
-            } else {
+                // WARN: should not reach this line.
+                // Just to be on the safe side, always close channel and remove it from cached
+                // pool.
                 ctx.close();
+                cachedPool.removeFirstOccurrence(this);
             }
         }
 
@@ -168,15 +264,11 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
         }
 
         @Override
-        public HttpClientHandler handler() {
-            return this;
-        }
-
-        @Override
-        public void send(Request request, RequestContext requestContext) {
-            final Channel channel = this.channel;
+        public void sendAsnyc(RequestContext<?> requestContext) {
+            final Channel channel = channel();
             if (channel.isActive()) {
                 channel.eventLoop().execute(() -> {
+                    Request request = requestContext.request;
                     ByteBuf content = request.content();
                     if (channel.isActive()) {
                         this.requestContext = requestContext;
@@ -195,16 +287,16 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
                                 headers.set(CONTENT_TYPE, contentType(APPLICATION_X_WWW_FORM_URLENCODED));
                             }
                         }
-                        HttpUtil.setKeepAlive(req, false);
+                        HttpUtil.setKeepAlive(req, true);
                         channel.writeAndFlush(req);
                     } else {
                         ReferenceCountUtil.safeRelease(content);
-                        requestContext.future.completeExceptionally(new IOException("socket channel closed"));
+                        requestContext.future.completeExceptionally(new ClosedChannelException());
                     }
                 });
             } else {
-                ReferenceCountUtil.safeRelease(request.content());
-                requestContext.future.completeExceptionally(new IOException("socket channel closed"));
+                ReferenceCountUtil.safeRelease(requestContext.request.content());
+                requestContext.future.completeExceptionally(new ClosedChannelException());
             }
         }
 

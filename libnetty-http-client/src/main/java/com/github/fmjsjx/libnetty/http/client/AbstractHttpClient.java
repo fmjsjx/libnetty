@@ -24,6 +24,7 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected final Class<? extends Channel> channelClass;
     protected final SslContext sslContext;
 
+    private final Object closeLock = new Object();
     protected volatile boolean closed;
 
     protected AbstractHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext) {
@@ -46,12 +47,17 @@ public abstract class AbstractHttpClient implements HttpClient {
     }
 
     @Override
-    public synchronized void close() {
-        if (!closed) {
-            try {
+    public void close() {
+        if (isOpen()) {
+            boolean doClose = false;
+            synchronized (closeLock) {
+                if (isOpen()) {
+                    closed = true;
+                    doClose = true;
+                }
+            }
+            if (doClose) {
                 close0();
-            } finally {
-                closed = true;
             }
         }
     }
@@ -62,6 +68,10 @@ public abstract class AbstractHttpClient implements HttpClient {
         if (closed) {
             throw new ClientClosedException(toString() + " already closed");
         }
+    }
+
+    protected boolean isOpen() {
+        return !closed;
     }
 
     @Override
