@@ -23,11 +23,11 @@
     <java.version>1.8</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.30</slf4j.version>
-    <log4j2.version>2.13.0</log4j2.version>
+    <log4j2.version>2.13.3</log4j2.version>
     <lombok.version>1.18.12</lombok.version>
-    <netty.version>4.1.49.Final</netty.version>
+    <netty.version>4.1.50.Final</netty.version>
     <netty-tcnative.version>2.0.30.Final</netty-tcnative.version>
-    <junit.version>5.6.0</junit.version>
+    <junit.version>5.6.2</junit.version>
   </properties>
 
   <repositories>
