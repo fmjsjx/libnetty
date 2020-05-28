@@ -12,6 +12,8 @@ import io.netty.buffer.ByteBuf;
  * @author MJ Fang
  * 
  * @since 1.0
+ * 
+ * @see HttpContentHandlers
  */
 @FunctionalInterface 
 public interface HttpContentHandler<T> extends Function<ByteBuf, T> {

@@ -5,6 +5,7 @@ import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -33,8 +34,40 @@ import io.netty.util.AsciiString;
  * @since 1.0
  * 
  * @author MJ Fang
+ * 
+ * @see ConnectionCachedHttpClient
+ * @see SimpleHttpClient
  */
 public interface HttpClient extends AutoCloseable {
+
+    /**
+     * Returns a new {@link HttpClient} built by the default {@link Builder}.
+     * 
+     * @return a {@code HttpClient}
+     */
+    static HttpClient build() {
+        return defaultBuilder().build();
+    }
+
+    /**
+     * Returns a default {@link Builder}.
+     * 
+     * @return a {@code Builder}
+     * @see ConnectionCachedHttpClient#builder()
+     */
+    static Builder defaultBuilder() {
+        return ConnectionCachedHttpClient.builder();
+    }
+
+    /**
+     * Returns a {@link SimpleHttpClient.Builder}.
+     * 
+     * @return a {@code Builder}
+     * @see SimpleHttpClient#builder()
+     */
+    static Builder simpleBuilder() {
+        return SimpleHttpClient.builder();
+    }
 
     /**
      * Returns the SSL context of this {@link HttpClient}.
@@ -718,6 +751,50 @@ public interface HttpClient extends AutoCloseable {
          * @return the content of this {@link Response}.
          */
         T content();
+
+    }
+
+    /**
+     * A builder to build {@link HttpClient}.
+     * 
+     * @param <C> the type of the real {@code HttpClient}
+     * 
+     * @since 1.0
+     *
+     * @author MJ Fang
+     */
+    interface Builder {
+
+        /**
+         * Returns a new {@link HttpClient}.
+         * 
+         * @return a new {@code HttpClient}
+         */
+        HttpClient build();
+
+        /**
+         * Sets the timeout duration for this client.
+         * 
+         * @param duration the timeout {@link Duration}
+         * @return this {@code Builder}
+         */
+        Builder timeout(Duration duration);
+
+        /**
+         * Sets the max content length for this client.
+         * 
+         * @param maxContentLength the max content length
+         * @return this {@code Builder}
+         */
+        Builder maxContentLength(int maxContentLength);
+
+        /**
+         * Sets the SSL context for this client.
+         * 
+         * @param sslContext the {@link SslContext}
+         * @return this {@code Builder}
+         */
+        Builder sslContext(SslContext sslContext);
 
     }
 

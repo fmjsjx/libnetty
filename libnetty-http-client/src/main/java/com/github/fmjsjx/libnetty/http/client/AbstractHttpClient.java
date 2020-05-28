@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.http.client;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -19,6 +20,16 @@ import io.netty.handler.ssl.SslContext;
  * @author MJ Fang
  */
 public abstract class AbstractHttpClient implements HttpClient {
+
+    /**
+     * Default is 60 seconds.
+     */
+    protected static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(60);
+
+    /**
+     * Default is 1 MB.
+     */
+    protected static final int DEFAULT_MAX_CONTENT_LENGTH = 1 * 1024 * 1024;
 
     protected final EventLoopGroup group;
     protected final Class<? extends Channel> channelClass;
@@ -89,5 +100,72 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     protected abstract <T> CompletableFuture<Response<T>> sendAsync0(Request request,
             HttpContentHandler<T> contentHandler, Optional<Executor> executor);
+
+    @SuppressWarnings("unchecked")
+    protected abstract static class AbstractBuilder<C extends HttpClient, Self extends AbstractBuilder<C, ?>>
+            implements HttpClient.Builder {
+
+        protected Duration timeout = DEFAULT_TIMEOUT;
+        protected int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
+        protected SslContext sslContext;
+
+        /**
+         * Returns the timeout duration for this client.
+         * 
+         * @return the timeout {@link Duration}
+         */
+        public Duration timeout() {
+            return timeout;
+        }
+
+        @Override
+        public Self timeout(Duration duration) {
+            timeout = duration == null ? DEFAULT_TIMEOUT : duration;
+            return (Self) this;
+        }
+
+        public int timeoutSeconds() {
+            return (int) timeout.getSeconds();
+        }
+
+        /**
+         * Returns the SSL context for this client.
+         * 
+         * @return the {@link SslContext}
+         */
+        public SslContext sslContext() {
+            return sslContext;
+        }
+
+        @Override
+        public Self sslContext(SslContext sslContext) {
+            this.sslContext = sslContext;
+            return (Self) this;
+        }
+
+        protected void ensureSslContext() {
+            if (sslContext == null) {
+                sslContext = SslContextUtil.createForClient();
+            }
+        }
+
+        /**
+         * Returns the max content length for this client.
+         * 
+         * @return the max content length
+         */
+        public int maxContentLength() {
+            return maxContentLength;
+        }
+
+        @Override
+        public Self maxContentLength(int maxContentLength) {
+            if (maxContentLength > 0) {
+                this.maxContentLength = maxContentLength;
+            }
+            return (Self) this;
+        }
+
+    }
 
 }

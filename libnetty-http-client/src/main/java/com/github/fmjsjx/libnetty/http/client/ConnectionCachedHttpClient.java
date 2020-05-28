@@ -13,7 +13,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
+
+import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -39,8 +42,10 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,6 +56,9 @@ import lombok.extern.slf4j.Slf4j;
  * @since 1.0
  *
  * @author MJ Fang
+ * 
+ * @see AbstractHttpClient
+ * @see SimpleHttpClient
  */
 @Slf4j
 public class ConnectionCachedHttpClient extends AbstractHttpClient {
@@ -227,6 +235,11 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
             if (this.requestContext != null) {
                 RequestContext<?> requestContext = this.requestContext;
                 this.requestContext = null;
+                if (isOpen() && HttpUtil.isKeepAlive(msg)) {
+                    cachedPool.offerLast(this);
+                } else {
+                    ctx.close();
+                }
                 if (requestContext.executor.isPresent()) {
                     msg.retain();
                     requestContext.executor.get().execute(() -> {
@@ -238,11 +251,6 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
                     });
                 } else {
                     requestContext.complete(msg);
-                }
-                if (isOpen() && HttpUtil.isKeepAlive(msg)) {
-                    cachedPool.offerLast(this);
-                } else {
-                    ctx.close();
                 }
             } else {
                 // WARN: should not reach this line.
@@ -298,6 +306,77 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
                 ReferenceCountUtil.safeRelease(requestContext.request.content());
                 requestContext.future.completeExceptionally(new ClosedChannelException());
             }
+        }
+
+    }
+
+    /**
+     * Returns a new {@link Builder} with default settings.
+     * 
+     * @return a {@code Builder}.
+     */
+    public static final Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Returns a new {@link ConnectionCachedHttpClient} with default settings.
+     * 
+     * @return a {@code ConnectionCachedHttpClient}
+     */
+    public static final ConnectionCachedHttpClient build() {
+        return builder().build();
+    }
+
+    /**
+     * Builder of {@link ConnectionCachedHttpClient}.
+     * 
+     * @since 1.0
+     *
+     * @author MJ Fang
+     */
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
+    public static final class Builder extends AbstractBuilder<ConnectionCachedHttpClient, Builder> {
+
+        /**
+         * Returns a new {@link ConnectionCachedHttpClient} built from the current state
+         * of this builder with internal {@link EventLoopGroup}.
+         * 
+         * @return a new {@code ConnectionCachedHttpClient}
+         */
+        @Override
+        public ConnectionCachedHttpClient build() {
+            ensureSslContext();
+            TransportLibrary transportLibrary = TransportLibrary.getDefault();
+            ThreadFactory threadFactory = new DefaultThreadFactory(ConnectionCachedHttpClient.class);
+            return new ConnectionCachedHttpClient(transportLibrary.createGroup(0, threadFactory),
+                    transportLibrary.channelClass(), sslContext, true, timeoutSeconds(), maxContentLength);
+        }
+
+        /**
+         * Returns a new {@link ConnectionCachedHttpClient} built from the current state
+         * of this builder with given {@link EventLoopGroup}.
+         * 
+         * @param group the {@link EventLoopGroup}
+         * @return a new {@code ConnectionCachedHttpClient}
+         */
+        public ConnectionCachedHttpClient build(EventLoopGroup group) {
+            Class<? extends Channel> channelClass = SocketChannelUtil.fromEventLoopGroup(group);
+            return build(group, channelClass);
+        }
+
+        /**
+         * Returns a new {@link ConnectionCachedHttpClient} built from the current state
+         * of this builder with given {@link EventLoopGroup}.
+         * 
+         * @param group        the {@link EventLoopGroup}
+         * @param channelClass the {@link Class} of {@link Channel}
+         * @return a new {@code ConnectionCachedHttpClient}
+         */
+        public ConnectionCachedHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
+            ensureSslContext();
+            return new ConnectionCachedHttpClient(group, channelClass, sslContext, false, timeoutSeconds(),
+                    maxContentLength);
         }
 
     }

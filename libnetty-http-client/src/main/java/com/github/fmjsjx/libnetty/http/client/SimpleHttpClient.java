@@ -1,17 +1,15 @@
 package com.github.fmjsjx.libnetty.http.client;
 
-import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
-import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
+import static com.github.fmjsjx.libnetty.http.HttpUtil.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadFactory;
 
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
@@ -36,6 +34,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +46,9 @@ import lombok.extern.slf4j.Slf4j;
  * @since 1.0
  * 
  * @author MJ Fang
+ * 
+ * @see AbstractHttpClient
+ * @see ConnectionCachedHttpClient
  */
 @Slf4j
 public class SimpleHttpClient extends AbstractHttpClient {
@@ -59,97 +61,21 @@ public class SimpleHttpClient extends AbstractHttpClient {
      * @author MJ Fang
      */
     @NoArgsConstructor(access = AccessLevel.PRIVATE)
-    public static final class Builder {
-
-        /**
-         * Default is 60 seconds.
-         */
-        private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(60);
-
-        /**
-         * Default is 1 MB.
-         */
-        private static final int DEFAULT_MAX_CONTENT_LENGTH = 1 * 1024 * 1024;
-
-        private Duration timeout = DEFAULT_TIMEOUT;
-
-        private int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
-
-        private SslContext sslContext;
-
-        /**
-         * Returns the timeout duration for this client.
-         * 
-         * @return the timeout {@link Duration}
-         */
-        public Duration timeout() {
-            return timeout;
-        }
-
-        /**
-         * Sets the timeout duration for this client.
-         * 
-         * @param duration the timeout {@link Duration}
-         * @return this {@link Builder}
-         */
-        public Builder timeout(Duration duration) {
-            timeout = duration == null ? DEFAULT_TIMEOUT : duration;
-            return this;
-        }
-
-        /**
-         * Returns the SSL context for this client.
-         * 
-         * @return the {@link SslContext}
-         */
-        public SslContext sslContext() {
-            return sslContext;
-        }
-
-        /**
-         * Sets the SSL context for this client.
-         * 
-         * @param sslContext the {@link SslContext}
-         * @return this {@link Builder}
-         */
-        public Builder sslContext(SslContext sslContext) {
-            this.sslContext = sslContext;
-            return this;
-        }
-
-        /**
-         * Returns the max content length for this client.
-         * 
-         * @return the max content length
-         */
-        public int maxContentLength() {
-            return maxContentLength;
-        }
-
-        /**
-         * Sets the max content length for this client.
-         * 
-         * @param maxContentLength the max content length
-         * @return this {@link Builder}
-         */
-        public Builder maxContentLength(int maxContentLength) {
-            if (maxContentLength > 0) {
-                this.maxContentLength = maxContentLength;
-            }
-            return this;
-        }
+    public static final class Builder extends AbstractBuilder<SimpleHttpClient, Builder> {
 
         /**
          * Returns a new {@link SimpleHttpClient} built from the current state of this
          * builder with internal {@link EventLoopGroup}.
          * 
-         * @return a new {@link SimpleHttpClient}
+         * @return a new {@code SimpleHttpClient}
          */
+        @Override
         public SimpleHttpClient build() {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
-            return new SimpleHttpClient(transportLibrary.createGroup(), transportLibrary.channelClass(), sslContext,
-                    true, timeoutSeconds(), maxContentLength);
+            ThreadFactory threadFactory = new DefaultThreadFactory(SimpleHttpClient.class);
+            return new SimpleHttpClient(transportLibrary.createGroup(0, threadFactory), transportLibrary.channelClass(),
+                    sslContext, true, timeoutSeconds(), maxContentLength);
         }
 
         /**
@@ -157,7 +83,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
          * builder with given {@link EventLoopGroup}.
          * 
          * @param group the {@link EventLoopGroup}
-         * @return a new {@link SimpleHttpClient}
+         * @return a new {@code SimpleHttpClient}
          */
         public SimpleHttpClient build(EventLoopGroup group) {
             Class<? extends Channel> channelClass = SocketChannelUtil.fromEventLoopGroup(group);
@@ -170,21 +96,11 @@ public class SimpleHttpClient extends AbstractHttpClient {
          * 
          * @param group        the {@link EventLoopGroup}
          * @param channelClass the {@link Class} of {@link Channel}
-         * @return a new {@link SimpleHttpClient}
+         * @return a new {@code SimpleHttpClient}
          */
         public SimpleHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
             return new SimpleHttpClient(group, channelClass, sslContext, false, timeoutSeconds(), maxContentLength);
-        }
-
-        private void ensureSslContext() {
-            if (sslContext == null) {
-                sslContext = SslContextUtil.createForClient();
-            }
-        }
-
-        private int timeoutSeconds() {
-            return (int) timeout.getSeconds();
         }
 
     }
@@ -192,7 +108,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
     /**
      * Returns a new {@link Builder} with default settings.
      * 
-     * @return a {@link Builder}.
+     * @return a {@code Builder}.
      */
     public static final Builder builder() {
         return new Builder();
@@ -201,7 +117,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
     /**
      * Returns a new {@link SimpleHttpClient} with default settings.
      * 
-     * @return a {@link SimpleHttpClient}
+     * @return a {@code SimpleHttpClient}
      */
     public static final SimpleHttpClient build() {
         return builder().build();
