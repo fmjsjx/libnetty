@@ -34,14 +34,17 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected final EventLoopGroup group;
     protected final Class<? extends Channel> channelClass;
     protected final SslContext sslContext;
+    protected final boolean compressionEnabled;
 
     private final Object closeLock = new Object();
     protected volatile boolean closed;
 
-    protected AbstractHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext) {
+    protected AbstractHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
+            boolean compressionEnabled) {
         this.group = Objects.requireNonNull(group, "group must not be null");
         this.channelClass = Objects.requireNonNull(channelClass, "channelClass must not be null");
         this.sslContext = Objects.requireNonNull(sslContext, "sslContext must not be null");
+        this.compressionEnabled = compressionEnabled;
     }
 
     protected EventLoopGroup group() {
@@ -55,6 +58,15 @@ public abstract class AbstractHttpClient implements HttpClient {
     @Override
     public SslContext sslContext() {
         return sslContext;
+    }
+
+    /**
+     * Returns {@code true} if compression feature is enabled of this client.
+     * 
+     * @return {@code true} if compression feature is enabled
+     */
+    public boolean compressionEnabled() {
+        return compressionEnabled;
     }
 
     @Override
@@ -108,6 +120,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         protected Duration timeout = DEFAULT_TIMEOUT;
         protected int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
         protected SslContext sslContext;
+        protected boolean compressionEnabled;
 
         /**
          * Returns the timeout duration for this client.
@@ -164,6 +177,21 @@ public abstract class AbstractHttpClient implements HttpClient {
                 this.maxContentLength = maxContentLength;
             }
             return (Self) this;
+        }
+
+        @Override
+        public Self compression(boolean enabled) {
+            this.compressionEnabled = enabled;
+            return (Self) this;
+        }
+
+        /**
+         * Returns {@code true} if the compression feature is enabled.
+         * 
+         * @return {@code true} if the compression feature is enabled
+         */
+        public boolean compressionEnabled() {
+            return compressionEnabled;
         }
 
     }

@@ -795,6 +795,14 @@ public interface HttpClient extends AutoCloseable {
          */
         Builder sslContext(SslContext sslContext);
 
+        /**
+         * Sets if the content compression feature is enabled or not.
+         * 
+         * @param enabled {@code true} if enabled
+         * @return this {@code Builder}
+         */
+        Builder compression(boolean enabled);
+
     }
 
 }

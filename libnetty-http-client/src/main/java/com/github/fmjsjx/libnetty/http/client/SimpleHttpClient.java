@@ -3,6 +3,7 @@ package com.github.fmjsjx.libnetty.http.client;
 import static com.github.fmjsjx.libnetty.http.HttpUtil.*;
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpHeaderValues.*;
+import static io.netty.handler.codec.http.HttpMethod.*;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -27,7 +28,9 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
@@ -74,7 +77,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(SimpleHttpClient.class);
             return new SimpleHttpClient(transportLibrary.createGroup(0, threadFactory), transportLibrary.channelClass(),
-                    sslContext, true, timeoutSeconds(), maxContentLength);
+                    sslContext, compressionEnabled, true, timeoutSeconds(), maxContentLength);
         }
 
         /**
@@ -99,7 +102,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
          */
         public SimpleHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new SimpleHttpClient(group, channelClass, sslContext, false, timeoutSeconds(), maxContentLength);
+            return new SimpleHttpClient(group, channelClass, sslContext, compressionEnabled, false, timeoutSeconds(),
+                    maxContentLength);
         }
 
     }
@@ -127,8 +131,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
     private final int maxContentLength;
 
     SimpleHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
-            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
-        super(group, channelClass, sslContext);
+            boolean compressionEnabled, boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
+        super(group, channelClass, sslContext, compressionEnabled);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
@@ -162,6 +166,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
                             cp.addLast(sslContext.newHandler(ch.alloc(), host, port));
                         }
                         cp.addLast(new HttpClientCodec());
+                        if (compressionEnabled) {
+                            cp.addLast(new HttpContentDecompressor());
+                        }
                         cp.addLast(new HttpObjectAggregator(maxContentLength));
                         cp.addLast(new SimpleHttpClientHandler<>(future, contentHandler, executor));
                     }
@@ -171,17 +178,23 @@ public class SimpleHttpClient extends AbstractHttpClient {
         String requestUri = query == null ? path : path + "?" + query;
         b.connect(address).addListener((ChannelFuture cf) -> {
             if (cf.isSuccess()) {
+                HttpMethod method = request.method();
                 HttpHeaders headers = request.headers();
                 ByteBuf content = request.contentHolder().content(cf.channel().alloc());
-                DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, request.method(),
-                        requestUri, content, headers, request.trailingHeaders());
+                DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, requestUri,
+                        content, headers, request.trailingHeaders());
                 headers.set(HOST, defaultPort ? host : host + ":" + port);
-                int contentLength = content.readableBytes();
-                if (contentLength > 0) {
+                if (method == POST || method == PUT || method == PATCH || method == DELETE) {
+                    int contentLength = content.readableBytes();
                     headers.setInt(CONTENT_LENGTH, contentLength);
                     if (!headers.contains(CONTENT_TYPE)) {
                         headers.set(CONTENT_TYPE, contentType(APPLICATION_X_WWW_FORM_URLENCODED));
                     }
+                }
+                if (compressionEnabled) {
+                    headers.set(ACCEPT_ENCODING, GZIP_DEFLATE);
+                } else {
+                    headers.remove(ACCEPT_ENCODING);
                 }
                 HttpUtil.setKeepAlive(req, false);
                 cf.channel().writeAndFlush(req);
