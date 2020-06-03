@@ -33,7 +33,6 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.ReadTimeoutHandler;
-import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -171,9 +170,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
         String query = uri.getRawQuery();
         String requestUri = query == null ? path : path + "?" + query;
         b.connect(address).addListener((ChannelFuture cf) -> {
-            ByteBuf content = request.content();
             if (cf.isSuccess()) {
                 HttpHeaders headers = request.headers();
+                ByteBuf content = request.contentHolder().content(cf.channel().alloc());
                 DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, request.method(),
                         requestUri, content, headers, request.trailingHeaders());
                 headers.set(HOST, defaultPort ? host : host + ":" + port);
@@ -187,7 +186,6 @@ public class SimpleHttpClient extends AbstractHttpClient {
                 HttpUtil.setKeepAlive(req, false);
                 cf.channel().writeAndFlush(req);
             } else {
-                ReferenceCountUtil.safeRelease(content);
                 future.completeExceptionally(cf.cause());
             }
         });

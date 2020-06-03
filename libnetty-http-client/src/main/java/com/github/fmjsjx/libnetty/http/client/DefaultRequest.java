@@ -5,7 +5,6 @@ import java.net.URI;
 import com.github.fmjsjx.libnetty.http.client.HttpClient.ClientWrappedRequest;
 import com.github.fmjsjx.libnetty.http.client.HttpClient.ClientWrappedRequestBuilder;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import lombok.AccessLevel;
@@ -22,7 +21,7 @@ class DefaultRequest implements ClientWrappedRequest {
     private final URI uri;
     private final HttpHeaders headers;
     private final HttpHeaders trailingHeaders;
-    private final ByteBuf content;
+    private final HttpContentHolder<?> contentHolder;
 
     @Override
     public HttpMethod method() {
@@ -45,8 +44,8 @@ class DefaultRequest implements ClientWrappedRequest {
     }
 
     @Override
-    public ByteBuf content() {
-        return content;
+    public HttpContentHolder<?> contentHolder() {
+        return contentHolder;
     }
 
     @Override
@@ -66,7 +65,7 @@ class DefaultRequest implements ClientWrappedRequest {
 
         @Override
         protected ClientWrappedRequest build0() {
-            return new DefaultRequest(wrappedClient, method, uri, headers, trailingHeaders, content);
+            return new DefaultRequest(wrappedClient, method, uri, headers, trailingHeaders, contentHolder);
         }
 
     }

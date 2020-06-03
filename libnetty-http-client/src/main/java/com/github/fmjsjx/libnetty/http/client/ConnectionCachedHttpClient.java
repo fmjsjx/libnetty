@@ -41,7 +41,6 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
-import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -124,7 +123,6 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
                 if (cf.isSuccess()) {
                     handler.sendAsnyc(requestContext);
                 } else {
-                    ReferenceCountUtil.safeRelease(request.content());
                     future.completeExceptionally(cf.cause());
                 }
             });
@@ -277,7 +275,6 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
             if (channel.isActive()) {
                 channel.eventLoop().execute(() -> {
                     Request request = requestContext.request;
-                    ByteBuf content = request.content();
                     if (channel.isActive()) {
                         this.requestContext = requestContext;
                         HttpHeaders headers = request.headers();
@@ -285,6 +282,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
                         String path = uri.getRawPath();
                         String query = uri.getRawQuery();
                         String requestUri = query == null ? path : path + "?" + query;
+                        ByteBuf content = request.contentHolder().content(channel.alloc());
                         DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, request.method(),
                                 requestUri, content, headers, request.trailingHeaders());
                         headers.set(HOST, headerHost);
@@ -298,12 +296,10 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
                         HttpUtil.setKeepAlive(req, true);
                         channel.writeAndFlush(req);
                     } else {
-                        ReferenceCountUtil.safeRelease(content);
                         requestContext.future.completeExceptionally(new ClosedChannelException());
                     }
                 });
             } else {
-                ReferenceCountUtil.safeRelease(requestContext.request.content());
                 requestContext.future.completeExceptionally(new ClosedChannelException());
             }
         }

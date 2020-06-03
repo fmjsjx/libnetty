@@ -19,7 +19,6 @@ import com.github.fmjsjx.libnetty.http.HttpUtil;
 import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
@@ -216,11 +215,11 @@ public interface HttpClient extends AutoCloseable {
         HttpHeaders trailingHeaders();
 
         /**
-         * Returns the content of this {@link Request}.
+         * Returns the {@link HttpContentHolder}.
          * 
-         * @return the {@link ByteBuf} content of this {@link Request}
+         * @return a {@code HttpContentHolder}
          */
-        ByteBuf content();
+        HttpContentHolder<?> contentHolder();
 
     }
 
@@ -238,7 +237,7 @@ public interface HttpClient extends AutoCloseable {
         protected URI uri;
         protected HttpHeaders headers;
         protected HttpHeaders trailingHeaders;
-        protected ByteBuf content;
+        protected HttpContentHolder<?> contentHolder;
 
         /**
          * Sets the {@code URI} for this request.
@@ -258,9 +257,9 @@ public interface HttpClient extends AutoCloseable {
          * @param content a {@link ByteBuf}
          * @return this builder
          */
-        protected Self method(HttpMethod method, ByteBuf content) {
+        protected Self method(HttpMethod method, HttpContentHolder<?> contentHolder) {
             this.method = Objects.requireNonNull(method, "method must not be null");
-            this.content = content == null ? Unpooled.EMPTY_BUFFER : content;
+            this.contentHolder = contentHolder == null ? HttpContentHolders.ofEmpty() : contentHolder;
             return (Self) this;
         }
 
@@ -305,43 +304,43 @@ public interface HttpClient extends AutoCloseable {
         /**
          * Returns a new HTTP POST request built from the current state of this builder.
          * 
-         * @param content the HTTP content
+         * @param contentHolder the {@code HttpContentHolder}
          * @return this builder
          */
-        public Request post(ByteBuf content) {
-            return method(HttpMethod.POST, content).build();
+        public Request post(HttpContentHolder<?> contentHolder) {
+            return method(HttpMethod.POST, contentHolder).build();
         }
 
         /**
          * Returns a new HTTP PUT request built from the current state of this builder.
          * 
-         * @param content the HTTP content
+         * @param content the {@code HttpContentHolder}
          * @return this builder
          */
-        public Request put(ByteBuf content) {
-            return method(HttpMethod.PUT, content).build();
+        public Request put(HttpContentHolder<?> contentHolder) {
+            return method(HttpMethod.PUT, contentHolder).build();
         }
 
         /**
          * Returns a new HTTP PATCH request built from the current state of this
          * builder.
          * 
-         * @param content the HTTP content
+         * @param content the {@code HttpContentHolder}
          * @return this builder
          */
-        public Request patch(ByteBuf content) {
-            return method(HttpMethod.PATCH, content).build();
+        public Request patch(HttpContentHolder<?> contentHolder) {
+            return method(HttpMethod.PATCH, contentHolder).build();
         }
 
         /**
          * Returns a new HTTP DELETE request built from the current state of this
          * builder.
          * 
-         * @param content the HTTP content
+         * @param content the {@code HttpContentHolder}
          * @return this builder
          */
-        public Request delete(ByteBuf content) {
-            return method(HttpMethod.DELETE, content).build();
+        public Request delete(HttpContentHolder<?> contentHolder) {
+            return method(HttpMethod.DELETE, contentHolder).build();
         }
 
         /**
@@ -648,23 +647,23 @@ public interface HttpClient extends AutoCloseable {
         }
 
         @Override
-        public ClientWrappedRequest post(ByteBuf content) {
-            return (ClientWrappedRequest) super.post(content);
+        public ClientWrappedRequest post(HttpContentHolder<?> contentHolder) {
+            return (ClientWrappedRequest) super.post(contentHolder);
         }
 
         @Override
-        public ClientWrappedRequest put(ByteBuf content) {
-            return (ClientWrappedRequest) super.put(content);
+        public ClientWrappedRequest put(HttpContentHolder<?> contentHolder) {
+            return (ClientWrappedRequest) super.put(contentHolder);
         }
 
         @Override
-        public ClientWrappedRequest patch(ByteBuf content) {
-            return (ClientWrappedRequest) super.patch(content);
+        public ClientWrappedRequest patch(HttpContentHolder<?> contentHolder) {
+            return (ClientWrappedRequest) super.patch(contentHolder);
         }
 
         @Override
-        public ClientWrappedRequest delete(ByteBuf content) {
-            return (ClientWrappedRequest) super.delete(content);
+        public ClientWrappedRequest delete(HttpContentHolder<?> contentHolder) {
+            return (ClientWrappedRequest) super.delete(contentHolder);
         }
 
         @Override
