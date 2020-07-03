@@ -1,4 +1,4 @@
-# LibNetty Project
+# LibNetty Transport Project
 
 Provides additional features for `netty-transport`.
 
