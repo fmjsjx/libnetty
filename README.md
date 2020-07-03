@@ -9,7 +9,7 @@ There are a number of modules in LibNetty, here is a quick overview:
 
 ### libnetty-fastcgi
 
-The [`libnetty-fastcgi`](libnetty-fastcgi) module provides codec components for `Fast-CGI`.
+The [`libnetty-fastcgi`](libnetty-fastcgi) module provides codec components for [`Fast-CGI`](https://fastcgi-archives.github.io/FastCGI_Specification.html).
 
 ### libnetty-http
 
@@ -21,7 +21,7 @@ The [`libnetty-http-client`](libnetty-http-client) module provides a simplified 
 
 ### libnetty-resp
 
-The [`libnetty-resp`](libnetty-resp) module provides codec components for `RESP (REdis Serialization Protocol)`.
+The [`libnetty-resp`](libnetty-resp) module provides codec components for [`RESP(REdis Serialization Protocol)`](https://redis.io/topics/protocol).
 
 ### libnetty-transport
 
