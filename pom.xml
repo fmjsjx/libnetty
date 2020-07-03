@@ -11,6 +11,7 @@
 
   <modules>
     <module>libnetty-bom</module>
+    <module>libnetty-example</module>
     <module>libnetty-fastcgi</module>
     <module>libnetty-http</module>
     <module>libnetty-http-client</module>

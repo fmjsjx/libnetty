@@ -16,6 +16,11 @@
     <dependencies>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>libnetty-example</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>libnetty-fastcgi</artifactId>
         <version>${project.version}</version>
       </dependency>
