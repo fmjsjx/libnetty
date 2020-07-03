@@ -25,5 +25,5 @@ The [`libnetty-resp`](libnetty-resp) module provides codec components for `RESP 
 
 ### libnetty-transport
 
-The [`libnetty-resp`](libnetty-resp) module provides additional features, such as `auto-selection of java/native transport`, for `netty-transport`.
+The [`libnetty-transport`](libnetty-transport) module provides additional features, such as `auto-selection of java/native transport`, for `netty-transport`.
 
