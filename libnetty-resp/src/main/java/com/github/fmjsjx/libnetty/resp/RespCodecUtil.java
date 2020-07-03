@@ -87,6 +87,10 @@ class RespCodecUtil {
     }
 
     static long decodeLong(ByteBuf content) {
+        return decodeLong(content, new ToPositiveLongProcessor());
+    }
+    
+    static long decodeLong(ByteBuf content, ToPositiveLongProcessor numberProcessor) {
         int begin = content.readerIndex();
         int length = content.readableBytes();
         if (length == 0) {
@@ -100,7 +104,6 @@ class RespCodecUtil {
         if (length == 0) {
             throw NaN;
         }
-        ToPositiveLongProcessor numberProcessor = new ToPositiveLongProcessor();
         content.forEachByte(begin, length, numberProcessor);
         return numberProcessor.value;
     }

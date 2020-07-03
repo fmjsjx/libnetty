@@ -99,7 +99,7 @@ public class DefaultErrorMessage extends AbstractContentRespMessage<DefaultError
     private final Charset charset;
     private final String text;
 
-    private DefaultErrorMessage(ByteBuf content, AsciiString code, String message, Charset charset, String text) {
+    DefaultErrorMessage(ByteBuf content, AsciiString code, String message, Charset charset, String text) {
         super(content);
         this.code = code;
         this.message = message;

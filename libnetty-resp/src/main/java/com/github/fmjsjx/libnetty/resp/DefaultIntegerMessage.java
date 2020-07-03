@@ -30,7 +30,7 @@ public class DefaultIntegerMessage extends AbstractContentRespMessage<DefaultInt
 
     private final long value;
 
-    private DefaultIntegerMessage(ByteBuf content, long value) {
+    DefaultIntegerMessage(ByteBuf content, long value) {
         super(content);
         this.value = value;
     }

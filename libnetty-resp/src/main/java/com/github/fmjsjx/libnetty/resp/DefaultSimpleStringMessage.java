@@ -66,6 +66,10 @@ public class DefaultSimpleStringMessage extends AbstractContentRespMessage<Defau
         this.value = value;
         this.charset = charset;
     }
+    
+    DefaultSimpleStringMessage(ByteBuf content, Charset charset) {
+        this(content, content.toString(charset), charset);
+    }
 
     @Override
     public RespMessageType type() {

@@ -20,9 +20,6 @@ import io.netty.util.ByteProcessor;
  */
 public class RedisRequestDecoder extends RespMessageDecoder {
 
-    private static final RespDecoderException DECODING_OF_INLINE_COMMANDS_DISABLED = new RespDecoderException(
-            "decoding of inline commands is disabled");
-
     private static final RespDecoderException REDIS_REQUEST_ELEMENTS_ONLY_SUPPORT_BULK_STRINGS = new RespDecoderException(
             "redis request elements only support Bulk Strings");
 
@@ -59,7 +56,7 @@ public class RedisRequestDecoder extends RespMessageDecoder {
      * 
      * @param supportInlineCommand   if {@code true} then this decoder will support
      *                               <b>inline command</b>
-     * @param maxInlineMessageLength the maximum length of the <b>inline message</b>
+     * @param maxInlineMessageLength the maximum length of <b>in-line</b> messages
      */
     public RedisRequestDecoder(boolean supportInlineCommand, int maxInlineMessageLength) {
         super(maxInlineMessageLength);
@@ -118,7 +115,6 @@ public class RedisRequestDecoder extends RespMessageDecoder {
         } else {
             arraySize = size;
             bulkStrings = new ArrayList<>(size);
-            state = State.DECODE_INLINE;
         }
     }
 
@@ -129,15 +125,13 @@ public class RedisRequestDecoder extends RespMessageDecoder {
             bulkStrings.add(RespMessages.nil());
             if (bulkStrings.size() == arraySize) {
                 outputRequest(out);
-            } else {
-                state = State.DECODE_INLINE;
             }
         } else {
             currentBulkStringLength = length;
             if (currentBulkStringLength > RESP_MESSAGE_MAX_LENGTH) {
                 throw TOO_LONG_BULK_STRING_MESSAGE;
             }
-            state = State.DECODE_BULK_STRING_CONTENT;
+            setState(State.DECODE_BULK_STRING_CONTENT);
         }
     }
 
@@ -185,7 +179,7 @@ public class RedisRequestDecoder extends RespMessageDecoder {
         if (bulkStrings.size() == arraySize) {
             outputRequest(out);
         } else {
-            state = State.DECODE_INLINE;
+            setState(State.DECODE_INLINE);
         }
         return true;
     }

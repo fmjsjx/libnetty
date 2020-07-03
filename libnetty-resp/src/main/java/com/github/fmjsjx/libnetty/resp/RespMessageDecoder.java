@@ -30,6 +30,15 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
 
     protected static final RespDecoderException NO_NUMBER_TO_PARSE = new RespDecoderException("no number to parse");
 
+    protected static final RespDecoderException DECODING_OF_INLINE_COMMANDS_DISABLED = new RespDecoderException(
+            "decoding of inline commands is disabled");
+
+    protected static final ThreadLocal<ToPositiveIntProcessor> currentToPositiveIntProcessor = new ThreadLocal<ToPositiveIntProcessor>() {
+        protected ToPositiveIntProcessor initialValue() {
+            return new ToPositiveIntProcessor();
+        }
+    };
+
     protected static final void requireReadable(ByteBuf inlineBytes, Supplier<RespDecoderException> errorSupplier) {
         if (!inlineBytes.isReadable()) {
             throw errorSupplier.get();
@@ -77,8 +86,6 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
         DECODE_BULK_STRING_CONTENT // BULK_STRING_CONTENT
     }
 
-    protected final ToPositiveIntProcessor toPositiveIntProcessor = new ToPositiveIntProcessor();
-
     protected final int maxInlineMessageLength;
 
     protected State state = State.DECODE_INLINE;
@@ -121,6 +128,10 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
         state = State.DECODE_INLINE;
     }
 
+    protected void setState(State state) {
+        this.state = state;
+    }
+
     protected abstract boolean decodeInline(ByteBuf in, List<Object> out);
 
     protected int decodeArrayHeader(ByteBuf inlineBytes) {
@@ -129,6 +140,7 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
     }
 
     protected int parsePostiveInt(ByteBuf byteBuf) {
+        ToPositiveIntProcessor toPositiveIntProcessor = currentToPositiveIntProcessor.get();
         toPositiveIntProcessor.reset();
         byteBuf.forEachByte(toPositiveIntProcessor);
         return toPositiveIntProcessor.value();

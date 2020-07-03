@@ -47,6 +47,8 @@ class RespConstants {
     static final byte TYPE_SIMPLE_STRING = '+';
     static final byte TYPE_ERROR = '-';
     static final byte TYPE_INTEGER = ':';
+    
+    static final byte SPACE = ' ';
 
     static final AsciiString ERR = AsciiString.cached("ERR");
 
