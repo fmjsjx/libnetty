@@ -20,8 +20,9 @@ Bootstrap b = new Bootstrap().group(group).channel(NioSocketChannel.class)
         }
     });
 ChannelFuture future = b.connect("127.0.0.1", 6379).sync();
-if (channel.isSuccess()) {
-    DefaultArrayMessage cmd = DefaultArrayMessage.bulkStringArray("GET", "key");
+if (future.isSuccess()) {
+    Channel channel = future.channel();
+    DefaultArrayMessage cmd = DefaultArrayMessage.bulkStringArrayAscii(channel.alloc(), "GET", "key");
     channel.writeAndFlush(cmd);
 }
 ```
@@ -74,9 +75,9 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
         System.out.println(msg);
         String commond = msg.command().toText().toUpperCase();
         switch (commond) {
-        case "GET":
-            // always returns "Hello""
-            ctx.writeAndFlush(DefaultBulkStringMessage.createUtf8(ctx.alloc(), "Hello"));
+        case "ECHO":
+            // always returns message
+            ctx.writeAndFlush((msg.argument(1).retainedDuplicate());
             break;
         case "QUIT":
             ctx.writeAndFlush(RespMessages.ok()).addListener(CLOSE);
