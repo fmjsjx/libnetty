@@ -16,7 +16,6 @@
     <module>libnetty-http</module>
     <module>libnetty-http-client</module>
     <module>libnetty-resp</module>
-    <module>libnetty-resp3</module>
     <module>libnetty-transport</module>
   </modules>
 
