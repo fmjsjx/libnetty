@@ -82,6 +82,10 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
             ctx.writeAndFlush(RespMessages.ok()).addListener(CLOSE);
             break;
         case "PING":
+            ctx.writeAndFlush(RespMessages.pong());
+            break;
+        case "SELECT":
+            // just returns OK
             ctx.writeAndFlush(RespMessages.ok());
             break;
         default:
