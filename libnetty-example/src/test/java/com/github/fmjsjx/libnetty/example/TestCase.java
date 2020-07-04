@@ -1,4 +1,4 @@
-package com.github.fmjsjx.libnetty.resp;
+package com.github.fmjsjx.libnetty.example;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
