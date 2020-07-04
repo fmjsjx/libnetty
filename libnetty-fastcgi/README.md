@@ -1,6 +1,6 @@
 # LibNetty Fast-CGI Project
 
-Provides codec components for `Fast-CGI`.
+Provides codec components for [`Fast-CGI`](https://fastcgi-archives.github.io/FastCGI_Specification.html).
 
 ## Quick Start
 
