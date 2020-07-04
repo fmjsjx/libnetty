@@ -1,6 +1,8 @@
 package com.github.fmjsjx.libnetty.resp;
 
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import io.netty.util.internal.SystemPropertyUtil;
 import io.netty.util.internal.logging.InternalLogger;
@@ -71,6 +73,8 @@ public class CachedRespMessages {
 
     private static final Optional<CachedIntegerMessage>[] cachedIntegerMessages;
 
+    private static final ConcurrentMap<String, CachedErrorMessage> cachedWrongNumberOfArgumentsRorCommands = new ConcurrentHashMap<>();
+
     static {
 
         int maxCachedInteger = SystemPropertyUtil.getInt("io.netty.resp.maxCachedIntegerMessage", 127);
@@ -99,7 +103,7 @@ public class CachedRespMessages {
     }
 
     /**
-     * Returns the cached {@link CachedIntegerMessage}with the specific
+     * Returns the cached {@link CachedIntegerMessage} with the specific
      * {@code value} given if exists.
      * 
      * @param value the value as {@code int} type
@@ -110,6 +114,22 @@ public class CachedRespMessages {
             return Optional.empty();
         }
         return cachedIntegerMessages[value];
+    }
+
+    /**
+     * Returns the cached {@link CachedErrorMessage} "wrong number of arguments for
+     * '$command' command" with the specific {@code command} given
+     * 
+     * @param command the command text
+     * @return a {@code CachedErrorMessage}
+     */
+    public static CachedErrorMessage cachedWrongNumberOfArgumentsForCommand(String command) {
+        return cachedWrongNumberOfArgumentsRorCommands.computeIfAbsent(command,
+                CachedRespMessages::createWrondNumberOfArgumentsForCommand);
+    }
+
+    private static CachedErrorMessage createWrondNumberOfArgumentsForCommand(String command) {
+        return CachedErrorMessage.createErrAscii("wrong number of arguments for '" + command + "' command");
     }
 
     private CachedRespMessages() {

@@ -139,6 +139,23 @@ public class RespMessages {
     }
 
     /**
+     * Returns the error:
+     * 
+     * <pre>
+     * {@code
+     *     -ERR wrong number of arguments for '$command' command
+     * }
+     * </pre>
+     * 
+     * @param command the command text
+     * 
+     * @return a {@code RespErrorMessage}
+     */
+    public static final RespErrorMessage wrongNumberOfArgumentsForCommand(String command) {
+        return CachedRespMessages.cachedWrongNumberOfArgumentsForCommand(command);
+    }
+
+    /**
      * Returns the empty {@link RespArrayMessage}.
      * 
      * @return an empty {@code RespArrayMessage}
