@@ -4,7 +4,8 @@ Provides a simplified HTTP client, supports both synchronous and asynchronous(ba
 
 ## Features
 
-- Basic calls for HTTP and HTTPS
+- Basic calls on HTTP/1.1
+- Support HTTPS(OpenSSL, JdkSSL)
 - Simple support for content compression(gzip, deflate)
 - Non-blocking, asynchronous, API
 
