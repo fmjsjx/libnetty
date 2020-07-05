@@ -25,8 +25,8 @@ public class RespDecoderException extends DecoderException implements Supplier<R
     /**
      * Creates a new instance.
      * 
-     * @param message
-     * @param cause
+     * @param message the detail message
+     * @param cause   the cause
      */
     public RespDecoderException(String message, Throwable cause) {
         super(message, cause);
@@ -35,7 +35,7 @@ public class RespDecoderException extends DecoderException implements Supplier<R
     /**
      * Creates a new instance.
      * 
-     * @param message
+     * @param message the detail message
      */
     public RespDecoderException(String message) {
         super(message);
@@ -44,7 +44,7 @@ public class RespDecoderException extends DecoderException implements Supplier<R
     /**
      * Creates a new instance.
      * 
-     * @param cause
+     * @param cause the cause
      */
     public RespDecoderException(Throwable cause) {
         super(cause);
