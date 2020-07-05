@@ -50,6 +50,8 @@ public class TestClient {
 }
 
 class TestClientHandler extends SimpleChannelInboundHandler<RespMessage> {
+    
+    private boolean first = true;
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, RespMessage msg) throws Exception {
@@ -57,13 +59,20 @@ class TestClientHandler extends SimpleChannelInboundHandler<RespMessage> {
         System.out.println(msg);
         if (msg instanceof RespBulkStringMessage) {
             System.out.println(((RespBulkStringMessage) msg).textValue(CharsetUtil.UTF_8));
+            if (first) {
+                DefaultArrayMessage cmd = DefaultArrayMessage.bulkStringArrayUtf8(ctx.alloc(), "GET",
+                        "https://www.baidu.com/");
+                ctx.writeAndFlush(cmd);
+                first = false;
+            } else {
+                ctx.writeAndFlush(DefaultArrayMessage.bulkStringArrayAscii(ctx.alloc(), "QUIT"));
+            }
         } else if (msg instanceof RespSimpleStringMessage) {
             if (RespMessages.ok().value().equals(((RespSimpleStringMessage) msg).value())) {
                 System.out.println("is OK");
                 ctx.close();
             }
         }
-        ctx.writeAndFlush(DefaultArrayMessage.bulkStringArrayAscii(ctx.alloc(), "QUIT"));
     }
 
 }

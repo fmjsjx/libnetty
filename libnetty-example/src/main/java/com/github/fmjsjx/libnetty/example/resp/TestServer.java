@@ -2,8 +2,14 @@ package com.github.fmjsjx.libnetty.example.resp;
 
 import static io.netty.channel.ChannelFutureListener.*;
 
+import java.net.URI;
+import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 
+import com.github.fmjsjx.libnetty.http.client.HttpClient;
+import com.github.fmjsjx.libnetty.http.client.HttpContentHandlers;
+import com.github.fmjsjx.libnetty.http.client.SimpleHttpClient;
+import com.github.fmjsjx.libnetty.resp.DefaultBulkStringMessage;
 import com.github.fmjsjx.libnetty.resp.DefaultErrorMessage;
 import com.github.fmjsjx.libnetty.resp.RedisRequest;
 import com.github.fmjsjx.libnetty.resp.RedisRequestDecoder;
@@ -13,6 +19,7 @@ import com.github.fmjsjx.libnetty.resp.RespMessages;
 import com.github.fmjsjx.libnetty.resp.util.IgnoredCaseAsciiKeyMap;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -22,6 +29,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.util.CharsetUtil;
 
 public class TestServer {
 
@@ -37,7 +45,7 @@ public class TestServer {
                                     .addLast(new RedisRequestDecoder()).addLast(new TestServerHandler());
                         }
                     });
-            b.bind(6369).sync();
+            b.bind(6379).sync();
             System.out.println("TestServer started!");
             System.in.read();
 
@@ -56,6 +64,7 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
 
     TestServerHandler() {
         commandProcedures = new IgnoredCaseAsciiKeyMap<>();
+        commandProcedures.put("GET", this::get);
         commandProcedures.put("ECHO", this::echo);
         commandProcedures.put("PING", this::ping);
         commandProcedures.put("SELECT", this::justOk);
@@ -65,6 +74,7 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         System.err.println(ctx.channel() + " connected");
+        ctx.read();
     }
 
     @Override
@@ -110,6 +120,30 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
             ctx.writeAndFlush(msg.argument(1).retainedDuplicate()).addListener(READ_NEXT);
         } else {
             ctx.writeAndFlush(RespMessages.wrongNumberOfArgumentsForCommand("ping")).addListener(READ_NEXT);
+        }
+    }
+
+    private void get(ChannelHandlerContext ctx, RedisRequest msg) {
+        Channel channel = ctx.channel();
+        String path = msg.argument(1).textValue(CharsetUtil.UTF_8);
+        try (HttpClient client = SimpleHttpClient.builder().build(channel.eventLoop(), channel.getClass())) {
+            client.request(URI.create(path)).get().sendAsync(HttpContentHandlers.ofByteArray()).thenAccept(r -> {
+                if (r.statusCode() >= 400) {
+                    channel.writeAndFlush(DefaultErrorMessage.createErrUtf8(channel.alloc(), r.status().toString()))
+                            .addListener(READ_NEXT);
+                } else {
+                    ByteBuf content = channel.alloc().buffer(r.content().length).writeBytes(r.content());
+                    channel.writeAndFlush(new DefaultBulkStringMessage(content)).addListener(READ_NEXT);
+                }
+            }).whenComplete((v, e) -> {
+                if (e != null) {
+                    if (e instanceof CompletionException) {
+                        e = e.getCause();
+                    }
+                    channel.writeAndFlush(DefaultErrorMessage.createErrUtf8(channel.alloc(), e.toString()))
+                            .addListener(READ_NEXT);
+                }
+            });
         }
     }
 
