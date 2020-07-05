@@ -18,6 +18,9 @@ public class FcgiDecoderException extends DecoderException {
 
     /**
      * Creates a new instance.
+     * 
+     * @param message the detail message
+     * @param cause   the cause
      */
     public FcgiDecoderException(String message, Throwable cause) {
         super(message, cause);
@@ -25,6 +28,8 @@ public class FcgiDecoderException extends DecoderException {
 
     /**
      * Creates a new instance.
+     * 
+     * @param message the detail message
      */
     public FcgiDecoderException(String message) {
         super(message);
@@ -32,6 +37,8 @@ public class FcgiDecoderException extends DecoderException {
 
     /**
      * Creates a new instance.
+     * 
+     * @param cause the cause
      */
     public FcgiDecoderException(Throwable cause) {
         super(cause);

@@ -18,7 +18,6 @@ import javax.net.ssl.SSLContext;
 import com.github.fmjsjx.libnetty.http.HttpUtil;
 import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
@@ -253,8 +252,8 @@ public interface HttpClient extends AutoCloseable {
         /**
          * Sets the HTTP method and content for this request.
          * 
-         * @param method  the {@link HttpMethod}
-         * @param content a {@link ByteBuf}
+         * @param method        the {@code HttpMethod}
+         * @param contentHolder the {@code HttpContentHolder}
          * @return this builder
          */
         protected Self method(HttpMethod method, HttpContentHolder<?> contentHolder) {
@@ -314,7 +313,7 @@ public interface HttpClient extends AutoCloseable {
         /**
          * Returns a new HTTP PUT request built from the current state of this builder.
          * 
-         * @param content the {@code HttpContentHolder}
+         * @param contentHolder the {@code HttpContentHolder}
          * @return this builder
          */
         public Request put(HttpContentHolder<?> contentHolder) {
@@ -325,7 +324,7 @@ public interface HttpClient extends AutoCloseable {
          * Returns a new HTTP PATCH request built from the current state of this
          * builder.
          * 
-         * @param content the {@code HttpContentHolder}
+         * @param contentHolder the {@code HttpContentHolder}
          * @return this builder
          */
         public Request patch(HttpContentHolder<?> contentHolder) {
@@ -336,7 +335,7 @@ public interface HttpClient extends AutoCloseable {
          * Returns a new HTTP DELETE request built from the current state of this
          * builder.
          * 
-         * @param content the {@code HttpContentHolder}
+         * @param contentHolder the {@code HttpContentHolder}
          * @return this builder
          */
         public Request delete(HttpContentHolder<?> contentHolder) {
@@ -442,8 +441,8 @@ public interface HttpClient extends AutoCloseable {
          * Sets the {@code content-type} header with the specified value for this
          * request.
          * 
-         * @param value   the value of the {@code content-type}
-         * @param charset the {@link Charset} of the {@code content-type}
+         * @param contentType the value of the {@code content-type}
+         * @param charset     the {@link Charset} of the {@code content-type}
          * @return this builder
          */
         public Self contentType(CharSequence contentType, Charset charset) {
@@ -590,7 +589,6 @@ public interface HttpClient extends AutoCloseable {
          * response content handler.
          * 
          * @param <T>            the response content type
-         * @param request        the request
          * @param contentHandler the response content handler
          * @param executor       the executor to use for asynchronous execution
          * @return a {@code CompletableFuture<HttpClient.Response<T>>}
@@ -755,8 +753,6 @@ public interface HttpClient extends AutoCloseable {
 
     /**
      * A builder to build {@link HttpClient}.
-     * 
-     * @param <C> the type of the real {@code HttpClient}
      * 
      * @since 1.0
      *

@@ -50,7 +50,7 @@ public final class HttpUtil {
 
     /**
      * Returns the {@code content-type} header value with the specified
-     * {@link charset} parameter.
+     * {@link Charset}.
      * 
      * @param contentType the content type
      * @param charset     the {@code Charset}

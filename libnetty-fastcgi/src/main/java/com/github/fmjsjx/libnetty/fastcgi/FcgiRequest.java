@@ -39,7 +39,6 @@ public class FcgiRequest extends AbstractReferenceCounted implements FcgiMessage
      * 
      * @param protocolVersion the {@code FcgiVersion}
      * @param requestId       the request id
-     * @param role            the {@code FcgiRole}
      * @param stdinContent    the {@code ByteBuf} content of {@code FCGI_STDIN}
      */
     public FcgiRequest(FcgiVersion protocolVersion, int requestId, ByteBuf stdinContent) {
