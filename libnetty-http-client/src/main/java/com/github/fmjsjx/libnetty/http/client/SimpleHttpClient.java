@@ -75,7 +75,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
         public SimpleHttpClient build() {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
-            ThreadFactory threadFactory = new DefaultThreadFactory(SimpleHttpClient.class);
+            ThreadFactory threadFactory = new DefaultThreadFactory(SimpleHttpClient.class, true);
             return new SimpleHttpClient(transportLibrary.createGroup(0, threadFactory), transportLibrary.channelClass(),
                     sslContext, compressionEnabled, true, timeoutSeconds(), maxContentLength);
         }

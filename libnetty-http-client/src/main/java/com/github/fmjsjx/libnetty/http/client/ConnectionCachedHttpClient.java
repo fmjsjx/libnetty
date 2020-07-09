@@ -356,7 +356,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
         public ConnectionCachedHttpClient build() {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
-            ThreadFactory threadFactory = new DefaultThreadFactory(ConnectionCachedHttpClient.class);
+            ThreadFactory threadFactory = new DefaultThreadFactory(ConnectionCachedHttpClient.class, true);
             return new ConnectionCachedHttpClient(transportLibrary.createGroup(0, threadFactory),
                     transportLibrary.channelClass(), sslContext, compressionEnabled, true, timeoutSeconds(),
                     maxContentLength);
