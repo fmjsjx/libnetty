@@ -15,6 +15,7 @@
     <module>libnetty-fastcgi</module>
     <module>libnetty-http</module>
     <module>libnetty-http-client</module>
+    <module>libnetty-http-server</module>
     <module>libnetty-resp</module>
     <module>libnetty-transport</module>
   </modules>
