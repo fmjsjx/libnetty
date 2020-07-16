@@ -6,8 +6,6 @@ import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
 
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 
 /**
  * Utility class for {@link SslContext}.
@@ -16,20 +14,22 @@ import lombok.NoArgsConstructor;
  * 
  * @author MJ Fang
  */
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-public final class SslContextUtil {
+final class SslContextUtil {
 
     /**
      * Create and returns a new {@link SslContext} instance for client.
      * 
      * @return a {@link SslContext} for client
      */
-    public static final SslContext createForClient() {
+    static final SslContext createForClient() {
         try {
             return SslContextBuilder.forClient().build();
         } catch (SSLException e) {
             throw new HttpRuntimeException(e);
         }
+    }
+
+    private SslContextUtil() {
     }
 
 }

@@ -12,6 +12,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.Bootstrap;
@@ -39,7 +42,6 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Simple implementation of {@link HttpClient} uses short connections (create
@@ -52,8 +54,9 @@ import lombok.extern.slf4j.Slf4j;
  * @see AbstractHttpClient
  * @see ConnectionCachedHttpClient
  */
-@Slf4j
 public class SimpleHttpClient extends AbstractHttpClient {
+    
+    private static final Logger log = LoggerFactory.getLogger(SimpleHttpClient.class);
 
     /**
      * Builder of {@link SimpleHttpClient}.

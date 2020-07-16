@@ -51,10 +51,10 @@ public interface HttpClient extends AutoCloseable {
      * Returns a default {@link Builder}.
      * 
      * @return a {@code Builder}
-     * @see ConnectionCachedHttpClient#builder()
+     * @see DefaultHttpClient#builder()
      */
     static Builder defaultBuilder() {
-        return ConnectionCachedHttpClient.builder();
+        return DefaultHttpClient.builder();
     }
 
     /**

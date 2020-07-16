@@ -7,8 +7,6 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 
 /**
  * Implementations of {@link HttpContentHolder}.
@@ -17,7 +15,6 @@ import lombok.NoArgsConstructor;
  *
  * @author MJ Fang
  */
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class HttpContentHolders {
 
     /**
@@ -142,6 +139,9 @@ public final class HttpContentHolders {
             return base();
         }
 
+    }
+
+    private HttpContentHolders() {
     }
 
 }

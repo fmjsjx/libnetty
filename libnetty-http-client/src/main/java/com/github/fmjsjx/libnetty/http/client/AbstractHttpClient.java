@@ -113,7 +113,13 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected abstract <T> CompletableFuture<Response<T>> sendAsync0(Request request,
             HttpContentHandler<T> contentHandler, Optional<Executor> executor);
 
-    @SuppressWarnings("unchecked")
+    /**
+     * The abstract implementation of {@link HttpClient.Builder}.
+     * 
+     * @since 1.0
+     *
+     * @author MJ Fang
+     */
     protected abstract static class AbstractBuilder<C extends HttpClient, Self extends AbstractBuilder<C, ?>>
             implements HttpClient.Builder {
 
@@ -132,6 +138,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Self timeout(Duration duration) {
             timeout = duration == null ? DEFAULT_TIMEOUT : duration;
             return (Self) this;
@@ -151,6 +158,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Self sslContext(SslContext sslContext) {
             this.sslContext = sslContext;
             return (Self) this;
@@ -172,6 +180,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Self maxContentLength(int maxContentLength) {
             if (maxContentLength > 0) {
                 this.maxContentLength = maxContentLength;
@@ -180,6 +189,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Self compression(boolean enabled) {
             this.compressionEnabled = enabled;
             return (Self) this;

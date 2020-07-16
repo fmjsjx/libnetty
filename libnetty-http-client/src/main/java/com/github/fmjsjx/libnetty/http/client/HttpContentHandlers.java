@@ -6,8 +6,6 @@ import java.util.concurrent.ConcurrentMap;
 
 import io.netty.buffer.ByteBufUtil;
 import io.netty.util.CharsetUtil;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 
 /**
  * Implementations of {@link HttpContentHandler}.
@@ -16,7 +14,6 @@ import lombok.NoArgsConstructor;
  * 
  * @author MJ Fang
  */
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class HttpContentHandlers {
 
     private static final class ByteArrayHandlerHolder {
@@ -56,6 +53,9 @@ public final class HttpContentHandlers {
      */
     public static final HttpContentHandler<String> ofString(Charset charset) {
         return StringHandlerHolder.STRING_HANDLERS.computeIfAbsent(charset, k -> buf -> buf.toString(k));
+    }
+
+    private HttpContentHandlers() {
     }
 
 }

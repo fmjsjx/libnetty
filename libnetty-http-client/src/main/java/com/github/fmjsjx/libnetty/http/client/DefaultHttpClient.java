@@ -54,23 +54,19 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 /**
- * A common implementation of {@link HttpClient} which will cache {@code TCP}
+ * The default implementation of {@link HttpClient} which will cache {@code TCP}
  * connections.
  * 
- * @deprecated please use {@link DefaultHttpClient} instead
- * 
- * @since 1.0
+ * @since 1.1
  *
  * @author MJ Fang
  * 
  * @see AbstractHttpClient
  * @see SimpleHttpClient
- * @see DefaultHttpClient
  */
-@Deprecated
-public class ConnectionCachedHttpClient extends AbstractHttpClient {
+public class DefaultHttpClient extends AbstractHttpClient {
 
-    private static final Logger log = LoggerFactory.getLogger(ConnectionCachedHttpClient.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultHttpClient.class);
 
     private final boolean shutdownGroupOnClose;
     private final int timeoutSeconds;
@@ -78,7 +74,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
 
     private final ConcurrentMap<String, ConcurrentLinkedDeque<HttpConnection>> cachedPools = new ConcurrentHashMap<String, ConcurrentLinkedDeque<HttpConnection>>();
 
-    ConnectionCachedHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
+    DefaultHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
             boolean compressionEnabled, boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
         super(group, channelClass, sslContext, compressionEnabled);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
@@ -113,8 +109,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
         } else {
             InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
             String headerHost = defaultPort ? host : host + ":" + port;
-            ConnectionCachedHttpClientHandler handler = new ConnectionCachedHttpClientHandler(address, headerHost,
-                    cachedPool);
+            InternalHttpClientHandler handler = new InternalHttpClientHandler(address, headerHost, cachedPool);
             Bootstrap b = new Bootstrap().group(group).channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
                     .option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
                         @Override
@@ -192,7 +187,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
     }
 
     @RequiredArgsConstructor
-    private final class ConnectionCachedHttpClientHandler extends SimpleChannelInboundHandler<FullHttpResponse>
+    private final class InternalHttpClientHandler extends SimpleChannelInboundHandler<FullHttpResponse>
             implements HttpConnection {
 
         private final InetSocketAddress address;
@@ -335,64 +330,64 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
     }
 
     /**
-     * Returns a new {@link ConnectionCachedHttpClient} with default settings.
+     * Returns a new {@link DefaultHttpClient} with default settings.
      * 
      * @return a {@code ConnectionCachedHttpClient}
      */
-    public static final ConnectionCachedHttpClient build() {
+    public static final DefaultHttpClient build() {
         return builder().build();
     }
 
     /**
-     * Builder of {@link ConnectionCachedHttpClient}.
+     * Builder of {@link DefaultHttpClient}.
      * 
      * @since 1.0
      *
      * @author MJ Fang
      */
     @NoArgsConstructor(access = AccessLevel.PRIVATE)
-    public static final class Builder extends AbstractBuilder<ConnectionCachedHttpClient, Builder> {
+    public static final class Builder extends AbstractBuilder<DefaultHttpClient, Builder> {
 
         /**
-         * Returns a new {@link ConnectionCachedHttpClient} built from the current state
-         * of this builder with internal {@link EventLoopGroup}.
+         * Returns a new {@link DefaultHttpClient} built from the current state of this
+         * builder with internal {@link EventLoopGroup}.
          * 
          * @return a new {@code ConnectionCachedHttpClient}
          */
         @Override
-        public ConnectionCachedHttpClient build() {
+        public DefaultHttpClient build() {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
-            ThreadFactory threadFactory = new DefaultThreadFactory(ConnectionCachedHttpClient.class, true);
-            return new ConnectionCachedHttpClient(transportLibrary.createGroup(0, threadFactory),
+            ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
+            return new DefaultHttpClient(transportLibrary.createGroup(0, threadFactory),
                     transportLibrary.channelClass(), sslContext, compressionEnabled, true, timeoutSeconds(),
                     maxContentLength);
         }
 
         /**
-         * Returns a new {@link ConnectionCachedHttpClient} built from the current state
-         * of this builder with given {@link EventLoopGroup}.
+         * Returns a new {@link DefaultHttpClient} built from the current state of this
+         * builder with given {@link EventLoopGroup}.
          * 
          * @param group the {@link EventLoopGroup}
          * @return a new {@code ConnectionCachedHttpClient}
          */
-        public ConnectionCachedHttpClient build(EventLoopGroup group) {
+        public DefaultHttpClient build(EventLoopGroup group) {
             Class<? extends Channel> channelClass = SocketChannelUtil.fromEventLoopGroup(group);
             return build(group, channelClass);
         }
 
         /**
-         * Returns a new {@link ConnectionCachedHttpClient} built from the current state
-         * of this builder with given {@link EventLoopGroup}.
+         * Returns a new {@link DefaultHttpClient} built from the current state of this
+         * builder with given {@link EventLoopGroup}.
          * 
          * @param group        the {@link EventLoopGroup}
          * @param channelClass the {@link Class} of {@link Channel}
          * @return a new {@code ConnectionCachedHttpClient}
          */
-        public ConnectionCachedHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
+        public DefaultHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new ConnectionCachedHttpClient(group, channelClass, sslContext, compressionEnabled, false,
-                    timeoutSeconds(), maxContentLength);
+            return new DefaultHttpClient(group, channelClass, sslContext, compressionEnabled, false, timeoutSeconds(),
+                    maxContentLength);
         }
 
     }

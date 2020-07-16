@@ -3,8 +3,6 @@ package com.github.fmjsjx.libnetty.http.client;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 
 /**
  * Utility class for {@link SocketChannel}.
@@ -13,8 +11,7 @@ import lombok.NoArgsConstructor;
  * 
  * @author MJ Fang
  */
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class SocketChannelUtil {
+final class SocketChannelUtil {
 
     /**
      * Returns the matching class of {@link SocketChannel} with the
@@ -23,7 +20,7 @@ public class SocketChannelUtil {
      * @param group the {@link EventLoopGroup}
      * @return the class of {@link SocketChannel}
      */
-    public static Class<? extends SocketChannel> fromEventLoopGroup(EventLoopGroup group) {
+    static Class<? extends SocketChannel> fromEventLoopGroup(EventLoopGroup group) {
         String className = group.getClass().getSimpleName();
         if (className.startsWith("Nio")) {
             return NioSocketChannel.class;
@@ -33,6 +30,9 @@ public class SocketChannelUtil {
             return io.netty.channel.kqueue.KQueueSocketChannel.class;
         }
         throw new IllegalArgumentException("Cannot find matching SocketChannel class for " + group.getClass());
+    }
+
+    private SocketChannelUtil() {
     }
 
 }
