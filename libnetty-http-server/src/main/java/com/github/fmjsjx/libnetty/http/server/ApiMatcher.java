@@ -9,4 +9,6 @@ package com.github.fmjsjx.libnetty.http.server;
  */
 public interface ApiMatcher {
 
+    boolean matches(HttpRequestContext ctx);
+
 }
