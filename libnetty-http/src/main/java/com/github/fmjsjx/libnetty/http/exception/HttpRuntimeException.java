@@ -1,4 +1,4 @@
-package com.github.fmjsjx.libnetty.http.client.exception;
+package com.github.fmjsjx.libnetty.http.exception;
 
 /**
  * Base HTTP runtime exception.
