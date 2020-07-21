@@ -1,6 +1,6 @@
 package com.github.fmjsjx.libnetty.http.server;
 
-import io.netty.channel.socket.ServerSocketChannel;
+import io.netty.channel.ServerChannel;
 
 /**
  * An interface defines an HTTP server.
@@ -34,11 +34,11 @@ public interface HttpServer {
     HttpServer startup() throws Exception;
 
     /**
-     * Returns the binding {@link ServerSocketChannel}.
+     * Returns the binding {@link ServerChannel}.
      * 
-     * @return a {@code ServerSocketChannel}
+     * @return a {@code ServerChannel}
      */
-    ServerSocketChannel channel();
+    ServerChannel channel();
 
     /**
      * Shut down this server.
