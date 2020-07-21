@@ -1,6 +1,7 @@
 package com.github.fmjsjx.libnetty.http.client.exception;
 
 import com.github.fmjsjx.libnetty.http.client.HttpClient;
+import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
 /**
  * This exception is thrown when invoke a closed {@link HttpClient}.

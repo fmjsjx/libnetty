@@ -2,7 +2,7 @@ package com.github.fmjsjx.libnetty.http.client;
 
 import javax.net.ssl.SSLException;
 
-import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
+import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;

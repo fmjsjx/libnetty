@@ -16,7 +16,7 @@ import java.util.concurrent.Executor;
 import javax.net.ssl.SSLContext;
 
 import com.github.fmjsjx.libnetty.http.HttpUtil;
-import com.github.fmjsjx.libnetty.http.client.exception.HttpRuntimeException;
+import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
