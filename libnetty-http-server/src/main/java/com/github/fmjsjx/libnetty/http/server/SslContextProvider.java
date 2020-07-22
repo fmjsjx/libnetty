@@ -13,6 +13,7 @@ import io.netty.handler.ssl.SslContext;
  *
  * @author MJ Fang
  */
+@FunctionalInterface
 public interface SslContextProvider extends Supplier<SslContext>, Closeable {
 
     /**

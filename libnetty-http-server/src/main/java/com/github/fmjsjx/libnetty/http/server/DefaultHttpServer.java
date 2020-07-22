@@ -19,7 +19,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.handler.codec.http.cors.CorsConfig;
-import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
@@ -49,6 +48,7 @@ public class DefaultHttpServer implements HttpServer {
 
     private EventLoopGroup parentGroup;
     private EventLoopGroup childGroup;
+    private volatile boolean closeGroupsWhenShutdown;
     private Class<? extends ServerChannel> channelClass;
     private ServerChannel channel;
 
@@ -459,6 +459,7 @@ public class DefaultHttpServer implements HttpServer {
     private void initSettings() {
         if (parentGroup == null) {
             parentGroup = TransportLibrary.getDefault().createGroup(1, new DefaultThreadFactory("http-parent"));
+            closeGroupsWhenShutdown = true;
         }
         if (childGroup == null) {
             childGroup = TransportLibrary.getDefault().createGroup(ioThreads, new DefaultThreadFactory("http-child"));
@@ -466,9 +467,8 @@ public class DefaultHttpServer implements HttpServer {
         if (channelClass == null) {
             channelClass = TransportLibrary.getDefault().serverChannelClass();
         }
-        if (corsConfig != null) {
-            corsConfig = CorsConfigBuilder.forAnyOrigin().disable().build();
-        }
+        // always set AUTO_READ to false
+        // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
         childOptions.put(ChannelOption.AUTO_READ, false);
     }
 
@@ -489,7 +489,12 @@ public class DefaultHttpServer implements HttpServer {
         if (!running.compareAndSet(true, false)) {
             throw new IllegalStateException("The HTTP server '" + name + "' is not running!");
         }
-        // TODO
+        if (closeGroupsWhenShutdown) {
+            log.debug("Close parent group: {}", parentGroup);
+            parentGroup.shutdownGracefully();
+            log.debug("Close child group: {}", childGroup);
+            childGroup.shutdownGracefully();
+        }
         return this;
     }
 
