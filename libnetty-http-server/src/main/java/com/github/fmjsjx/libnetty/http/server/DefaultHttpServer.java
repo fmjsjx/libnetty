@@ -1,11 +1,10 @@
 package com.github.fmjsjx.libnetty.http.server;
 
-import static java.util.Objects.requireNonNull;
+import static java.util.Objects.*;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,17 +13,13 @@ import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
-import io.netty.handler.codec.http.HttpContentDecompressor;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.cors.CorsConfig;
-import io.netty.handler.codec.http.cors.CorsHandler;
-import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
@@ -35,6 +30,10 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  * @author MJ Fang
  */
 public class DefaultHttpServer implements HttpServer {
+
+    private static final String DEFAULT_NAME = "default";
+    private static final int DEFAULT_PORT_HTTP = 80;
+    private static final int DEFAULT_PORT_HTTPS = 443;
 
     private static final Logger log = LoggerFactory.getLogger(DefaultHttpServer.class);
 
@@ -57,12 +56,73 @@ public class DefaultHttpServer implements HttpServer {
     private int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
     private CorsConfig corsConfig;
 
-    private boolean ssl;
+    private SslContextProvider sslContextProvider;
 
     @SuppressWarnings("rawtypes")
     private Map<ChannelOption, Object> options = new LinkedHashMap<>();
     @SuppressWarnings("rawtypes")
     private Map<ChannelOption, Object> childOptions = new LinkedHashMap<>();
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified {@code name}
+     * and {@code port}.
+     * 
+     * @param name the name of the server
+     * @param port the port
+     */
+    public DefaultHttpServer(String name, int port) {
+        name(name).port(port);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified {@code port}.
+     * 
+     * @param port the port
+     */
+    public DefaultHttpServer(int port) {
+        this(DEFAULT_NAME, port);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the default HTTP port
+     * ({@code 80}).
+     */
+    public DefaultHttpServer() {
+        this(DEFAULT_PORT_HTTP);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified {@code name}
+     * and default HTTP port ({@code 80}).
+     * 
+     * @param name the name of the server
+     */
+    public DefaultHttpServer(String name) {
+        this(name, DEFAULT_PORT_HTTP);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified
+     * {@code sslContextProvider} and default HTTPs port ({@code 443}).
+     * 
+     * @param sslContextProvider the {@code sslContextProvider}
+     */
+    public DefaultHttpServer(SslContextProvider sslContextProvider) {
+        this(DEFAULT_PORT_HTTPS);
+        enableSsl(sslContextProvider);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified {@code name},
+     * {@code sslContextProvider} and default HTTPs port ({@code 443}).
+     * 
+     * @param name               the name of the server
+     * @param sslContextProvider the {@code sslContextProvider}
+     */
+    public DefaultHttpServer(String name, SslContextProvider sslContextProvider) {
+        this(name, DEFAULT_PORT_HTTPS);
+        enableSsl(sslContextProvider);
+    }
 
     @Override
     public String name() {
@@ -71,13 +131,15 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Set the name of this server.
+     * <p>
+     * The default value is {@code "default"}.
      * 
      * @param name the name string
      * @return this server
      */
     public DefaultHttpServer name(String name) {
         ensureNotStarted();
-        this.name = name;
+        this.name = requireNonNull(name, "name must not be null");
         return this;
     }
 
@@ -100,6 +162,12 @@ public class DefaultHttpServer implements HttpServer {
         return port;
     }
 
+    static int checkPort(int port) {
+        if (port < 0 || port > 0xFFFF)
+            throw new IllegalArgumentException("port out of range:" + port);
+        return port;
+    }
+
     /**
      * Set the listening port of this server.
      * 
@@ -108,7 +176,7 @@ public class DefaultHttpServer implements HttpServer {
      */
     public DefaultHttpServer port(int port) {
         ensureNotStarted();
-        this.port = port;
+        this.port = checkPort(port);
         return this;
     }
 
@@ -155,7 +223,7 @@ public class DefaultHttpServer implements HttpServer {
     public DefaultHttpServer ioThreads(int ioThreads) {
         ensureNotStarted();
         if (ioThreads < 0) {
-            throw new IllegalArgumentException("The number of I/O threads must not be negative!");
+            throw new IllegalArgumentException("ioThreads must not be negative");
         }
         this.ioThreads = ioThreads;
         return this;
@@ -251,6 +319,9 @@ public class DefaultHttpServer implements HttpServer {
      */
     public DefaultHttpServer timeoutSeconds(int timeoutSeconds) {
         ensureNotStarted();
+        if (timeoutSeconds < 0) {
+            throw new IllegalArgumentException("timeoutSeconds must not be negative");
+        }
         this.timeoutSeconds = timeoutSeconds;
         return this;
     }
@@ -312,18 +383,19 @@ public class DefaultHttpServer implements HttpServer {
      * @return {@code true} if is enabled SSL support
      */
     public boolean isSslEnabled() {
-        return ssl;
+        return sslContextProvider != null;
     }
 
     /**
-     * Enable SSL support.
+     * Enable SSL support and set the {@link SslContextProvider}.
+     * 
+     * @param sslContextProvider a {@code SslContextProvider}
      * 
      * @return this server
      */
-    public DefaultHttpServer enableSsl(/* TODO SslContextProvider */) {
+    public DefaultHttpServer enableSsl(SslContextProvider sslContextProvider) {
         ensureNotStarted();
-        ssl = true;
-        // TODO SslContextProvider
+        this.sslContextProvider = requireNonNull(sslContextProvider, "sslContextProvider must not be null");
         return this;
     }
 
@@ -334,17 +406,21 @@ public class DefaultHttpServer implements HttpServer {
      */
     public DefaultHttpServer reset() {
         ensureNotStarted();
-        name = null;
+        name = DEFAULT_NAME;
+        host = null;
+        port = DEFAULT_PORT_HTTP;
+
         ioThreads = 0;
         parentGroup = null;
         childGroup = null;
         channelClass = null;
+        channel = null;
 
         timeoutSeconds = DEFAULT_TIMEOUT_SECONDS;
         maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
         corsConfig = null;
 
-        ssl = false;
+        sslContextProvider = null;
 
         options.clear();
         childOptions.clear();
@@ -361,6 +437,26 @@ public class DefaultHttpServer implements HttpServer {
         if (!running.compareAndSet(false, true)) {
             throw alreadyStarted();
         }
+        initSettings();
+        ServerBootstrap bootstrap = new ServerBootstrap().group(parentGroup, childGroup).channel(channelClass);
+        options.forEach(bootstrap::option);
+        childOptions.forEach(bootstrap::childOption);
+        DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
+                maxContentLength, corsConfig, sslContextProvider);
+        // TODO
+
+        bootstrap.childHandler(initializer);
+
+        ChannelFuture channelFuture = bind(bootstrap).sync();
+
+        channel = (ServerChannel) channelFuture.channel();
+
+        log.info("HTTP server '{}' started at {}.", name, channel.localAddress());
+
+        return this;
+    }
+
+    private void initSettings() {
         if (parentGroup == null) {
             parentGroup = TransportLibrary.getDefault().createGroup(1, new DefaultThreadFactory("http-parent"));
         }
@@ -370,21 +466,17 @@ public class DefaultHttpServer implements HttpServer {
         if (channelClass == null) {
             channelClass = TransportLibrary.getDefault().serverChannelClass();
         }
-        childOptions.put(ChannelOption.AUTO_READ, false);
-        ServerBootstrap bootstrap = new ServerBootstrap().group(parentGroup, childGroup).channel(channelClass);
-        options.forEach(bootstrap::option);
-        childOptions.forEach(bootstrap::childOption);
-        // TODO
-        Consumer<ChannelPipeline> handlersAction = cp -> cp.addLast(new ReadTimeoutHandler(timeoutSeconds))
-                .addLast(new HttpServerCodec()).addLast(new HttpContentDecompressor())
-                .addLast(new HttpObjectAggregator(maxContentLength)).addLast(new AutoReadNextHandler());
         if (corsConfig != null) {
-            CorsHandler corsHandler = new CorsHandler(corsConfig);
-            handlersAction.andThen(cp -> cp.addLast(corsHandler));
+            corsConfig = CorsConfigBuilder.forAnyOrigin().disable().build();
         }
+        childOptions.put(ChannelOption.AUTO_READ, false);
+    }
 
-        // TODO
-        return this;
+    private ChannelFuture bind(ServerBootstrap bootstrap) {
+        if (host == null) {
+            return bootstrap.bind(port);
+        }
+        return bootstrap.bind(host, port);
     }
 
     @Override

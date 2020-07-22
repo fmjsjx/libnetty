@@ -11,8 +11,9 @@ import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.util.ReferenceCounted;
 
-public interface HttpRequestContext {
+public interface HttpRequestContext extends ReferenceCounted {
 
     long recievedNanoTime();
 
@@ -56,6 +57,45 @@ public interface HttpRequestContext {
 
     default Map<String, List<String>> queryParameters() {
         return queryStringDecoder().parameters();
+    }
+
+    @Override
+    default int refCnt() {
+        return request().refCnt();
+    }
+
+    @Override
+    default HttpRequestContext retain() {
+        request().retain();
+        return this;
+    }
+
+    @Override
+    default HttpRequestContext retain(int increment) {
+        request().retain(increment);
+        return this;
+    }
+
+    @Override
+    default HttpRequestContext touch() {
+        request().touch();
+        return this;
+    }
+
+    @Override
+    default HttpRequestContext touch(Object hint) {
+        request().touch(hint);
+        return this;
+    }
+
+    @Override
+    default boolean release() {
+        return request().release();
+    }
+
+    @Override
+    default boolean release(int decrement) {
+        return request().release(decrement);
     }
 
 }
