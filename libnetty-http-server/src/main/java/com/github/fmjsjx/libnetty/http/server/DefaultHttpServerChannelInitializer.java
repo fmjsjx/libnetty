@@ -52,24 +52,19 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
 
     @Override
     protected void initChannel(Channel ch) throws Exception {
-        try {
-            ChannelPipeline pipeline = ch.pipeline();
-            pipeline.addLast(new ReadTimeoutHandler(timeoutSeconds));
-            if (sslEnabled) {
-                SslContext sslContext = sslContextProvider.get();
-                pipeline.addLast(sslContext.newHandler(ch.alloc()));
-            }
-            pipeline.addLast(new HttpServerCodec());
-            pipeline.addLast(new HttpContentDecompressor());
-            pipeline.addLast(new HttpObjectAggregator(maxContentLength));
-            pipeline.addLast(AutoReadNextHandler.getInstance());
-            corsConfig.map(CorsHandler::new).ifPresent(pipeline::addLast);
-            pipeline.addLast(HttpRequestContextDecoder.getInstance());
-            pipeline.addLast(new TestHandler());
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
+        ChannelPipeline pipeline = ch.pipeline();
+        pipeline.addLast(new ReadTimeoutHandler(timeoutSeconds));
+        if (sslEnabled) {
+            SslContext sslContext = sslContextProvider.get();
+            pipeline.addLast(sslContext.newHandler(ch.alloc()));
         }
+        pipeline.addLast(new HttpServerCodec());
+        pipeline.addLast(new HttpContentDecompressor());
+        pipeline.addLast(new HttpObjectAggregator(maxContentLength));
+        pipeline.addLast(AutoReadNextHandler.getInstance());
+        corsConfig.map(CorsHandler::new).ifPresent(pipeline::addLast);
+        pipeline.addLast(HttpRequestContextDecoder.getInstance());
+        pipeline.addLast(new TestHandler());
         // TODO
     }
 

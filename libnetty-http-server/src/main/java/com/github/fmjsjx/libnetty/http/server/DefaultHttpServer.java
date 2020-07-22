@@ -1,6 +1,6 @@
 package com.github.fmjsjx.libnetty.http.server;
 
-import static java.util.Objects.*;
+import static java.util.Objects.requireNonNull;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -108,8 +109,7 @@ public class DefaultHttpServer implements HttpServer {
      * @param sslContextProvider the {@code sslContextProvider}
      */
     public DefaultHttpServer(SslContextProvider sslContextProvider) {
-        this(DEFAULT_PORT_HTTPS);
-        enableSsl(sslContextProvider);
+        this(DEFAULT_NAME, sslContextProvider);
     }
 
     /**
@@ -120,7 +120,19 @@ public class DefaultHttpServer implements HttpServer {
      * @param sslContextProvider the {@code sslContextProvider}
      */
     public DefaultHttpServer(String name, SslContextProvider sslContextProvider) {
-        this(name, DEFAULT_PORT_HTTPS);
+        this(name, sslContextProvider, DEFAULT_PORT_HTTPS);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified {@code name},
+     * {@code sslContextProvider} and port.
+     * 
+     * @param name               the name of the server
+     * @param sslContextProvider the {@code sslContextProvider}
+     * @param port               the port
+     */
+    public DefaultHttpServer(String name, SslContextProvider sslContextProvider, int port) {
+        this(name, port);
         enableSsl(sslContextProvider);
     }
 
@@ -437,23 +449,37 @@ public class DefaultHttpServer implements HttpServer {
         if (!running.compareAndSet(false, true)) {
             throw alreadyStarted();
         }
-        initSettings();
-        ServerBootstrap bootstrap = new ServerBootstrap().group(parentGroup, childGroup).channel(channelClass);
-        options.forEach(bootstrap::option);
-        childOptions.forEach(bootstrap::childOption);
-        DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
-                maxContentLength, corsConfig, sslContextProvider);
-        // TODO
+        try {
+            initSettings();
+            ServerBootstrap bootstrap = new ServerBootstrap().group(parentGroup, childGroup).channel(channelClass);
+            options.forEach(bootstrap::option);
+            childOptions.forEach(bootstrap::childOption);
+            DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
+                    maxContentLength, corsConfig, sslContextProvider);
+            // TODO
 
-        bootstrap.childHandler(initializer);
+            bootstrap.childHandler(initializer);
 
-        ChannelFuture channelFuture = bind(bootstrap).sync();
+            ChannelFuture channelFuture = bind(bootstrap).sync();
+            if (channelFuture.cause() != null) {
+                throw new HttpRuntimeException("HTTP server start failed!", channelFuture.cause());
+            }
 
-        channel = (ServerChannel) channelFuture.channel();
+            channel = (ServerChannel) channelFuture.channel();
 
-        log.info("HTTP server '{}' started at {}.", name, channel.localAddress());
+            log.info("HTTP server '{}' started at {}.", name, channel.localAddress());
 
-        return this;
+            return this;
+        } catch (Exception e) {
+            running.set(false);
+            if (closeGroupsWhenShutdown) {
+                closeGroups();
+            }
+            if (e instanceof HttpRuntimeException) {
+                throw e;
+            }
+            throw new HttpRuntimeException("HTTP server start failed!", e);
+        }
     }
 
     private void initSettings() {
@@ -490,12 +516,26 @@ public class DefaultHttpServer implements HttpServer {
             throw new IllegalStateException("The HTTP server '" + name + "' is not running!");
         }
         if (closeGroupsWhenShutdown) {
-            log.debug("Close parent group: {}", parentGroup);
-            parentGroup.shutdownGracefully();
-            log.debug("Close child group: {}", childGroup);
-            childGroup.shutdownGracefully();
+            closeGroups();
         }
         return this;
+    }
+
+    private void closeGroups() {
+        log.debug("Close parent group: {}", parentGroup);
+        parentGroup.shutdownGracefully();
+        log.debug("Close child group: {}", childGroup);
+        childGroup.shutdownGracefully();
+    }
+
+    @Override
+    public String toString() {
+        return "DefaultHttpServer(name=" + nameToString() + ", host=" + host + ", port=" + port + ")";
+
+    }
+
+    private String nameToString() {
+        return name + (isSslEnabled() ? "[SSL]" : "");
     }
 
 }
