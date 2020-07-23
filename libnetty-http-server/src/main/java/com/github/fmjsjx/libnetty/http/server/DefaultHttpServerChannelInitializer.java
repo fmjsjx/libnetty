@@ -2,6 +2,8 @@ package com.github.fmjsjx.libnetty.http.server;
 
 import java.util.Optional;
 
+import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
+
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -41,13 +43,18 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final boolean sslEnabled;
     private final SslContextProvider sslContextProvider;
 
+    private final boolean autoCompressionEnabled;
+    private final HttpContentCompressorFactory httpContentCompressorFactory;
+
     DefaultHttpServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
-            SslContextProvider sslContextProvider) {
+            SslContextProvider sslContextProvider, HttpContentCompressorFactory httpContentCompressorFactory) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.corsConfig = Optional.ofNullable(corsConfig);
-        this.sslContextProvider = sslContextProvider;
         this.sslEnabled = sslContextProvider != null;
+        this.sslContextProvider = sslContextProvider;
+        this.autoCompressionEnabled = httpContentCompressorFactory != null;
+        this.httpContentCompressorFactory = httpContentCompressorFactory;
     }
 
     @Override
@@ -59,6 +66,9 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast(sslContext.newHandler(ch.alloc()));
         }
         pipeline.addLast(new HttpServerCodec());
+        if (autoCompressionEnabled) {
+            pipeline.addLast(httpContentCompressorFactory.create());
+        }
         pipeline.addLast(new HttpContentDecompressor());
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
         pipeline.addLast(AutoReadNextHandler.getInstance());

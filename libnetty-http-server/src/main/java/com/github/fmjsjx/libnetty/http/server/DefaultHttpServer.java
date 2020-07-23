@@ -2,15 +2,20 @@ package com.github.fmjsjx.libnetty.http.server;
 
 import static java.util.Objects.*;
 
+import java.util.ArrayList;
+
 import static io.netty.channel.ChannelOption.*;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
@@ -65,6 +70,9 @@ public class DefaultHttpServer implements HttpServer {
     private Map<ChannelOption, Object> options = new LinkedHashMap<>();
     @SuppressWarnings("rawtypes")
     private Map<ChannelOption, Object> childOptions = new LinkedHashMap<>();
+
+    private List<Consumer<HttpContentCompressorFactory.Builder>> compressionSettingsListeners = new ArrayList<>();
+    private HttpContentCompressorFactory httpContentCompressorFactory;
 
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified {@code name}
@@ -435,6 +443,17 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
+     * Enable HTTP content compression feature and apply compression settings.
+     * 
+     * @param action the apply action
+     * @return this server
+     */
+    public DefaultHttpServer applyCompressionSettings(Consumer<HttpContentCompressorFactory.Builder> action) {
+        compressionSettingsListeners.add(action);
+        return this;
+    }
+
+    /**
      * Reset all settings of this server.
      * 
      * @return this server
@@ -459,6 +478,8 @@ public class DefaultHttpServer implements HttpServer {
 
         options.clear();
         childOptions.clear();
+
+        compressionSettingsListeners.clear();
         return this;
     }
 
@@ -478,7 +499,7 @@ public class DefaultHttpServer implements HttpServer {
             options.forEach(bootstrap::option);
             childOptions.forEach(bootstrap::childOption);
             DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
-                    maxContentLength, corsConfig, sslContextProvider);
+                    maxContentLength, corsConfig, sslContextProvider, httpContentCompressorFactory);
             // TODO
 
             bootstrap.childHandler(initializer);
@@ -519,6 +540,12 @@ public class DefaultHttpServer implements HttpServer {
         // always set AUTO_READ to false
         // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
         childOptions.put(AUTO_READ, false);
+
+        if (compressionSettingsListeners.size() > 0) {
+            HttpContentCompressorFactory.Builder builder = HttpContentCompressorFactory.builder();
+            compressionSettingsListeners.forEach(a -> a.accept(builder));
+            httpContentCompressorFactory = builder.build();
+        }
     }
 
     private ChannelFuture bind(ServerBootstrap bootstrap) {
