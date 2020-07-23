@@ -120,9 +120,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                 cp.addLast(sslContext.newHandler(ch.alloc(), host, port));
                             }
                             cp.addLast(new HttpClientCodec());
-                            if (compressionEnabled) {
-                                cp.addLast(new HttpContentDecompressor());
-                            }
+                            cp.addLast(new HttpContentDecompressor());
                             cp.addLast(new HttpObjectAggregator(maxContentLength));
                             cp.addLast(handler);
                         }
