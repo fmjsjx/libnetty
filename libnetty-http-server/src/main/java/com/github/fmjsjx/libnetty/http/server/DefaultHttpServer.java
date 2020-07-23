@@ -1,6 +1,8 @@
 package com.github.fmjsjx.libnetty.http.server;
 
-import static java.util.Objects.requireNonNull;
+import static java.util.Objects.*;
+
+import static io.netty.channel.ChannelOption.*;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -364,6 +366,17 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
+     * Set {@code SO_BACKLOG}.
+     * 
+     * @param value the value
+     * @return this server
+     */
+    public DefaultHttpServer soBackLog(int value) {
+        option(SO_BACKLOG, value);
+        return this;
+    }
+
+    /**
      * Allow to specify a {@link ChannelOption} which is used for the
      * {@link Channel} instances once they get created (after the acceptor accepted
      * the {@link Channel}). Use a value of {@code null} to remove a previous set
@@ -386,6 +399,16 @@ public class DefaultHttpServer implements HttpServer {
         } else {
             childOptions.put(childOption, value);
         }
+        return this;
+    }
+
+    /**
+     * Enable {@code TCP_NODELAY} (disable/enable Nagle's algorithm).
+     * 
+     * @return this server
+     */
+    public DefaultHttpServer tcpNoDelay() {
+        childOption(TCP_NODELAY, true);
         return this;
     }
 
@@ -495,7 +518,7 @@ public class DefaultHttpServer implements HttpServer {
         }
         // always set AUTO_READ to false
         // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
-        childOptions.put(ChannelOption.AUTO_READ, false);
+        childOptions.put(AUTO_READ, false);
     }
 
     private ChannelFuture bind(ServerBootstrap bootstrap) {
