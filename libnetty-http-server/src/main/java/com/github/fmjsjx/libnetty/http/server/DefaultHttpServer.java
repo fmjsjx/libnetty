@@ -22,6 +22,7 @@ import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
@@ -73,6 +74,8 @@ public class DefaultHttpServer implements HttpServer {
 
     private List<Consumer<HttpContentCompressorFactory.Builder>> compressionSettingsListeners = new ArrayList<>();
     private HttpContentCompressorFactory httpContentCompressorFactory;
+
+    private HttpServerHandlerProvider handlerProvider;
 
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified {@code name}
@@ -449,7 +452,40 @@ public class DefaultHttpServer implements HttpServer {
      * @return this server
      */
     public DefaultHttpServer applyCompressionSettings(Consumer<HttpContentCompressorFactory.Builder> action) {
+        ensureNotStarted();
         compressionSettingsListeners.add(action);
+        return this;
+    }
+
+    /**
+     * Set the singleton {@link HttpServerHandler} of this server.
+     * 
+     * <p>
+     * To use singleton handler, the implementation of {@link HttpServerHandler}
+     * must be {@link Sharable}.
+     * 
+     * @param handler an {@code HttpServerHandler}
+     * @return this server
+     */
+    public DefaultHttpServer handler(HttpServerHandler handler) {
+        ensureNotStarted();
+        requireNonNull(handler, "handler must not be null");
+        if (!handler.isSharable()) {
+            throw new IllegalArgumentException("singleton handler must be sharable");
+        }
+        this.handlerProvider = () -> handler;
+        return this;
+    }
+
+    /**
+     * Set the {@link HttpServerHandlerProvider} of this server.
+     * 
+     * @param handlerProvider an {@code HttpServerHandlerProvider}
+     * @return this server
+     */
+    public DefaultHttpServer handlerProvider(HttpServerHandlerProvider handlerProvider) {
+        ensureNotStarted();
+        this.handlerProvider = requireNonNull(handlerProvider, "handlerProvider must not be null");
         return this;
     }
 
@@ -480,6 +516,8 @@ public class DefaultHttpServer implements HttpServer {
         childOptions.clear();
 
         compressionSettingsListeners.clear();
+
+        handlerProvider = null;
         return this;
     }
 
@@ -499,8 +537,7 @@ public class DefaultHttpServer implements HttpServer {
             options.forEach(bootstrap::option);
             childOptions.forEach(bootstrap::childOption);
             DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
-                    maxContentLength, corsConfig, sslContextProvider, httpContentCompressorFactory);
-            // TODO
+                    maxContentLength, corsConfig, sslContextProvider, httpContentCompressorFactory, handlerProvider);
 
             bootstrap.childHandler(initializer);
 
@@ -527,6 +564,9 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     private void initSettings() {
+        if (handlerProvider == null) {
+            throw new IllegalArgumentException("missing handlerProvider for HTTP server '" + name + "'");
+        }
         if (parentGroup == null) {
             parentGroup = TransportLibrary.getDefault().createGroup(1, new DefaultThreadFactory("http-parent"));
             closeGroupsWhenShutdown = true;

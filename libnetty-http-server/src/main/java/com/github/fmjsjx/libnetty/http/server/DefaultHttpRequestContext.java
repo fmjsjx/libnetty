@@ -62,4 +62,13 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
         return decoder;
     }
 
+    @Override
+    public String toString() {
+        StringBuilder b = new StringBuilder().append("DefaultHttpRequestContext(receivedTime: ").append(receivedTime)
+                .append(", channel: ").append(channel()).append(", remoteAddress: ").append(remoteAddress())
+                .append(", query: ").append(queryStringDecoder).append(")\n");
+        b.append(request().toString());
+        return b.toString();
+    }
+
 }
