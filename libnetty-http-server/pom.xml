@@ -44,6 +44,10 @@
       <classifier>osx-x86_64</classifier>
       <optional>true</optional>
     </dependency>
+    <dependency>
+      <groupId>com.jcraft</groupId>
+      <artifactId>jzlib</artifactId>
+    </dependency>
     <!-- Test -->
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
