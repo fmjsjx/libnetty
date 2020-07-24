@@ -15,6 +15,7 @@ import java.util.concurrent.ThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.Bootstrap;
@@ -37,7 +38,6 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.AccessLevel;
@@ -55,7 +55,7 @@ import lombok.NoArgsConstructor;
  * @see ConnectionCachedHttpClient
  */
 public class SimpleHttpClient extends AbstractHttpClient {
-    
+
     private static final Logger log = LoggerFactory.getLogger(SimpleHttpClient.class);
 
     /**
@@ -80,7 +80,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(SimpleHttpClient.class, true);
             return new SimpleHttpClient(transportLibrary.createGroup(0, threadFactory), transportLibrary.channelClass(),
-                    sslContext, compressionEnabled, true, timeoutSeconds(), maxContentLength);
+                    sslContextProvider, compressionEnabled, true, timeoutSeconds(), maxContentLength);
         }
 
         /**
@@ -105,8 +105,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
          */
         public SimpleHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new SimpleHttpClient(group, channelClass, sslContext, compressionEnabled, false, timeoutSeconds(),
-                    maxContentLength);
+            return new SimpleHttpClient(group, channelClass, sslContextProvider, compressionEnabled, false,
+                    timeoutSeconds(), maxContentLength);
         }
 
     }
@@ -133,9 +133,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
     private final int timeoutSeconds;
     private final int maxContentLength;
 
-    SimpleHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
+    SimpleHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContextProvider sslContextProvider,
             boolean compressionEnabled, boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
-        super(group, channelClass, sslContext, compressionEnabled);
+        super(group, channelClass, sslContextProvider, compressionEnabled);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
@@ -166,7 +166,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
                         ChannelPipeline cp = ch.pipeline();
                         cp.addLast(new ReadTimeoutHandler(timeoutSeconds));
                         if (ssl) {
-                            cp.addLast(sslContext.newHandler(ch.alloc(), host, port));
+                            cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
                         }
                         cp.addLast(new HttpClientCodec());
                         cp.addLast(new HttpContentDecompressor());

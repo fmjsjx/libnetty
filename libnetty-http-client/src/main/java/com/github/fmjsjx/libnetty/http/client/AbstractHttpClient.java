@@ -6,6 +6,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
+import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.client.exception.ClientClosedException;
 
 import io.netty.channel.Channel;
@@ -33,17 +35,17 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     protected final EventLoopGroup group;
     protected final Class<? extends Channel> channelClass;
-    protected final SslContext sslContext;
+    protected final SslContextProvider sslContextProvider;
     protected final boolean compressionEnabled;
 
     private final Object closeLock = new Object();
     protected volatile boolean closed;
 
-    protected AbstractHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
-            boolean compressionEnabled) {
+    protected AbstractHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
+            SslContextProvider sslContextProvider, boolean compressionEnabled) {
         this.group = Objects.requireNonNull(group, "group must not be null");
         this.channelClass = Objects.requireNonNull(channelClass, "channelClass must not be null");
-        this.sslContext = Objects.requireNonNull(sslContext, "sslContext must not be null");
+        this.sslContextProvider = Objects.requireNonNull(sslContextProvider, "sslContextProvider must not be null");
         this.compressionEnabled = compressionEnabled;
     }
 
@@ -56,8 +58,8 @@ public abstract class AbstractHttpClient implements HttpClient {
     }
 
     @Override
-    public SslContext sslContext() {
-        return sslContext;
+    public SslContextProvider sslContextProvider() {
+        return sslContextProvider;
     }
 
     /**
@@ -125,7 +127,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
         protected Duration timeout = DEFAULT_TIMEOUT;
         protected int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
-        protected SslContext sslContext;
+        protected SslContextProvider sslContextProvider;
         protected boolean compressionEnabled;
 
         /**
@@ -152,21 +154,32 @@ public abstract class AbstractHttpClient implements HttpClient {
          * Returns the SSL context for this client.
          * 
          * @return the {@link SslContext}
+         * @deprecated please use
          */
+        @Deprecated
         public SslContext sslContext() {
-            return sslContext;
+            return sslContextProvider != null ? sslContextProvider.get() : null;
+        }
+
+        /**
+         * Returns the {@link SslContextProvider}.
+         * 
+         * @return a {@code SslContextProvider}
+         * @since 1.1
+         */
+        public SslContextProvider sslContextProvider() {
+            return sslContextProvider;
         }
 
         @Override
-        @SuppressWarnings("unchecked")
-        public Self sslContext(SslContext sslContext) {
-            this.sslContext = sslContext;
-            return (Self) this;
+        public Builder sslContextProvider(SslContextProvider sslContextProvider) {
+            this.sslContextProvider = sslContextProvider;
+            return this;
         }
 
         protected void ensureSslContext() {
-            if (sslContext == null) {
-                sslContext = SslContextUtil.createForClient();
+            if (sslContextProvider == null) {
+                sslContextProvider = SslContextProviders.simple(SslContextUtil.createForClient());
             }
         }
 

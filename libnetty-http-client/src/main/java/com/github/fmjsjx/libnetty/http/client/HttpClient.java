@@ -15,6 +15,8 @@ import java.util.concurrent.Executor;
 
 import javax.net.ssl.SSLContext;
 
+import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
+import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpUtil;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
@@ -72,7 +74,19 @@ public interface HttpClient extends AutoCloseable {
      * 
      * @return the {@link SSLContext} of this {@link HttpClient}
      */
-    SslContext sslContext();
+    @Deprecated
+    default SslContext sslContext() {
+        return Optional.ofNullable(sslContextProvider()).map(SslContextProvider::get).orElse(null);
+    }
+
+    /**
+     * Returns the {@link SslContextProvider} of this {@link HttpClient}.
+     * 
+     * @return the {@code SslContextProvider}
+     * 
+     * @since 1.1
+     */
+    SslContextProvider sslContextProvider();
 
     /**
      * Close this HTTP client.
@@ -788,8 +802,22 @@ public interface HttpClient extends AutoCloseable {
          * 
          * @param sslContext the {@link SslContext}
          * @return this {@code Builder}
+         * 
+         * @deprecated please use {@link #sslContextProvider(SslContextProvider)}
          */
-        Builder sslContext(SslContext sslContext);
+        @Deprecated
+        default Builder sslContext(SslContext sslContext) {
+            return sslContextProvider(SslContextProviders.simple(sslContext));
+        }
+
+        /**
+         * Sets the {@link SslContextProvider} for this client.
+         * 
+         * @param sslContextProvider the {@code SslContextProvider}
+         * @return this {@code Builder}
+         * @since 1.1
+         */
+        Builder sslContextProvider(SslContextProvider sslContextProvider);
 
         /**
          * Sets if the content compression feature is enabled or not.

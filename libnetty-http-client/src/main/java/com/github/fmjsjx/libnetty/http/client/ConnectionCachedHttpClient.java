@@ -20,6 +20,7 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.Bootstrap;
@@ -43,7 +44,6 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -78,9 +78,10 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
 
     private final ConcurrentMap<String, ConcurrentLinkedDeque<HttpConnection>> cachedPools = new ConcurrentHashMap<String, ConcurrentLinkedDeque<HttpConnection>>();
 
-    ConnectionCachedHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContext sslContext,
-            boolean compressionEnabled, boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
-        super(group, channelClass, sslContext, compressionEnabled);
+    ConnectionCachedHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
+            SslContextProvider sslContextProvider, boolean compressionEnabled, boolean shutdownGroupOnClose,
+            int timeoutSeconds, int maxContentLength) {
+        super(group, channelClass, sslContextProvider, compressionEnabled);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
@@ -122,7 +123,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
                             ChannelPipeline cp = ch.pipeline();
                             cp.addLast(new IdleStateHandler(0, 0, timeoutSeconds));
                             if (ssl) {
-                                cp.addLast(sslContext.newHandler(ch.alloc(), host, port));
+                                cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
                             }
                             cp.addLast(new HttpClientCodec());
                             cp.addLast(new HttpContentDecompressor());
@@ -363,7 +364,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(ConnectionCachedHttpClient.class, true);
             return new ConnectionCachedHttpClient(transportLibrary.createGroup(0, threadFactory),
-                    transportLibrary.channelClass(), sslContext, compressionEnabled, true, timeoutSeconds(),
+                    transportLibrary.channelClass(), sslContextProvider, compressionEnabled, true, timeoutSeconds(),
                     maxContentLength);
         }
 
@@ -389,7 +390,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
          */
         public ConnectionCachedHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new ConnectionCachedHttpClient(group, channelClass, sslContext, compressionEnabled, false,
+            return new ConnectionCachedHttpClient(group, channelClass, sslContextProvider, compressionEnabled, false,
                     timeoutSeconds(), maxContentLength);
         }
 
