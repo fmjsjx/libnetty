@@ -26,6 +26,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>libnetty-handler</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>libnetty-http</artifactId>
         <version>${project.version}</version>
       </dependency>

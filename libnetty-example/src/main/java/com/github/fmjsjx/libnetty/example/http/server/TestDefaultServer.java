@@ -3,11 +3,11 @@ package com.github.fmjsjx.libnetty.example.http.server;
 import static io.netty.handler.codec.http.HttpMethod.*;
 import static io.netty.handler.codec.http.HttpUtil.*;
 
+import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpUtil;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpServer;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContextHandler;
-import com.github.fmjsjx.libnetty.http.server.SslContextProviders;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -28,7 +28,7 @@ public class TestDefaultServer {
     public static void main(String[] args) throws Exception {
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
-        DefaultHttpServer server = new DefaultHttpServer("test", SslContextProviders.selfSigned(), 8443)
+        DefaultHttpServer server = new DefaultHttpServer("test", SslContextProviders.selfSignedForServer(), 8443)
                 .corsConfig(corsConfig).ioThreads(1).maxContentLength(10 * 1024 * 1024).soBackLog(1024).tcpNoDelay();
         server.handler(new TestHandler());
         try {

@@ -1,8 +1,6 @@
-package com.github.fmjsjx.libnetty.http.server;
+package com.github.fmjsjx.libnetty.handler.ssl;
 
 import javax.net.ssl.SSLException;
-
-import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
 import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslContext;
@@ -21,12 +19,14 @@ public class SslContextProviders {
 
     /**
      * Returns a simple implementation of {@link SslContextProvider} which holding a
-     * self-signed certificate {@code SslContext}.
+     * self-signed certificate {@code SslContext} for server.
      * 
      * @return a {@code SslContextProvider} holding a self-signed certificate
-     *         {@code SslContext}.
+     *         {@code SslContext} for server
+     * 
+     * @throws SSLRuntimeException if any SSL error occurs
      */
-    public static final SslContextProvider selfSigned() {
+    public static final SslContextProvider selfSignedForServer() throws SSLRuntimeException {
         SelfSignedCertificate ssc = SelfSignedCertificateHolder.instance;
         try {
             SslContextBuilder builder = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey());
@@ -36,7 +36,7 @@ public class SslContextProviders {
             SslContext sslContex = builder.build();
             return simple(sslContex);
         } catch (SSLException e) {
-            throw new HttpRuntimeException("Create self-signed certificate SslContext failed!", e);
+            throw new SSLRuntimeException("Create self-signed certificate SslContext failed!", e);
         }
     }
 

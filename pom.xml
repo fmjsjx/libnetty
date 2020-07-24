@@ -13,6 +13,7 @@
     <module>libnetty-bom</module>
     <module>libnetty-example</module>
     <module>libnetty-fastcgi</module>
+    <module>libnetty-handler</module>
     <module>libnetty-http</module>
     <module>libnetty-http-client</module>
     <module>libnetty-http-server</module>
