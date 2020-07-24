@@ -6,6 +6,7 @@ import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 
 /**
@@ -30,14 +31,18 @@ public class SslContextProviders {
         SelfSignedCertificate ssc = SelfSignedCertificateHolder.instance;
         try {
             SslContextBuilder builder = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey());
-            if (OpenSsl.isAvailable()) {
-                builder.sslProvider(SslProvider.OPENSSL_REFCNT);
-            }
-            SslContext sslContex = builder.build();
+            SslContext sslContex = chooseProvider(builder).build();
             return simple(sslContex);
         } catch (SSLException e) {
             throw new SSLRuntimeException("Create self-signed certificate SslContext failed!", e);
         }
+    }
+
+    private static final SslContextBuilder chooseProvider(SslContextBuilder builder) {
+        if (OpenSsl.isAvailable()) {
+            builder.sslProvider(SslProvider.OPENSSL_REFCNT);
+        }
+        return builder;
     }
 
     private static final class SelfSignedCertificateHolder {
@@ -50,6 +55,25 @@ public class SslContextProviders {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+        }
+    }
+
+    /**
+     * Returns a simple implementation of {@link SslContextProvider} which holding
+     * an insecure {@code SslContext} for client.
+     * 
+     * @return a {@code SslContextProvider} holding insecure {@code SslContext} for
+     *         client
+     * @throws SSLRuntimeException
+     */
+    public static final SslContextProvider insecureForClient() throws SSLRuntimeException {
+        try {
+            SslContextBuilder builder = SslContextBuilder.forClient()
+                    .trustManager(InsecureTrustManagerFactory.INSTANCE);
+            SslContext sslContex = chooseProvider(builder).build();
+            return simple(sslContex);
+        } catch (SSLException e) {
+            throw new SSLRuntimeException("Create insecure SslContext failed!", e);
         }
     }
 
