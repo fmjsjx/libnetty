@@ -17,7 +17,9 @@ import io.netty.handler.ssl.SslContext;
 public interface SslContextProvider extends Supplier<SslContext>, Closeable {
 
     /**
-     * Returns the {@code SslContext} instance.
+     * Returns the {@link SslContext} instance.
+     * 
+     * @return a {@code SslContext}
      */
     @Override
     SslContext get();

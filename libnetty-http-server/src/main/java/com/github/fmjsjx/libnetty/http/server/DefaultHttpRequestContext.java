@@ -8,6 +8,13 @@ import io.netty.channel.Channel;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
 
+/**
+ * The default implementation of {@link DefaultHttpRequestContext}.
+ * 
+ * @since 1.1
+ *
+ * @author MJ Fang
+ */
 public class DefaultHttpRequestContext implements HttpRequestContext {
 
     private final long recievedNanoTime = System.nanoTime();
@@ -19,6 +26,13 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
     private String remoteAddress;
     private QueryStringDecoder queryStringDecoder;
 
+    /**
+     * Creates a new {@link DefaultHttpRequestContext} with the specified
+     * {@link Channel} and {@link FullHttpRequest}.
+     * 
+     * @param channel the channel
+     * @param request the HTTP request
+     */
     public DefaultHttpRequestContext(Channel channel, FullHttpRequest request) {
         this.channel = channel;
         this.request = request;
