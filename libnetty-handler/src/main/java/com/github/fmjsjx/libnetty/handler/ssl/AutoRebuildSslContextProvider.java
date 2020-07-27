@@ -55,40 +55,44 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
      * Constructs a new {@link AutoRebuildSslContextProvider} with the specified
      * directory {@link Path} and watching files given.
      * 
+     * @param factory       a factory to create {@link SslContext}s
      * @param dir           the path of the parent directory
      * @param watchingFiles the collection contains the name of each watching files
      * @throws SSLRuntimeException if any SSL error occurs
      * @throws IOException         if an I/O error occurs
      */
-    protected AutoRebuildSslContextProvider(Path dir, Collection<String> watchingFiles)
+    protected AutoRebuildSslContextProvider(SslContextProvider factory, Path dir, Collection<String> watchingFiles)
             throws SSLRuntimeException, IOException {
-        this(dir, Collections.unmodifiableSet(new LinkedHashSet<>(watchingFiles)));
+        this(factory, dir, Collections.unmodifiableSet(new LinkedHashSet<>(watchingFiles)));
     }
 
     /**
      * Constructs a new {@link AutoRebuildSslContextProvider} with the specified
      * directory {@link Path} and watching files given.
      * 
+     * @param factory       a factory to create {@link SslContext}s
      * @param dir           the path of the parent directory
      * @param watchingFiles the array contains the name of each watching files
      * @throws SSLRuntimeException if any SSL error occurs
      * @throws IOException         if an I/O error occurs
      */
-    protected AutoRebuildSslContextProvider(Path dir, String... watchingFiles) throws SSLRuntimeException, IOException {
-        this(dir, Arrays.asList(watchingFiles));
+    protected AutoRebuildSslContextProvider(SslContextProvider factory, Path dir, String... watchingFiles)
+            throws SSLRuntimeException, IOException {
+        this(factory, dir, Arrays.asList(watchingFiles));
     }
 
-    private AutoRebuildSslContextProvider(Path dir, Set<String> watchingFiles) throws SSLRuntimeException, IOException {
+    private AutoRebuildSslContextProvider(SslContextProvider factory, Path dir, Set<String> watchingFiles)
+            throws SSLRuntimeException, IOException {
         this.dir = dir;
         this.watchingFiles = watchingFiles;
-        SslContext first = buildSslContext();
+        SslContext first = factory.get();
         sslContextRef.set(first);
         watchService = dir.getFileSystem().newWatchService();
         // register ENTRY_CREATE to support the case when user removed old files before
         // set the new file
         dir.register(watchService, ENTRY_MODIFY, ENTRY_CREATE);
         executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("watch-files", true));
-        executor.execute(new WatchingTask());
+        executor.execute(new WatchingTask(factory));
     }
 
     /**
@@ -123,14 +127,6 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
         return sslContextRef.get();
     }
 
-    /**
-     * Creates a new {@link SslContext}.
-     * 
-     * @return a {@code SslContext}
-     * @throws SSLRuntimeException if any SSL error occurs
-     */
-    protected abstract SslContext buildSslContext() throws SSLRuntimeException;
-
     public boolean isClosed() {
         return closed.get();
     }
@@ -149,28 +145,38 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
     }
 
     private class WatchingTask implements Runnable {
+
+        private final SslContextProvider factory;
+
+        public WatchingTask(SslContextProvider factory) {
+            this.factory = factory;
+        }
+
         @Override
         public void run() {
             for (; !isClosed();) {
                 try {
                     WatchKey watchKey = watchService.poll(30, TimeUnit.SECONDS);
-                    try {
-                        List<WatchEvent<?>> events = watchKey.pollEvents();
+                    if (watchKey != null) {
                         boolean needRebuild = false;
-                        for (WatchEvent<?> watchEvent : events) {
-                            String fileName = watchEvent.context().toString();
-                            if (watchingFiles.contains(fileName)) {
-                                needRebuild = true;
+                        try {
+                            List<WatchEvent<?>> events = watchKey.pollEvents();
+                            for (WatchEvent<?> watchEvent : events) {
+                                String fileName = watchEvent.context().toString();
+                                log.debug("Polled event {} ==> {}", watchEvent.kind(), fileName);
+                                if (watchingFiles.contains(fileName)) {
+                                    needRebuild = true;
+                                }
                             }
+                        } finally {
+                            watchKey.reset();
                         }
                         if (needRebuild) {
                             Thread.sleep(100L); // sleep 100 milliseconds to wait all IO operations finished
-                            SslContext sslContext = buildSslContext();
+                            SslContext sslContext = factory.get();
                             SslContext old = sslContextRef.getAndSet(sslContext);
                             log.info("Auto rebuild SslContext: {} => {}", old, sslContext);
                         }
-                    } finally {
-                        watchKey.reset();
                     }
                 } catch (InterruptedException | ClosedWatchServiceException e) {
                     // ignore
