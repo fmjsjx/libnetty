@@ -163,8 +163,8 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
                             List<WatchEvent<?>> events = watchKey.pollEvents();
                             for (WatchEvent<?> watchEvent : events) {
                                 String fileName = watchEvent.context().toString();
-                                log.debug("Polled event {} ==> {}", watchEvent.kind(), fileName);
-                                if (watchingFiles.contains(fileName)) {
+                                log.debug("Polled event {} {} ==> {}", watchEvent.kind(), fileName);
+                                if (watchEvent.count() == 1 && watchingFiles.contains(fileName)) {
                                     needRebuild = true;
                                 }
                             }
