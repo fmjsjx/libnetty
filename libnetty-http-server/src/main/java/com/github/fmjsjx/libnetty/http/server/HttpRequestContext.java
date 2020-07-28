@@ -6,6 +6,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -187,7 +188,8 @@ public interface HttpRequestContext extends ReferenceCounted {
     <T> Optional<T> property(Object key, Class<T> type) throws ClassCastException;
 
     /**
-     * Set the property value with the specified key.
+     * Set the property value with the specified key, or remove the value with
+     * specified key by input {@code null} parameter.
      * 
      * @param key   the key of the property
      * @param value the value of the property
@@ -195,6 +197,39 @@ public interface HttpRequestContext extends ReferenceCounted {
      * @return this {@code HttpRequestContext}
      */
     HttpRequestContext property(Object key, Object value);
+
+    /**
+     * Returns {@code true} if this {@link HttpRequestContext} contains a property
+     * with the specified {@code key}.
+     * 
+     * @param key the key of the property
+     * @return {@code true} if this {@code HttpRequestContext} contains a property
+     *         with the specified {@code key}
+     */
+    default boolean hasProperty(Object key) {
+        return property(key).isPresent();
+    }
+
+    /**
+     * Returns {@code true} if this {@link HttpRequestContext} contains a property
+     * with the specified {@code key} and {@code value}.
+     * 
+     * @param key   the key of the property
+     * @param value the value of the property
+     * @return {@code true} if this {@code HttpRequestContext} contains a property
+     *         with the specified {@code key} and {@code value}
+     */
+    default boolean hasProperty(Object key, Object value) {
+        return property(key).filter(value::equals).isPresent();
+    }
+
+    /**
+     * Returns a {@link Stream} contains the key of each property in this
+     * {@link HttpRequestContext}.
+     * 
+     * @return a {@code Stream<Object>}
+     */
+    Stream<Object> propertyKeys();
 
     @Override
     default int refCnt() {

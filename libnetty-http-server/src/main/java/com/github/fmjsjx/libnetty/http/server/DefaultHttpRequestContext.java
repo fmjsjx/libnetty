@@ -1,8 +1,10 @@
 package com.github.fmjsjx.libnetty.http.server;
 
 import java.time.ZonedDateTime;
-import java.util.LinkedHashMap;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Stream;
 
 import com.github.fmjsjx.libnetty.http.HttpUtil;
 
@@ -28,7 +30,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     private String remoteAddress;
     private QueryStringDecoder queryStringDecoder;
 
-    private final LinkedHashMap<Object, Object> properties = new LinkedHashMap<>();
+    private final ConcurrentMap<Object, Object> properties = new ConcurrentHashMap<>();
 
     /**
      * Creates a new {@link DefaultHttpRequestContext} with the specified
@@ -80,33 +82,53 @@ class DefaultHttpRequestContext implements HttpRequestContext {
         return decoder;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public <T> Optional<T> property(Object key) {
-        Object value = properties.get(key);
+        Object value = getProperty(key);
         if (value == null) {
             return Optional.empty();
         }
-        return Optional.of((T) value);
+        @SuppressWarnings("unchecked")
+        T t = (T) value;
+        return Optional.of(t);
+    }
+
+    private Object getProperty(Object key) {
+        return properties.get(key);
     }
 
     @Override
     public <T> Optional<T> property(Object key, Class<T> type) {
-        Object value = properties.get(key);
+        Object value = getProperty(key);
         return Optional.ofNullable(value).map(type::cast);
     }
 
     @Override
     public DefaultHttpRequestContext property(Object key, Object value) {
-        properties.put(key, value);
+        if (value == null) {
+            properties.remove(key);
+        } else {
+            properties.put(key, value);
+        }
         return this;
+    }
+
+    @Override
+    public boolean hasProperty(Object key) {
+        return properties.containsKey(key);
+    }
+
+    @Override
+    public Stream<Object> propertyKeys() {
+        return properties.keySet().stream();
     }
 
     @Override
     public String toString() {
         StringBuilder b = new StringBuilder().append("DefaultHttpRequestContext(receivedTime: ").append(receivedTime)
                 .append(", channel: ").append(channel()).append(", remoteAddress: ").append(remoteAddress())
-                .append(", query: ").append(queryStringDecoder).append(")\n");
+                .append(", query: ").append(queryStringDecoder).append(", properties: ").append(properties)
+                .append(")\n");
         b.append(request().toString());
         return b.toString();
     }
