@@ -5,7 +5,9 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -95,6 +97,15 @@ public interface HttpRequestContext extends ReferenceCounted {
     FullHttpRequest request();
 
     /**
+     * Returns the content body of the HTTP request.
+     * 
+     * @return the content body of the HTTP request
+     */
+    default ByteBuf body() {
+        return request().content();
+    }
+
+    /**
      * Returns the headers of the HTTP request.
      * 
      * @return the headers of the HTTP request
@@ -147,6 +158,43 @@ public interface HttpRequestContext extends ReferenceCounted {
     default Map<String, List<String>> queryParameters() {
         return queryStringDecoder().parameters();
     }
+
+    /**
+     * Returns the property value as parameterized type.
+     * 
+     * @param <T> the type of the property value
+     * @param key the key of the property
+     * 
+     * @return an {@code Optional<T>} may contains the property value
+     * 
+     * @throws ClassCastException if the object is not {@code null} and is not
+     *                            assignable to the type {@code T}
+     */
+    <T> Optional<T> property(Object key) throws ClassCastException;
+
+    /**
+     * Returns the property value as parameterized type.
+     * 
+     * @param <T>  the type of the property value
+     * @param key  the key of the property
+     * @param type the class of the type
+     * 
+     * @return an {@code Optional<T>} may contains the property value
+     * 
+     * @throws ClassCastException if the object is not {@code null} and is not
+     *                            assignable to the type {@code T}
+     */
+    <T> Optional<T> property(Object key, Class<T> type) throws ClassCastException;
+
+    /**
+     * Set the property value with the specified key.
+     * 
+     * @param key   the key of the property
+     * @param value the value of the property
+     * 
+     * @return this {@code HttpRequestContext}
+     */
+    HttpRequestContext property(Object key, Object value);
 
     @Override
     default int refCnt() {
