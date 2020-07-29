@@ -10,15 +10,18 @@ public class PathPatternUtil {
 
     private static final Logger log = LoggerFactory.getLogger(PathPatternUtil.class);
 
-    private static final Pattern pathVariablePattern = Pattern.compile("\\{\\w+\\}");
+    private static final Pattern pathVariablePattern = Pattern.compile("\\{[\\w\\-]+\\}");
+    private static final Pattern anyPathVariablePattern = Pattern.compile("\\{.+\\}");
 
     /**
      * Build a new {@link Pattern} from HTTP path pattern.
      * 
      * @param pathPattern the pattern of HTTP path
      * @return a {@code Pattern}
+     * 
+     * @throws IllegalArgumentException if the path variable is illegal
      */
-    public static final Pattern fromPathPattern(String pathPattern) {
+    public static final Pattern fromPathPattern(String pathPattern) throws IllegalArgumentException {
         String base = pathPattern.replace("-", "\\-").replace(".", "\\.");
         Matcher m = pathVariablePattern.matcher(base);
         StringBuilder b = new StringBuilder().append("^");
@@ -37,8 +40,14 @@ public class PathPatternUtil {
         } else {
             b.append("/?");
         }
-        log.debug("Converted path pattern: {} >>> {}", pathPattern, b);
-        return Pattern.compile(b.toString());
+        String converted = b.toString();
+        log.debug("Converted path pattern: {} >>> {}", pathPattern, converted);
+        // check {.*}
+        Matcher cm = anyPathVariablePattern.matcher(converted);
+        if (cm.find()) {
+            throw new IllegalArgumentException("illegal path variable " + cm.group());
+        }
+        return Pattern.compile(converted);
     }
 
     private PathPatternUtil() {

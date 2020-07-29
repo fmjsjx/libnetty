@@ -52,6 +52,14 @@ public class PathPatternUtilTest {
         } catch (Exception e) {
             fail(e);
         }
+        
+        try {
+            PathPatternUtil.fromPathPattern("/error/{aa$$}/bb");
+            fail("Should throws IllegalArgumentException but not!");
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+            assertEquals("illegal path variable {aa$$}", e.getLocalizedMessage());
+        }
     }
 
 }
