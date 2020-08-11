@@ -27,9 +27,9 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(60);
 
     /**
-     * Default is 1 MB.
+     * Default is 16 MB.
      */
-    protected static final int DEFAULT_MAX_CONTENT_LENGTH = 1 * 1024 * 1024;
+    protected static final int DEFAULT_MAX_CONTENT_LENGTH = 16 * 1024 * 1024;
 
     protected final EventLoopGroup group;
     protected final Class<? extends Channel> channelClass;
