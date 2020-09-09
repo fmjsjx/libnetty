@@ -1,7 +1,5 @@
 package com.github.fmjsjx.libnetty.http.server;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
@@ -12,7 +10,7 @@ import java.util.function.Supplier;
  * @author MJ Fang
  */
 @FunctionalInterface
-public interface HttpServerHandlerProvider extends Supplier<HttpServerHandler>, Closeable {
+public interface HttpServerHandlerProvider extends Supplier<HttpServerHandler>, AutoCloseable {
 
     /**
      * Returns a {@link HttpServerHandler} instance.
@@ -25,10 +23,10 @@ public interface HttpServerHandlerProvider extends Supplier<HttpServerHandler>, 
     /**
      * Close this provider and releases any system resources associated with it.
      * 
-     * @throws IOException if an I/O error occurs
+     * @throws Exception if any error occurs
      */
     @Override
-    default void close() throws IOException {
+    default void close() throws Exception {
         // default do nothing
     }
 
