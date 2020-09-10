@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -77,6 +78,16 @@ public interface HttpRequestContext extends ReferenceCounted {
      */
     default EventLoop eventLoop() {
         return channel().eventLoop();
+    }
+
+    /**
+     * Return the assigned {@link ByteBufAllocator} which will be used to allocate
+     * {@link ByteBuf}s.
+     * 
+     * @return a {@code ByteBufAllocator}
+     */
+    default ByteBufAllocator alloc() {
+        return channel().alloc();
     }
 
     /**
