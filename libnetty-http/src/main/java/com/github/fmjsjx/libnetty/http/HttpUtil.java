@@ -59,7 +59,7 @@ public final class HttpUtil {
     public static final AsciiString contentType(AsciiString contentType, Charset charset) {
         Objects.requireNonNull(charset, "charset must not be null");
         return CachedContentTypeHolder.cachedContentTypes.computeIfAbsent(contentType, k -> new ConcurrentHashMap<>())
-                .computeIfAbsent(charset, k -> AsciiString.cached(contentType.toString() + ";charset=" + k.name()));
+                .computeIfAbsent(charset, k -> AsciiString.cached(contentType.toString() + "; charset=" + k.name()));
     }
 
     private static final class CachedContentTypeHolder {

@@ -33,6 +33,8 @@ class AutoReadNextHandler extends ChannelDuplexHandler {
             HttpResponse resp = (HttpResponse) msg;
             if (isKeepAlive(resp)) {
                 promise.addListener(READ_NEXT);
+            } else {
+                promise.addListener(ChannelFutureListener.CLOSE);
             }
         }
         super.write(ctx, msg, promise);

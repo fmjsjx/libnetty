@@ -2,6 +2,7 @@ package com.github.fmjsjx.libnetty.http.server;
 
 import static java.util.Objects.*;
 
+import java.time.Duration;
 import java.util.ArrayList;
 
 import static io.netty.channel.ChannelOption.*;
@@ -332,6 +333,21 @@ public class DefaultHttpServer implements HttpServer {
      */
     public int timeoutSeconds() {
         return timeoutSeconds;
+    }
+
+    /**
+     * Set the time that connectors wait for another HTTP request before closing the
+     * connection.
+     * <p>
+     * The default value is {@code 60} seconds.
+     * 
+     * @param timeout time as {@link Duration} type
+     * @return this server
+     */
+    public DefaultHttpServer timeout(Duration timeout) {
+        ensureNotStarted();
+        this.timeoutSeconds = (int) timeout.getSeconds();
+        return this;
     }
 
     /**

@@ -3,6 +3,7 @@ package com.github.fmjsjx.libnetty.http.server;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.http.exception.MultiErrorsException;
@@ -18,8 +19,10 @@ class DefaultHttpServerHandler extends HttpRequestContextHandler {
 
     private final List<Middleware> middlewares;
     private final MiddlewareChain firstChain;
+    private final BiConsumer<ChannelHandlerContext, Throwable> exceptionHandler;
 
-    DefaultHttpServerHandler(List<Middleware> middlewares, MiddlewareChain lastChain) {
+    DefaultHttpServerHandler(List<Middleware> middlewares, MiddlewareChain lastChain,
+            BiConsumer<ChannelHandlerContext, Throwable> exceptionHandler) {
         this.middlewares = Collections.unmodifiableList(middlewares);
         ArrayList<Middleware> ml = new ArrayList<>(middlewares);
         Collections.reverse(ml);
@@ -28,6 +31,12 @@ class DefaultHttpServerHandler extends HttpRequestContextHandler {
             c = MiddlewareChains.next(m, c);
         }
         this.firstChain = c;
+        this.exceptionHandler = exceptionHandler;
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        exceptionHandler.accept(ctx, cause);
     }
 
     @Override

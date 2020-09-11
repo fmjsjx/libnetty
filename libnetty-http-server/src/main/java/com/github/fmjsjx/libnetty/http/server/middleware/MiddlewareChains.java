@@ -4,24 +4,17 @@ import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 
 import java.nio.charset.Charset;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import com.github.fmjsjx.libnetty.http.server.DefaultHttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
+import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
@@ -105,22 +98,7 @@ public class MiddlewareChains {
 
         @Override
         public CompletionStage<HttpResult> doNext(HttpRequestContext ctx) {
-            FullHttpRequest request = ctx.request();
-            HttpVersion version = request.protocolVersion();
-            DefaultFullHttpResponse notFound = new DefaultFullHttpResponse(version, NOT_FOUND, contentBuf.duplicate());
-            HttpHeaders headers = notFound.headers();
-            HttpUtil.setKeepAlive(headers, version, HttpUtil.isKeepAlive(request));
-            headers.setInt(HttpHeaderNames.CONTENT_LENGTH, contentLength);
-            headers.set(HttpHeaderNames.CONTENT_TYPE, contentType);
-            CompletableFuture<HttpResult> future = new CompletableFuture<>();
-            ctx.channel().writeAndFlush(notFound).addListener(f -> {
-                if (f.isSuccess()) {
-                    future.complete(new DefaultHttpResult(ctx, contentLength, NOT_FOUND));
-                } else if (f.cause() != null) {
-                    future.completeExceptionally(f.cause());
-                }
-            });
-            return future;
+            return HttpServerUtil.respond(ctx, NOT_FOUND, contentBuf.duplicate(), contentLength, contentType);
         }
 
     }
