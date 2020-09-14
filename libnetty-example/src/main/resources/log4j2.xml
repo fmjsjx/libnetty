@@ -9,9 +9,16 @@
     <Console name="Console" target="SYSTEM_OUT" follow="true">
       <PatternLayout pattern="${sys:CONSOLE_LOG_PATTERN}" />
     </Console>
+    
+    <Console name="AccessLogger" target="SYSTEM_OUT" follow="true">
+      <PatternLayout pattern="[Access] %m%n" />
+    </Console>
   </Appenders>
   <Loggers>
     <Logger name="com.github.fmjsjx" level="debug" />
+    <Logger name="accessLogger" level="info" includeLocation="false" additivity="false">
+      <AppenderRef ref="AccessLogger" />
+    </Logger>
     <Root level="info">
       <AppenderRef ref="Console" />
     </Root>
