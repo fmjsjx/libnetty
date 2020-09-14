@@ -15,6 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
@@ -149,6 +150,14 @@ public class AccessLogger implements Middleware {
 
         public Slf4jLoggerWrapper(Logger logger) {
             this(logger, Level.INFO);
+        }
+
+        public Slf4jLoggerWrapper(String name, Level level) {
+            this(LoggerFactory.getLogger(name), level);
+        }
+
+        public Slf4jLoggerWrapper(String name) {
+            this(name, Level.INFO);
         }
 
     }
@@ -405,7 +414,7 @@ public class AccessLogger implements Middleware {
     @Override
     public CompletionStage<HttpResult> apply(HttpRequestContext ctx, MiddlewareChain next) {
         return next.doNext(ctx).whenComplete((r, e) -> {
-            if (e != null && loggerWrapper.isEnabled()) {
+            if (e == null && loggerWrapper.isEnabled()) {
                 loggerWrapper.log(mapLog(r));
             }
         });
