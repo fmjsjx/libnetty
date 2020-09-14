@@ -22,8 +22,12 @@ public interface HttpResult {
         return respondedTime().withZoneSameLocal(zone);
     }
 
+    default long nanoUsed() {
+        return respondedNaonTime() - requestContext().receivedNanoTime();
+    }
+
     default long timeUsed(TimeUnit unit) {
-        return unit.convert(respondedNaonTime() - requestContext().recievedNanoTime(), TimeUnit.NANOSECONDS);
+        return unit.convert(nanoUsed(), TimeUnit.NANOSECONDS);
     }
 
 }

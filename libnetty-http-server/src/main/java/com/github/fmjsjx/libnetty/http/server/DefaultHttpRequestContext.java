@@ -6,10 +6,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
-import com.github.fmjsjx.libnetty.http.HttpUtil;
-
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
 
 /**
@@ -26,8 +25,10 @@ class DefaultHttpRequestContext implements HttpRequestContext {
 
     private final Channel channel;
     private final FullHttpRequest request;
+    private final int contentLength;
 
     private String remoteAddress;
+    private Optional<CharSequence> contentType;
     private QueryStringDecoder queryStringDecoder;
 
     private final ConcurrentMap<Object, Object> properties = new ConcurrentHashMap<>();
@@ -42,10 +43,11 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     DefaultHttpRequestContext(Channel channel, FullHttpRequest request) {
         this.channel = channel;
         this.request = request;
+        this.contentLength = request.content().readableBytes();
     }
 
     @Override
-    public long recievedNanoTime() {
+    public long receivedNanoTime() {
         return recievedNanoTime;
     }
 
@@ -63,7 +65,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     public String remoteAddress() {
         String addr = remoteAddress;
         if (addr == null) {
-            remoteAddress = addr = HttpUtil.remoteAddress(channel(), headers());
+            remoteAddress = addr = com.github.fmjsjx.libnetty.http.HttpUtil.remoteAddress(channel(), headers());
         }
         return addr;
     }
@@ -71,6 +73,20 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     @Override
     public FullHttpRequest request() {
         return request;
+    }
+
+    @Override
+    public int contentLength() {
+        return contentLength;
+    }
+
+    @Override
+    public Optional<CharSequence> contentType() {
+        Optional<CharSequence> contentType = this.contentType;
+        if (contentType == null) {
+            this.contentType = contentType = Optional.ofNullable(HttpUtil.getMimeType(request));
+        }
+        return contentType;
     }
 
     @Override
@@ -127,8 +143,8 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     public String toString() {
         StringBuilder b = new StringBuilder().append("DefaultHttpRequestContext(receivedTime: ").append(receivedTime)
                 .append(", channel: ").append(channel()).append(", remoteAddress: ").append(remoteAddress())
-                .append(", query: ").append(queryStringDecoder).append(", properties: ").append(properties)
-                .append(")\n");
+                .append(", query: ").append(queryStringDecoder).append(", contentLength: ").append(contentLength)
+                .append(", properties: ").append(properties).append(")\n");
         b.append(request().toString());
         return b.toString();
     }

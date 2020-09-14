@@ -12,6 +12,7 @@ import com.github.fmjsjx.libnetty.http.server.middleware.MiddlewareChain;
 import com.github.fmjsjx.libnetty.http.server.middleware.MiddlewareChains;
 
 import io.netty.channel.ChannelHandler.Sharable;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.channel.ChannelHandlerContext;
 
 @Sharable
@@ -41,7 +42,7 @@ class DefaultHttpServerHandler extends HttpRequestContextHandler {
 
     @Override
     protected void messageReceived(ChannelHandlerContext ctx, HttpRequestContext msg) throws Exception {
-        firstChain.doNext(msg);
+        firstChain.doNext(msg.retain()).whenComplete((r, e) -> ReferenceCountUtil.safeRelease(msg));
     }
 
     void onServerClosed() throws MultiErrorsException, HttpRuntimeException {

@@ -14,6 +14,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.ReferenceCounted;
 
@@ -34,7 +36,7 @@ public interface HttpRequestContext extends ReferenceCounted {
      *         source, in nanoseconds
      * @see System#nanoTime()
      */
-    long recievedNanoTime();
+    long receivedNanoTime();
 
     /**
      * Returns the {@link ZonedDateTime} with the system {@link ZoneId} when the
@@ -109,6 +111,24 @@ public interface HttpRequestContext extends ReferenceCounted {
     FullHttpRequest request();
 
     /**
+     * Returns the protocol version of the HTTP request.
+     * 
+     * @return the protocol version of the HTTP request
+     */
+    default HttpVersion version() {
+        return request().protocolVersion();
+    }
+
+    /**
+     * Returns the method of the HTTP request.
+     * 
+     * @return the method of the HTTP request
+     */
+    default HttpMethod method() {
+        return request().method();
+    }
+
+    /**
      * Returns the content body of the HTTP request.
      * 
      * @return the content body of the HTTP request
@@ -118,6 +138,13 @@ public interface HttpRequestContext extends ReferenceCounted {
     }
 
     /**
+     * Returns the length of the HTTP request body content.
+     * 
+     * @return the length of the HTTP request body content
+     */
+    int contentLength();
+
+    /**
      * Returns the headers of the HTTP request.
      * 
      * @return the headers of the HTTP request
@@ -125,6 +152,13 @@ public interface HttpRequestContext extends ReferenceCounted {
     default HttpHeaders headers() {
         return request().headers();
     }
+
+    /**
+     * Returns the type of the HTTP request body content.
+     * 
+     * @return the type of the HTTP request body content
+     */
+    Optional<CharSequence> contentType();
 
     /**
      * Returns the trailing headers of the HTTP request.
@@ -142,6 +176,15 @@ public interface HttpRequestContext extends ReferenceCounted {
      * @return a {@code QueryStringDecoder}
      */
     QueryStringDecoder queryStringDecoder();
+
+    /**
+     * Returns the decoded path string of the HTTP request {@code URI}.
+     * 
+     * @return the decoded path string
+     */
+    default String path() {
+        return queryStringDecoder().path();
+    }
 
     /**
      * Returns the raw path (with query string) of the HTTP request {@code URI}.
