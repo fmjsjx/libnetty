@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -35,7 +36,7 @@ public class AccessLoggerTest {
 
     @Test
     public void testMapLog() {
-        String p = "Hello :datetime :iso-local-datetime :iso-local-date :basic-iso-date :iso-local-time :method :path :version :raw-path :remote-address :query :host :content-length :content-type :content :user-agent :referrer :accept - :status :status-code :status-reason :response-time ms :result-length World!";
+        String p = "Hello :datetime :iso-local-datetime :iso-local-date :basic-iso-date :iso-local-time :method :url :path :http-version :raw-path :remote-addr :remote-user :query :host :content-length :content-type :content :user-agent :referrer :accept - :status :status-code :status-reason :response-time ms :result-length World!";
         StringBuilder resultBuilder = new StringBuilder();
         try (AccessLogger accessLogger = new AccessLogger(resultBuilder::append, p)) {
             DefaultFullHttpRequest request = mockedRequest();
@@ -43,8 +44,18 @@ public class AccessLoggerTest {
             HttpResult result = mockedResult(requestContext);
             String value = accessLogger.mapLog(result);
             assertNotNull(value);
-            String expected = "Hello 2020-09-14 16:52:00.123 2020-09-14T16:52:00.123456789 2020-09-14 20200914 16:52:00.123456789 POST /test HTTP/1.1 /test 127.0.0.1 q1=1&q2=abc localhost 78 application/json {\"action\":\"test\",\"date\":\"2020-09-14\",\"time\":\"16:51:23\",\"timestamp\":1600073543} test http://otherdomain.com/home.html application/json - 200 OK 200 OK 123.457 ms 47 World!";
+            String expected = "Hello 2020-09-14 16:52:00.123 2020-09-14T16:52:00.123456789 2020-09-14 20200914 16:52:00.123456789 POST /test /test HTTP/1.1 /test 127.0.0.1 test-user q1=1&q2=abc localhost 78 application/json {\"action\":\"test\",\"date\":\"2020-09-14\",\"time\":\"16:51:23\",\"timestamp\":1600073543} test-agent http://otherdomain.com/home.html application/json - 200 OK 200 OK 123.457 ms 47 World!";
             assertEquals(expected, value);
+            
+            request.headers().remove(HttpHeaderNames.USER_AGENT);
+            request.headers().remove(HttpHeaderNames.ACCEPT);
+            request.headers().remove(HttpHeaderNames.REFERER);
+            request.headers().remove(HttpHeaderNames.AUTHORIZATION);
+            value = accessLogger.mapLog(result);
+            assertNotNull(value);
+            expected = "Hello 2020-09-14 16:52:00.123 2020-09-14T16:52:00.123456789 2020-09-14 20200914 16:52:00.123456789 POST /test /test HTTP/1.1 /test 127.0.0.1 - q1=1&q2=abc localhost 78 application/json {\"action\":\"test\",\"date\":\"2020-09-14\",\"time\":\"16:51:23\",\"timestamp\":1600073543} - - - - 200 OK 200 OK 123.457 ms 47 World!";
+            assertEquals(expected, value);
+            
         } catch (Exception e) {
             fail(e);
         }
@@ -58,12 +69,14 @@ public class AccessLoggerTest {
         DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST,
                 "/test?q1=1&q2=abc", content);
         HttpUtil.setContentLength(request, content.readableBytes());
+        String base64 = new String(Base64.getEncoder().encode("test-user:12345678".getBytes(CharsetUtil.UTF_8)), CharsetUtil.UTF_8);
         request.headers().set(HttpHeaderNames.HOST, "localhost");
-        request.headers().set(HttpHeaderNames.USER_AGENT, "test");
+        request.headers().set(HttpHeaderNames.USER_AGENT, "test-agent");
         request.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json; charset=UTF-8");
         request.headers().set(HttpHeaderNames.ACCEPT, "application/json");
         request.headers().set(HttpHeaderNames.REFERER, "http://otherdomain.com/home.html");
         request.headers().set(HttpHeaderXNames.X_FORWARDED_FOR, "127.0.0.1");
+        request.headers().set(HttpHeaderNames.AUTHORIZATION, "Basic " + base64);
         return request;
     }
 

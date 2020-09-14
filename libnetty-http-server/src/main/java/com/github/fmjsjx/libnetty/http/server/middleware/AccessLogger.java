@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
@@ -152,6 +153,86 @@ public class AccessLogger implements Middleware {
 
     }
 
+    /**
+     * Some pre-defined log formats.
+     * 
+     * @since 1.1
+     *
+     * @author MJ Fang
+     */
+    public enum LogFormat {
+
+        /**
+         * The minimal output.
+         * 
+         * <pre>
+         * :method :path :status :result-length - :response-time ms
+         * </pre>
+         */
+        TINY(":method :path :status :result-length - :response-time ms"),
+
+        /**
+         * Shorter than default, also including response time.
+         * 
+         * <pre>
+         * :remote-addr :remote-user :method :path :http-version :status :result-length - :response-time ms
+         * </pre>
+         */
+        SHORT(":remote-addr :remote-user :method :path :http-version :status :result-length - :response-time ms"),
+
+        /**
+         * Concise output colored by response status for development use. The :status
+         * token will be colored green for success codes, red for server error codes,
+         * yellow for client error codes, cyan for redirection codes, and uncolored for
+         * information codes.
+         * 
+         * <pre>
+         * :method :path :status :response-time ms - :result-length
+         * </pre>
+         */
+        DEV(":method :path :status :response-time ms - :result-length"),
+
+        /**
+         * Standard Apache common log output.
+         * 
+         * <pre>
+         * :remote-addr - :remote-user [:datetime] \":method :path :http-version\" :status :result-length
+         * </pre>
+         */
+        COMMON(":remote-addr - :remote-user [:datetime] \":method :path :http-version\" :status :result-length"),
+
+        /**
+         * Standard Apache combined log output.
+         * 
+         * <pre>
+         * :remote-addr - :remote-user [:datetime] ":method :path :http-version" :status :result-length ":referrer" ":user-agent"
+         * </pre>
+         */
+        COMBINED(
+                ":remote-addr - :remote-user [:datetime] \":method :path :http-version\" :status :result-length \":referrer\" \":user-agent\""),
+
+        /**
+         * Basic log output.
+         * 
+         * <pre>
+         * :datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length
+         * </pre>
+         */
+        BASIC(":datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length");
+
+        private final String pattern;
+
+        private LogFormat(String pattern) {
+            this.pattern = pattern;
+        }
+
+        @Override
+        public String toString() {
+            return name().toLowerCase() + "(" + pattern + ")";
+        }
+
+    }
+
     private static final Pattern SYMBOL_PATTERN = Pattern.compile(":[0-9a-z\\-]+");
 
     private static final Function<HttpResult, String> generateMapperFromPattern(String pattern) {
@@ -197,9 +278,12 @@ public class AccessLogger implements Middleware {
     private static final Function<HttpResult, Object> symbolMapper(String symbol) {
         switch (symbol) {
         case ":version":
+        case ":http-version":
             return result -> result.requestContext().version();
         case ":method":
+        case ":http-method":
             return result -> result.requestContext().method();
+        case ":url":
         case ":path":
             return result -> result.requestContext().path();
         case ":raw-path":
@@ -221,8 +305,20 @@ public class AccessLogger implements Middleware {
             };
         case ":content-type":
             return result -> result.requestContext().contentType().orElse("-");
+        case ":remote-addr":
         case ":remote-address":
             return result -> result.requestContext().remoteAddress();
+        case ":remote-user":
+            return result -> {
+                String auth = result.requestContext().headers().get(HttpHeaderNames.AUTHORIZATION);
+                if (auth == null || !auth.startsWith("Basic ")) {
+                    return "-";
+                }
+                String base64 = auth.substring(6);
+                String basic = new String(Base64.getDecoder().decode(base64.getBytes(CharsetUtil.UTF_8)),
+                        CharsetUtil.UTF_8);
+                return basic.split(":")[0];
+            };
         case ":user-agent":
             return result -> result.requestContext().headers().get(HttpHeaderNames.USER_AGENT, "-");
         case ":referrer":
@@ -277,6 +373,18 @@ public class AccessLogger implements Middleware {
     private final LoggerWrapper loggerWrapper;
     private final Function<HttpResult, String> logMapper;
 
+    public AccessLogger() {
+        this(LogFormat.BASIC);
+    }
+
+    public AccessLogger(LogFormat format) {
+        this(StdoutLoggerWrapper.INSTANCE, format);
+    }
+
+    public AccessLogger(LoggerWrapper loggerWrapper, LogFormat format) {
+        this(loggerWrapper, Objects.requireNonNull(format, "format must not be null").pattern);
+    }
+
     public AccessLogger(String pattern) {
         this(StdoutLoggerWrapper.INSTANCE, pattern);
     }
@@ -289,7 +397,7 @@ public class AccessLogger implements Middleware {
         this.loggerWrapper = loggerWrapper;
         this.logMapper = logMapper;
     }
-    
+
     String mapLog(HttpResult result) {
         return logMapper.apply(result);
     }
