@@ -4,18 +4,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.event.Level;
@@ -36,6 +32,8 @@ import io.netty.util.CharsetUtil;
 public class AccessLogger implements Middleware {
 
     private static final DateTimeFormatter DEFAULT_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+
+    private static final BigDecimal T6 = BigDecimal.valueOf(1_000_000L);
 
     @FunctionalInterface
     public interface LoggerWrapper {
@@ -156,50 +154,7 @@ public class AccessLogger implements Middleware {
 
     private static final Pattern SYMBOL_PATTERN = Pattern.compile(":[0-9a-z\\-]+");
 
-    static final Function<HttpResult, String> generateMapperFromPattern(String pattern) {
-        Matcher m = SYMBOL_PATTERN.matcher(pattern);
-        int start = 0;
-        if (m.find(start)) {
-            BiConsumer<HttpResult, StringBuilder> appender;
-            {
-                Function<HttpResult, Object> symbolMapper = symbolMapperForTest(m.group());
-                if (m.start() > start) {
-                    String txt = pattern.substring(start, m.start());
-                    appender = (r, b) -> b.append(txt).append(symbolMapper.apply(r));
-                } else {
-                    appender = (r, b) -> b.append(symbolMapper.apply(r));
-                }
-            }
-            for (start = m.end(); m.find(start); start = m.end()) {
-                Function<HttpResult, Object> symbolMapper = symbolMapperForTest(m.group());
-                if (m.start() > start) {
-                    String txt = pattern.substring(start, m.start());
-                    appender = appender.andThen((r, b) -> b.append(txt).append(symbolMapper.apply(r)));
-                } else {
-                    appender = appender.andThen((r, b) -> b.append(symbolMapper.apply(r)));
-                }
-            }
-            BiConsumer<HttpResult, StringBuilder> sa = appender;
-            if (pattern.length() > start) {
-                String txt = pattern.substring(start);
-                return r -> {
-                    StringBuilder builder = new StringBuilder();
-                    sa.accept(r, builder);
-                    return builder.append(txt).toString();
-                };
-            } else {
-                return r -> {
-                    StringBuilder builder = new StringBuilder();
-                    sa.accept(r, builder);
-                    return builder.toString();
-                };
-            }
-        } else {
-            return r -> pattern;
-        }
-    }
-
-    static final Function<HttpResult, String> generateMapperFromPattern2(String pattern) {
+    private static final Function<HttpResult, String> generateMapperFromPattern(String pattern) {
         Matcher m = SYMBOL_PATTERN.matcher(pattern);
         List<String> txts = new ArrayList<String>();
         List<String> symbols = new ArrayList<String>();
@@ -217,7 +172,7 @@ public class AccessLogger implements Middleware {
         }
         String[] atxt = txts.toArray(new String[txts.size()]);
         @SuppressWarnings("unchecked")
-        Function<HttpResult, Object>[] symbolMappers = symbols.stream().map(AccessLogger::symbolMapperForTest)
+        Function<HttpResult, Object>[] symbolMappers = symbols.stream().map(AccessLogger::symbolMapper)
                 .toArray(Function[]::new);
         if (pattern.length() > start) {
             String lastTxt = pattern.substring(start);
@@ -237,104 +192,6 @@ public class AccessLogger implements Middleware {
                 return builder.toString();
             };
         }
-    }
-
-    static final Function<HttpResult, String> generateMapperFromPattern3(String pattern) {
-        Matcher m = SYMBOL_PATTERN.matcher(pattern);
-        int start = 0;
-        List<BiConsumer<HttpResult, StringBuilder>> appenders = new ArrayList<BiConsumer<HttpResult, StringBuilder>>();
-        for (; m.find(start); start = m.end()) {
-            Function<HttpResult, Object> symbolMapper = symbolMapperForTest(m.group());
-            if (m.start() > start) {
-                String txt = pattern.substring(start, m.start());
-                appenders.add((r, b) -> b.append(txt).append(symbolMapper.apply(r)));
-            } else {
-                appenders.add((r, b) -> b.append(symbolMapper.apply(r)));
-            }
-        }
-        if (appenders.isEmpty()) {
-            return r -> pattern;
-        }
-        if (pattern.length() > start) {
-            String lastTxt = pattern.substring(start);
-            return r -> {
-                StringBuilder builder = new StringBuilder();
-                for (BiConsumer<HttpResult, StringBuilder> appender : appenders) {
-                    appender.accept(r, builder);
-                }
-                return builder.append(lastTxt).toString();
-            };
-        }
-        return r -> {
-            StringBuilder builder = new StringBuilder();
-            for (BiConsumer<HttpResult, StringBuilder> appender : appenders) {
-                appender.accept(r, builder);
-            }
-            return builder.toString();
-        };
-    }
-
-    public static void main(String[] args) {
-        String p = "Hello :datetime :method :path :version :remote-address - :status :response-time ms :result-length World!";
-        Function<HttpResult, String> m1 = generateMapperFromPattern(p);
-        Function<HttpResult, String> m2 = generateMapperFromPattern2(p);
-        Function<HttpResult, String> m3 = generateMapperFromPattern3(p);
-        System.out.println(m1.apply(null));
-        System.out.println(m2.apply(null));
-        System.out.println(m3.apply(null));
-        System.out.println("-- warm --");
-        int count = 10_000_000;
-        for (int i = 0; i < count; i++) {
-            m1.apply(null);
-            m2.apply(null);
-            m3.apply(null);
-        }
-        System.out.println("-- start --");
-        long[] ns = new long[10];
-        long[] ns2 = new long[ns.length];
-        long[] ns3 = new long[ns.length];
-        long n;
-        for (int i = 0; i < ns.length; i++) {
-            n = System.nanoTime();
-            for (int j = 0; j < count; j++) {
-                m1.apply(null);
-            }
-            ns[i] = System.nanoTime() - n;
-
-            n = System.nanoTime();
-            for (int j = 0; j < count; j++) {
-                m2.apply(null);
-            }
-            ns2[i] = System.nanoTime() - n;
-
-            n = System.nanoTime();
-            for (int j = 0; j < count; j++) {
-                m3.apply(null);
-            }
-            ns3[i] = System.nanoTime() - n;
-        }
-        System.out.println("-- result --");
-        Arrays.sort(ns);
-        Arrays.sort(ns2);
-        Arrays.sort(ns3);
-        for (long n1 : ns) {
-            System.out.println(n1);
-        }
-        System.out.println("-- method 1 --");
-
-        for (long n2 : ns2) {
-            System.out.println(n2);
-        }
-        System.out.println("-- method 2 --");
-
-        for (long n3 : ns3) {
-            System.out.println(n3);
-        }
-        System.out.println("-- method 3 --");
-    }
-
-    private static final Function<HttpResult, Object> symbolMapperForTest(String symbol) {
-        return result -> symbol;
     }
 
     private static final Function<HttpResult, Object> symbolMapper(String symbol) {
@@ -399,12 +256,6 @@ public class AccessLogger implements Middleware {
         }
     }
 
-    private static final BigDecimal T6 = BigDecimal.valueOf(1_000_000L);
-
-    private static final BigDecimal toMillis(long val) {
-        return BigDecimal.valueOf(val).divide(T6, 3, RoundingMode.HALF_EVEN);
-    }
-
     private static final String toHumanReadableSize(long length) {
         if (length < 1024) {
             return Long.toString(length);
@@ -426,22 +277,28 @@ public class AccessLogger implements Middleware {
     private final LoggerWrapper loggerWrapper;
     private final Function<HttpResult, String> logMapper;
 
-    // TODO other public constructors
-
     public AccessLogger(String pattern) {
-        this(StdoutLoggerWrapper.INSTANCE, generateMapperFromPattern(pattern));
+        this(StdoutLoggerWrapper.INSTANCE, pattern);
+    }
+
+    public AccessLogger(LoggerWrapper loggerWrapper, String pattern) {
+        this(loggerWrapper, generateMapperFromPattern(pattern));
     }
 
     private AccessLogger(LoggerWrapper loggerWrapper, Function<HttpResult, String> logMapper) {
         this.loggerWrapper = loggerWrapper;
         this.logMapper = logMapper;
     }
+    
+    String mapLog(HttpResult result) {
+        return logMapper.apply(result);
+    }
 
     @Override
     public CompletionStage<HttpResult> apply(HttpRequestContext ctx, MiddlewareChain next) {
         return next.doNext(ctx).whenComplete((r, e) -> {
             if (e != null && loggerWrapper.isEnabled()) {
-                loggerWrapper.log(logMapper.apply(r));
+                loggerWrapper.log(mapLog(r));
             }
         });
     }
