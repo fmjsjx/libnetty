@@ -1,7 +1,9 @@
 package com.github.fmjsjx.libnetty.http.server;
 
 import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
+import static com.github.fmjsjx.libnetty.http.server.HttpResponseUtil.create;
 import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_JSON;
+import static io.netty.channel.ChannelFutureListener.CLOSE;
 
 import java.nio.charset.Charset;
 import java.util.concurrent.CompletableFuture;
@@ -50,9 +52,9 @@ public class HttpServerUtil {
     public static final CompletionStage<HttpResult> respond(HttpRequestContext ctx, HttpResponseStatus status,
             Charset charset) {
         FullHttpRequest request = ctx.request();
-        FullHttpResponse response = HttpResponseUtil.create(request.protocolVersion(), status, ctx.alloc(), charset,
-                HttpUtil.isKeepAlive(request));
-        return send(ctx, response);
+        boolean keepAlive = HttpUtil.isKeepAlive(request);
+        FullHttpResponse response = create(request.protocolVersion(), status, ctx.alloc(), charset, keepAlive);
+        return sendResponse(ctx, response, response.content().readableBytes(), keepAlive);
     }
 
     /**
@@ -86,9 +88,10 @@ public class HttpServerUtil {
     public static final CompletionStage<HttpResult> respond(HttpRequestContext ctx, HttpResponseStatus status,
             ByteBuf content, int contentLength, CharSequence contentType) {
         FullHttpRequest request = ctx.request();
-        FullHttpResponse response = HttpResponseUtil.create(request.protocolVersion(), status, content, contentLength,
-                contentType, HttpUtil.isKeepAlive(request));
-        return send(ctx, response, contentLength);
+        boolean keepAlive = HttpUtil.isKeepAlive(request);
+        return sendResponse(ctx,
+                create(request.protocolVersion(), status, content, contentLength, contentType, keepAlive),
+                contentLength, keepAlive);
     }
 
     /**
@@ -106,9 +109,10 @@ public class HttpServerUtil {
     public static final CompletionStage<HttpResult> respond(HttpRequestContext ctx, HttpResponseStatus status,
             ByteBuf content, long contentLength, CharSequence contentType) {
         FullHttpRequest request = ctx.request();
-        FullHttpResponse response = HttpResponseUtil.create(request.protocolVersion(), status, content, contentLength,
-                contentType, HttpUtil.isKeepAlive(request));
-        return send(ctx, response, contentLength);
+        boolean keepAlive = HttpUtil.isKeepAlive(request);
+        return sendResponse(ctx,
+                create(request.protocolVersion(), status, content, contentLength, contentType, keepAlive),
+                contentLength, keepAlive);
     }
 
     /**
@@ -120,8 +124,8 @@ public class HttpServerUtil {
      * 
      * @return a {@code CompletionStage<HttpResult>}
      */
-    public static CompletableFuture<HttpResult> send(HttpRequestContext ctx, FullHttpResponse response) {
-        return send(ctx, response, response.content().readableBytes());
+    public static CompletableFuture<HttpResult> sendResponse(HttpRequestContext ctx, FullHttpResponse response) {
+        return sendResponse(ctx, response, response.content().readableBytes(), HttpUtil.isKeepAlive(response));
     }
 
     /**
@@ -131,19 +135,24 @@ public class HttpServerUtil {
      * @param ctx           the {@link HttpRequestContext}
      * @param response      the {@link FullHttpResponse}
      * @param contentLength the length of the response body content
+     * @param keepAlive     if the connection is {@code keep-alive} or not
      * 
      * @return a {@code CompletionStage<HttpResult>}
      */
-    public static CompletableFuture<HttpResult> send(HttpRequestContext ctx, FullHttpResponse response,
-            int contentLength) {
+    public static CompletableFuture<HttpResult> sendResponse(HttpRequestContext ctx, FullHttpResponse response,
+            int contentLength, boolean keepAlive) {
         CompletableFuture<HttpResult> future = new CompletableFuture<>();
-        ctx.channel().writeAndFlush(response).addListener((ChannelFuture cf) -> {
+        ChannelFuture sendFuture = ctx.channel().writeAndFlush(response);
+        sendFuture.addListener((ChannelFuture cf) -> {
             if (cf.isSuccess()) {
                 future.complete(new DefaultHttpResult(ctx, contentLength, response.status()));
             } else if (cf.cause() != null) {
                 future.completeExceptionally(cf.cause());
             }
         });
+        if (!keepAlive) {
+            sendFuture.addListener(CLOSE);
+        }
         return future;
     }
 
@@ -154,19 +163,24 @@ public class HttpServerUtil {
      * @param ctx           the {@link HttpRequestContext}
      * @param response      the {@link FullHttpResponse}
      * @param contentLength the length of the response body content
+     * @param keepAlive     if the connection is {@code keep-alive} or not
      * 
      * @return a {@code CompletionStage<HttpResult>}
      */
-    public static CompletableFuture<HttpResult> send(HttpRequestContext ctx, FullHttpResponse response,
-            long contentLength) {
+    public static CompletableFuture<HttpResult> sendResponse(HttpRequestContext ctx, FullHttpResponse response,
+            long contentLength, boolean keepAlive) {
         CompletableFuture<HttpResult> future = new CompletableFuture<>();
-        ctx.channel().writeAndFlush(response).addListener((ChannelFuture cf) -> {
+        ChannelFuture sendFuture = ctx.channel().writeAndFlush(response);
+        sendFuture.addListener((ChannelFuture cf) -> {
             if (cf.isSuccess()) {
                 future.complete(new DefaultHttpResult(ctx, contentLength, response.status()));
             } else if (cf.cause() != null) {
                 future.completeExceptionally(cf.cause());
             }
         });
+        if (!keepAlive) {
+            sendFuture.addListener(CLOSE);
+        }
         return future;
     }
 
