@@ -10,15 +10,26 @@ package com.github.fmjsjx.libnetty.http.server;
 public interface ApiMatcher {
 
     /**
-     * Check if the specified {@link HttpRequestContext} matches this matcher or
-     * not.
+     * Check if the path of the specified {@link HttpRequestContext} matches this
+     * matcher or not.
      * 
      * @param ctx the {@link HttpRequestContext}
      * 
-     * @return {@code true} if the specified {@code HttpRequestContext} matches this
-     *         matcher
+     * @return {@code true} if the path of the specified {@code HttpRequestContext}
+     *         matches this matcher
      */
-    boolean matches(HttpRequestContext ctx);
+    boolean pathMatches(HttpRequestContext ctx);
+
+    /**
+     * Check if the method of the specified {@link HttpRequestContext} matches this
+     * matcher or not.
+     * 
+     * @param ctx the {@link HttpRequestContext}
+     * 
+     * @return {@code true} if the method of the specified
+     *         {@code HttpRequestContext} matches this matcher
+     */
+    boolean methodMatched(HttpRequestContext ctx);
 
     /**
      * Returns the path variable string at the specified {@code position}.

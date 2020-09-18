@@ -5,7 +5,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
 
 /**
  * The abstract implementation of {@link ApiMatcher}.
@@ -38,23 +37,14 @@ public abstract class AbstractApiMatcher implements ApiMatcher {
         return matcher().reset(path);
     }
 
-    protected boolean pathMatches(String path) {
-        return matcher(path).matches();
-    }
-
-    protected boolean methodMatches(HttpMethod method) {
-        return methodMatcher.test(method);
+    @Override
+    public boolean pathMatches(HttpRequestContext ctx) {
+        return matcher(ctx.path()).matches();
     }
 
     @Override
-    public boolean matches(HttpRequestContext ctx) {
-        return matches(ctx.rawPath(), ctx.request());
+    public boolean methodMatched(HttpRequestContext ctx) {
+        return methodMatcher.test(ctx.method());
     }
-
-    private boolean matches(String path, HttpRequest request) {
-        return pathMatches(path) && methodMatches(request.method()) && headersMatches(request);
-    }
-
-    protected abstract boolean headersMatches(HttpRequest request);
 
 }
