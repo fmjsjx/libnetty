@@ -227,7 +227,16 @@ public class AccessLogger implements Middleware {
          * :datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length
          * </pre>
          */
-        BASIC(":datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length");
+        BASIC(":datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length"),
+        
+        /**
+         * Another basic log output, make result length human readable.
+         * 
+         * <pre>
+         * :datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length-humanreadable
+         * </pre>
+         */
+        BASIC2(":datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length-humanreadable");
 
         private final String pattern;
 
@@ -366,14 +375,20 @@ public class AccessLogger implements Middleware {
             return Long.toString(length);
         } else if (length < 1024 * 10) {
             return String.format("%.2fK", length / 1024.0);
+        } else if (length < 1024 * 100) {
+            return String.format("%.fK", length / 1024.0);
         } else if (length < 1024 * 1024) {
             return (length / 1024) + "K";
         } else if (length < 1024 * 1024 * 10) {
             return String.format("%.2fM", length / (1024 * 1024.0));
+        } else if (length < 1024 * 1024 * 100) {
+            return String.format("%.1fM", length / (1024 * 1024.0));
         } else if (length < 1024 * 1024 * 1024) {
             return (length / (1024 * 1024)) + "M";
         } else if (length < 1024 * 1024 * 1024 * 10) {
             return String.format("%.2fG", length / (1024 * 1024 * 1024.0));
+        } else if (length < 1024 * 1024 * 1024 * 100) {
+            return String.format("%.1fG", length / (1024 * 1024 * 1024.0));
         } else {
             return (length / (1024 * 1024 * 1024)) + "G";
         }
