@@ -440,11 +440,7 @@ public class DefaultHttpServer implements HttpServer {
         return this;
     }
 
-    /**
-     * Returns whether to enable SSL support.
-     * 
-     * @return {@code true} if is enabled SSL support
-     */
+    @Override
     public boolean isSslEnabled() {
         return sslContextProvider != null;
     }

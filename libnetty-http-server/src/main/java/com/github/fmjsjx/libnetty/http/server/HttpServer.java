@@ -48,4 +48,11 @@ public interface HttpServer {
      */
     HttpServer shutdown() throws Exception;
 
+    /**
+     * Returns whether to enable SSL support.
+     * 
+     * @return {@code true} if is enabled SSL support
+     */
+    boolean isSslEnabled();
+
 }
