@@ -376,7 +376,7 @@ public class AccessLogger implements Middleware {
         } else if (length < 1024 * 10) {
             return String.format("%.2fK", length / 1024.0);
         } else if (length < 1024 * 100) {
-            return String.format("%.fK", length / 1024.0);
+            return String.format("%.1fK", length / 1024.0);
         } else if (length < 1024 * 1024) {
             return (length / 1024) + "K";
         } else if (length < 1024 * 1024 * 10) {
