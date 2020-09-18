@@ -14,6 +14,7 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsHandler;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 
 /**
@@ -70,6 +71,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast(HstsHandler.getInstance());
         }
         corsConfig.map(CorsHandler::new).ifPresent(pipeline::addLast);
+        pipeline.addLast(new ChunkedWriteHandler());
         pipeline.addLast(HttpRequestContextDecoder.getInstance());
         pipeline.addLast(handlerProvider.get());
     }
