@@ -66,6 +66,9 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast(new HttpContentDecompressor());
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
         pipeline.addLast(AutoReadNextHandler.getInstance());
+        if (sslEnabled) {
+            pipeline.addLast(HstsHandler.getInstance());
+        }
         corsConfig.map(CorsHandler::new).ifPresent(pipeline::addLast);
         pipeline.addLast(HttpRequestContextDecoder.getInstance());
         pipeline.addLast(handlerProvider.get());
