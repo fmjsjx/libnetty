@@ -19,6 +19,11 @@ class HttpRequestContextDecoder extends MessageToMessageDecoder<FullHttpRequest>
     }
 
     @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        ctx.read();
+    }
+    
+    @Override
     protected void decode(ChannelHandlerContext ctx, FullHttpRequest msg, List<Object> out) throws Exception {
         out.add(new DefaultHttpRequestContext(ctx.channel(), msg.retain()));
     }
