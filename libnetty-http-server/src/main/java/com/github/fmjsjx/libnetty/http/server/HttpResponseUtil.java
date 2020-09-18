@@ -3,13 +3,17 @@ package com.github.fmjsjx.libnetty.http.server;
 import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaderNames.LOCATION;
 import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpResponseStatus.FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 import java.nio.charset.Charset;
+import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -26,6 +30,42 @@ import io.netty.util.CharsetUtil;
  * @author MJ Fang
  */
 public class HttpResponseUtil {
+
+    /**
+     * Creates and returns a new no content {@link FullHttpResponse} by the
+     * specified parameters.
+     * 
+     * @param version   the version of HTTP
+     * @param status    the status of the response
+     * @param keepAlive if the connection is {@code keep-alive} or not
+     * 
+     * @return a {@code FullHttpResponse}
+     */
+    public static final FullHttpResponse create(HttpVersion version, HttpResponseStatus status, boolean keepAlive) {
+        FullHttpResponse response = new DefaultFullHttpResponse(version, status, Unpooled.EMPTY_BUFFER);
+        HttpUtil.setKeepAlive(response.headers(), version, keepAlive);
+        return response;
+    }
+
+    /**
+     * Creates and returns a new no content {@link FullHttpResponse} by the
+     * specified parameters.
+     * 
+     * @param version    the version of HTTP
+     * @param status     the status of the response
+     * @param keepAlive  if the connection is {@code keep-alive} or not
+     * @param addHeaders function to add headers
+     * 
+     * @return a {@code FullHttpResponse}
+     */
+    public static final FullHttpResponse create(HttpVersion version, HttpResponseStatus status, boolean keepAlive,
+            Consumer<HttpHeaders> addHeaders) {
+        FullHttpResponse response = new DefaultFullHttpResponse(version, status, Unpooled.EMPTY_BUFFER);
+        HttpHeaders headers = response.headers();
+        addHeaders.accept(headers);
+        HttpUtil.setKeepAlive(headers, version, keepAlive);
+        return response;
+    }
 
     /**
      * Creates and returns a new {@link FullHttpResponse} by the specified
@@ -170,6 +210,37 @@ public class HttpResponseUtil {
     public static final FullHttpResponse ok(HttpVersion version, ByteBuf content, CharSequence contentType,
             boolean keepAlive) {
         return ok(version, content, content.readableBytes(), contentType, keepAlive);
+    }
+
+    /**
+     * Creates and returns a new {@link FullHttpResponse} with {@code "302 Found"}
+     * status by the specified parameters.
+     * 
+     * @param version   the version of HTTP
+     * @param status    the status of the response
+     * @param keepAlive if the connection is {@code keep-alive} or not
+     * @param location  the URI to be redirect to
+     * @return a {@code FullHttpResponse}
+     */
+    public static final FullHttpResponse redirect(HttpVersion version, boolean keepAlive, CharSequence location) {
+        return redirect(version, FOUND, keepAlive, location);
+    }
+
+    /**
+     * Creates and returns a new {@link FullHttpResponse} with {@code 3XX} status by
+     * the specified parameters.
+     * 
+     * @param version   the version of HTTP
+     * @param status    the status of the response
+     * @param keepAlive if the connection is {@code keep-alive} or not
+     * @param location  the URI to be redirect to
+     * @return a {@code FullHttpResponse}
+     */
+    public static final FullHttpResponse redirect(HttpVersion version, HttpResponseStatus status, boolean keepAlive,
+            CharSequence location) {
+        FullHttpResponse response = create(version, status, keepAlive);
+        response.headers().add(LOCATION, location);
+        return response;
     }
 
     private HttpResponseUtil() {
