@@ -48,7 +48,7 @@ public class MimeTypeUtil {
             // ignore
         }
         props.forEach((k, v) -> {
-            types.put(k.toString().toLowerCase(), AsciiString.cached(v.toString()));
+            types.put(k.toString().toLowerCase().intern(), AsciiString.cached(v.toString().intern()));
         });
         mimeTypes = types;
     }
