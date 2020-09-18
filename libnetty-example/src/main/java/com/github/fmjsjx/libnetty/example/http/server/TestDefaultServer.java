@@ -23,6 +23,7 @@ import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLoggerWrapper;
 import com.github.fmjsjx.libnetty.http.server.middleware.Middleware;
 import com.github.fmjsjx.libnetty.http.server.middleware.MiddlewareChain;
+import com.github.fmjsjx.libnetty.http.server.middleware.ServeStatic;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -41,7 +42,8 @@ public class TestDefaultServer {
                 .allowedRequestHeaders("*").allowNullOrigin().build();
         DefaultHttpServerHandlerProvider handlerProvider = new DefaultHttpServerHandlerProvider();
         handlerProvider.exceptionHandler((ctx, e) -> log.error("EEEEEEEEEEEEEEEEEEEEEEEEEEEE ==> {}", ctx.channel(), e))
-                .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC))
+                .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2))
+                .addLast(new ServeStatic("/static/", "src/main/resources/static/"))
                 .addLast(new Router());
         DefaultHttpServer server = new DefaultHttpServer("test", SslContextProviders.selfSignedForServer(), 8443)
                 .corsConfig(corsConfig).ioThreads(1).maxContentLength(10 * 1024 * 1024).soBackLog(1024).tcpNoDelay()
