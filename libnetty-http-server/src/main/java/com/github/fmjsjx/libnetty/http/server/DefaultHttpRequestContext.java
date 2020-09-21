@@ -4,6 +4,7 @@ import java.time.ZonedDateTime;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import io.netty.channel.Channel;
@@ -30,6 +31,7 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
     private String remoteAddress;
     private Optional<CharSequence> contentType;
     private QueryStringDecoder queryStringDecoder;
+    private AtomicReference<PathVariables> pathVariablesRef = new AtomicReference<>();
 
     private final ConcurrentMap<Object, Object> properties = new ConcurrentHashMap<>();
 
@@ -96,6 +98,17 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
             queryStringDecoder = decoder = new QueryStringDecoder(request().uri());
         }
         return decoder;
+    }
+    
+    @Override
+    public PathVariables pathVariables() {
+        return pathVariablesRef.get();
+    }
+    
+    @Override
+    public HttpRequestContext pathVariables(PathVariables pathVariables) {
+        this.pathVariablesRef.set(pathVariables);
+        return this;
     }
 
     @Override

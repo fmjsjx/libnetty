@@ -215,6 +215,32 @@ public interface HttpRequestContext extends ReferenceCounted {
     }
 
     /**
+     * Returns the value of the specified name belongs to the decoded key-value
+     * parameter pairs of the HTTP request {@code URI}
+     * 
+     * @param name the name of the query parameter
+     * @return an {@code Optional<List<String>>}
+     */
+    default Optional<List<String>> queryParameter(String name) {
+        return Optional.ofNullable(queryParameters().get(name));
+    }
+
+    /**
+     * Returns the path variables.
+     * 
+     * @return a {@code PathVariables}
+     */
+    PathVariables pathVariables();
+
+    /**
+     * Set the path variables.
+     * 
+     * @param pathVariables the path variables
+     * @return this {@code HttpRequestContext}
+     */
+    HttpRequestContext pathVariables(PathVariables pathVariables);
+
+    /**
      * Returns the property value as parameterized type.
      * 
      * @param <T> the type of the property value
