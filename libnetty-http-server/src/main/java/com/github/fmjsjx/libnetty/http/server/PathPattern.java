@@ -1,6 +1,7 @@
 package com.github.fmjsjx.libnetty.http.server;
 
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -31,6 +32,16 @@ public interface PathPattern {
      * @return the compiled representation of a regular expression
      */
     Pattern pattern();
+
+    /**
+     * Returns a matcher that will match the given {@code path} against this
+     * pattern.
+     * 
+     * @return a matcher for this pattern
+     */
+    default Matcher matcher(String path) {
+        return pattern().matcher(path);
+    }
 
     /**
      * Returns the list contains the names of path variables.

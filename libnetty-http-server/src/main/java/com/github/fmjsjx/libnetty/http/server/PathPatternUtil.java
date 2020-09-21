@@ -23,6 +23,26 @@ public class PathPatternUtil {
 
     private static final Pattern pathVariablePattern = Pattern.compile("\\{[A-Za-z]\\w*\\}");
     private static final Pattern anyPathVariablePattern = Pattern.compile("\\{.+\\}");
+    
+    // TODO validate path pattern at first
+    
+    /**
+     * Build a new {@link PathPattern} from HTTP path pattern.
+     * 
+     * @param pathPattern        the pattern of HTTP path
+     * @param threadLocalMatcher if matchers will be cached in a {@link ThreadLocal}
+     *                           variable
+     * @return a {@code PathPattern}
+     * 
+     * @throws IllegalArgumentException if the path variable is illegal
+     */
+    public static final PathPattern build(String pathPattern, boolean threadLocalMatcher)
+            throws IllegalArgumentException {
+        ArrayList<String> pathVariableNames = new ArrayList<String>();
+        Pattern pattern = toPattern(pathPattern, pathVariableNames);
+        return threadLocalMatcher ? new ThreadLocalMatcherPathPattern(pattern, pathVariableNames)
+                : new BasicPathPattern(pattern, pathVariableNames);
+    }
 
     /**
      * Build a new {@link PathPattern} from HTTP path pattern.
@@ -34,9 +54,12 @@ public class PathPatternUtil {
      * @throws IllegalArgumentException if the path variable is illegal
      */
     public static final PathPattern build(String pathPattern) throws IllegalArgumentException {
+        return build(pathPattern, true);
+    }
+
+    private static Pattern toPattern(String pathPattern, ArrayList<String> pathVariableNames) {
         String base = pathPattern.replace("-", "\\-").replace(".", "\\.");
         Matcher m = pathVariablePattern.matcher(base);
-        ArrayList<String> pathVariableNames = new ArrayList<String>();
         StringBuilder b = new StringBuilder().append("^");
         int start = 0;
         for (; m.find(start); start = m.end()) {
@@ -62,15 +85,15 @@ public class PathPatternUtil {
             throw new IllegalArgumentException("illegal path variable " + cm.group());
         }
         Pattern pattern = Pattern.compile(converted);
-        return new PathPatternImpl(pattern, pathVariableNames);
+        return pattern;
     }
 
-    private static final class PathPatternImpl implements PathPattern {
+    private static final class BasicPathPattern implements PathPattern {
 
         private final Pattern pattern;
         private final List<String> pathVariableNames;
 
-        private PathPatternImpl(Pattern pattern, List<String> pathVariableNames) {
+        private BasicPathPattern(Pattern pattern, List<String> pathVariableNames) {
             this.pattern = pattern;
             this.pathVariableNames = pathVariableNames.isEmpty() ? emptyList() : unmodifiableList(pathVariableNames);
         }
@@ -83,6 +106,39 @@ public class PathPatternUtil {
         @Override
         public List<String> pathVariableNames() {
             return pathVariableNames;
+        }
+
+    }
+
+    private static final class ThreadLocalMatcherPathPattern extends ThreadLocal<Matcher> implements PathPattern {
+
+        private final Pattern pattern;
+        private final List<String> pathVariableNames;
+
+        private ThreadLocalMatcherPathPattern(Pattern pattern, List<String> pathVariableNames) {
+            this.pattern = pattern;
+            this.pathVariableNames = pathVariableNames;
+
+        }
+
+        @Override
+        protected Matcher initialValue() {
+            return pattern.matcher("");
+        }
+
+        @Override
+        public Pattern pattern() {
+            return pattern;
+        }
+
+        @Override
+        public List<String> pathVariableNames() {
+            return pathVariableNames;
+        }
+
+        @Override
+        public Matcher matcher(String path) {
+            return get().reset(path);
         }
 
     }
