@@ -2,20 +2,36 @@ package com.github.fmjsjx.libnetty.http.server;
 
 import static io.netty.handler.codec.http.HttpUtil.isKeepAlive;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandler;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.FullHttpResponse;
 
+/**
+ * A special {@link ChannelOutboundHandler} which support the {@code AUTO_READ}
+ * feature for kept alive {@link Channel}s which just send a
+ * {@link FullHttpResponse} to client.
+ * 
+ * @since 1.1
+ *
+ * @author MJ Fang
+ */
 @Sharable
-class AutoReadNextHandler extends ChannelOutboundHandlerAdapter {
+public class AutoReadNextHandler extends ChannelOutboundHandlerAdapter {
 
     private static final class InstanceHolder {
         private static final AutoReadNextHandler instance = new AutoReadNextHandler();
     }
 
-    static final AutoReadNextHandler getInstance() {
+    /**
+     * Returns the singleton instance.
+     * 
+     * @return the singleton instance
+     */
+    public static final AutoReadNextHandler getInstance() {
         return InstanceHolder.instance;
     }
 

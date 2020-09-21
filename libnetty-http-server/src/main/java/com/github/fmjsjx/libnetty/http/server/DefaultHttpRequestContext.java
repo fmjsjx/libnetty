@@ -18,7 +18,7 @@ import io.netty.handler.codec.http.QueryStringDecoder;
  *
  * @author MJ Fang
  */
-class DefaultHttpRequestContext implements HttpRequestContext {
+public class DefaultHttpRequestContext implements HttpRequestContext {
 
     private final long recievedNanoTime = System.nanoTime();
     private final ZonedDateTime receivedTime = ZonedDateTime.now();
@@ -40,7 +40,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
      * @param channel the channel
      * @param request the HTTP request
      */
-    DefaultHttpRequestContext(Channel channel, FullHttpRequest request) {
+    public DefaultHttpRequestContext(Channel channel, FullHttpRequest request) {
         this.channel = channel;
         this.request = request;
         this.contentLength = request.content().readableBytes();
