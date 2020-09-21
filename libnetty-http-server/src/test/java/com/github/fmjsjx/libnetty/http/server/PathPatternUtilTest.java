@@ -2,6 +2,7 @@ package com.github.fmjsjx.libnetty.http.server;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -12,9 +13,13 @@ public class PathPatternUtilTest {
     @Test
     public void testFromPathPattern() {
         try {
-            Pattern p = PathPatternUtil.fromPathPattern("/users/{userId}/items/{propId}-{propType}/");
-            assertNotNull(p);
+            PathPattern pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}/");
+            assertNotNull(pp);
+            Pattern p = pp.pattern();
             assertEquals("^/users/(?<userId>[^/]+)/items/(?<propId>[^/]+)\\-(?<propType>[^/]+)/?", p.pattern());
+            assertNotNull(pp.pathVariableNames());
+            assertEquals(3, pp.pathVariableNames().size());
+            assertIterableEquals(Arrays.asList("userId", "propId", "propType"), pp.pathVariableNames());
             Matcher m = p.matcher("/users/123/items/101-303");
             assertTrue(m.matches());
             assertEquals("123", m.group("userId"));
@@ -26,9 +31,13 @@ public class PathPatternUtilTest {
             assertEquals("101", m.group("propId"));
             assertEquals("303", m.group("propType"));
 
-            p = PathPatternUtil.fromPathPattern("/users/{userId}/items/{propId}-{propType}");
-            assertNotNull(p);
+            pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}");
+            assertNotNull(pp);
+            p = pp.pattern();
             assertEquals("^/users/(?<userId>[^/]+)/items/(?<propId>[^/]+)\\-(?<propType>[^/]+)/?", p.pattern());
+            assertNotNull(pp.pathVariableNames());
+            assertEquals(3, pp.pathVariableNames().size());
+            assertIterableEquals(Arrays.asList("userId", "propId", "propType"), pp.pathVariableNames());
             m = p.matcher("/users/123/items/101-303");
             assertTrue(m.matches());
             assertEquals("123", m.group("userId"));
@@ -40,25 +49,37 @@ public class PathPatternUtilTest {
             assertEquals("101", m.group("propId"));
             assertEquals("303", m.group("propType"));
 
-            p = PathPatternUtil.fromPathPattern("/images/{name}_{width}x{height}.{type}");
-            assertNotNull(p);
+            pp = PathPatternUtil.build("/images/{name}_{width}x{height}.{type}");
+            assertNotNull(pp);
+            p = pp.pattern();
             assertEquals("^/images/(?<name>[^/]+)_(?<width>[^/]+)x(?<height>[^/]+)\\.(?<type>[^/]+)/?", p.pattern());
+            assertNotNull(pp.pathVariableNames());
+            assertEquals(4, pp.pathVariableNames().size());
+            assertIterableEquals(Arrays.asList("name", "width", "height", "type"), pp.pathVariableNames());
             m = p.matcher("/images/test_1920x1080.png");
             assertTrue(m.matches());
             assertEquals("test", m.group("name"));
             assertEquals("1920", m.group("width"));
             assertEquals("1080", m.group("height"));
             assertEquals("png", m.group("type"));
+
         } catch (Exception e) {
             fail(e);
         }
-        
+
         try {
-            PathPatternUtil.fromPathPattern("/error/{aa$$}/bb");
+            PathPatternUtil.build("/error/{aa$$}/bb");
             fail("Should throws IllegalArgumentException but not!");
         } catch (Exception e) {
             assertTrue(e instanceof IllegalArgumentException);
             assertEquals("illegal path variable {aa$$}", e.getLocalizedMessage());
+        }
+        try {
+            PathPatternUtil.build("/error/{1aa}/bb");
+            fail("Should throws IllegalArgumentException but not!");
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+            assertEquals("illegal path variable {1aa}", e.getLocalizedMessage());
         }
     }
 
