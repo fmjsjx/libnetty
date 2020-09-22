@@ -24,8 +24,6 @@ public class PathPatternUtil {
     private static final Pattern pathVariablePattern = Pattern.compile("\\{[A-Za-z]\\w*\\}");
     private static final Pattern anyPathVariablePattern = Pattern.compile("\\{.+\\}");
     
-    // TODO validate path pattern at first
-    
     /**
      * Build a new {@link PathPattern} from HTTP path pattern.
      * 
@@ -58,7 +56,13 @@ public class PathPatternUtil {
     }
 
     private static Pattern toPattern(String pathPattern, ArrayList<String> pathVariableNames) {
-        String base = pathPattern.replace("-", "\\-").replace(".", "\\.");
+        if (!pathPattern.startsWith("/")) {
+            pathPattern = "/" + pathPattern;
+        }
+        if (pathPattern.endsWith("/")) {
+            pathPattern = pathPattern.substring(0, pathPattern.length() - 1);
+        }
+        String base = pathPattern.replace("-", "\\-").replace(".", "\\.").replace("/", "/+");
         Matcher m = pathVariablePattern.matcher(base);
         StringBuilder b = new StringBuilder().append("^");
         int start = 0;
@@ -72,11 +76,8 @@ public class PathPatternUtil {
         if (start != base.length()) {
             b.append(base.substring(start));
         }
-        if (base.endsWith("/")) {
-            b.append("?");
-        } else {
-            b.append("/?");
-        }
+        // append ends
+        b.append("/*");
         String converted = b.toString();
         log.debug("Converted path pattern: {} >>> {}", pathPattern, converted);
         // check {.*}
