@@ -5,7 +5,7 @@ import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaderNames.LOCATION;
 import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
-import static io.netty.handler.codec.http.HttpResponseStatus.FOUND;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 import java.nio.charset.Charset;
@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -241,6 +242,32 @@ public class HttpResponseUtil {
         FullHttpResponse response = create(version, status, keepAlive);
         response.headers().add(LOCATION, location);
         return response;
+    }
+
+    private static final class BadRequest {
+
+        private static final ByteBufAllocator ALLOC = UnpooledByteBufAllocator.DEFAULT;
+
+        private static final int contentLength = BAD_REQUEST.toString().getBytes().length;
+
+        private static final ByteBuf content = Unpooled.unreleasableBuffer(
+                ALLOC.buffer(contentLength, contentLength).writeBytes(BAD_REQUEST.toString().getBytes()).asReadOnly());
+
+        private static final CharSequence contentType = contentType(TEXT_PLAIN, CharsetUtil.UTF_8);
+
+    }
+
+    /**
+     * Creates and returns a new {@link FullHttpResponse} with
+     * {@code "400 Bad Request"} status.
+     * 
+     * @param version   the version of HTTP
+     * @param keepAlive if the connection is {@code keep-alive} or not
+     * @return a {@code FullHttpResponse}
+     */
+    public static final FullHttpResponse badRequest(HttpVersion version, boolean keepAlive) {
+        return create(version, BAD_REQUEST, BadRequest.content.duplicate(), BadRequest.contentLength,
+                BadRequest.contentType, keepAlive);
     }
 
     private HttpResponseUtil() {
