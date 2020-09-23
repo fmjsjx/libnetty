@@ -17,7 +17,7 @@ import com.github.fmjsjx.libnetty.http.server.HttpServer;
  */
 @FunctionalInterface
 public interface Middleware
-        extends BiFunction<HttpRequestContext, MiddlewareChain, CompletionStage<HttpResult>>, AutoCloseable {
+        extends BiFunction<HttpRequestContext, MiddlewareChain, CompletionStage<HttpResult>> {
 
     /**
      * Apply this {@link Middleware} to the given {@link HttpRequestContext}.

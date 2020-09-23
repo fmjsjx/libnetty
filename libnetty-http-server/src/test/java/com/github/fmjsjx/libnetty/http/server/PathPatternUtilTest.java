@@ -16,7 +16,7 @@ public class PathPatternUtilTest {
             PathPattern pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}/");
             assertNotNull(pp);
             Pattern p = pp.pattern();
-            assertEquals("^/+users/+(?<userId>[^/]+)/+items/+(?<propId>[^/]+)\\-(?<propType>[^/]+)/*", p.pattern());
+            assertEquals("^/+users/+(?<userId>[^/]+)/+items/+(?<propId>[^/]+)\\-(?<propType>[^/]+)/*$", p.pattern());
             assertNotNull(pp.pathVariableNames());
             assertEquals(3, pp.pathVariableNames().size());
             assertIterableEquals(Arrays.asList("userId", "propId", "propType"), pp.pathVariableNames());
@@ -36,7 +36,7 @@ public class PathPatternUtilTest {
             pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}");
             assertNotNull(pp);
             p = pp.pattern();
-            assertEquals("^/+users/+(?<userId>[^/]+)/+items/+(?<propId>[^/]+)\\-(?<propType>[^/]+)/*", p.pattern());
+            assertEquals("^/+users/+(?<userId>[^/]+)/+items/+(?<propId>[^/]+)\\-(?<propType>[^/]+)/*$", p.pattern());
             assertNotNull(pp.pathVariableNames());
             assertEquals(3, pp.pathVariableNames().size());
             assertIterableEquals(Arrays.asList("userId", "propId", "propType"), pp.pathVariableNames());
@@ -66,7 +66,7 @@ public class PathPatternUtilTest {
             pp = PathPatternUtil.build("/images/{name}_{width}x{height}.{type}");
             assertNotNull(pp);
             p = pp.pattern();
-            assertEquals("^/+images/+(?<name>[^/]+)_(?<width>[^/]+)x(?<height>[^/]+)\\.(?<type>[^/]+)/*", p.pattern());
+            assertEquals("^/+images/+(?<name>[^/]+)_(?<width>[^/]+)x(?<height>[^/]+)\\.(?<type>[^/]+)/*$", p.pattern());
             assertNotNull(pp.pathVariableNames());
             assertEquals(4, pp.pathVariableNames().size());
             assertIterableEquals(Arrays.asList("name", "width", "height", "type"), pp.pathVariableNames());

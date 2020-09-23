@@ -39,7 +39,8 @@ public class AccessLoggerTest {
     public void testMapLog() {
         String p = "Hello :datetime :iso-local-datetime :iso-local-date :basic-iso-date :iso-local-time :method :url :path :http-version :raw-path :remote-addr :remote-user :query :host :content-length :content-type :content :user-agent :referrer :accept - :status :status-code :status-reason :response-time ms :result-length World!";
         StringBuilder resultBuilder = new StringBuilder();
-        try (AccessLogger accessLogger = new AccessLogger(resultBuilder::append, p)) {
+        try {
+            AccessLogger accessLogger = new AccessLogger(resultBuilder::append, p);
             DefaultFullHttpRequest request = mockedRequest();
             HttpRequestContext requestContext = mocketRequestContext(request);
             HttpResult result = mockedResult(requestContext);
@@ -47,7 +48,7 @@ public class AccessLoggerTest {
             assertNotNull(value);
             String expected = "Hello 2020-09-14 16:52:00.123 2020-09-14T16:52:00.123456789 2020-09-14 20200914 16:52:00.123456789 POST /test /test HTTP/1.1 /test 127.0.0.1 test-user q1=1&q2=abc localhost 78 application/json {\"action\":\"test\",\"date\":\"2020-09-14\",\"time\":\"16:51:23\",\"timestamp\":1600073543} test-agent http://otherdomain.com/home.html application/json - 200 OK 200 OK 123.457 ms 47 World!";
             assertEquals(expected, value);
-            
+
             request.headers().remove(HttpHeaderNames.USER_AGENT);
             request.headers().remove(HttpHeaderNames.ACCEPT);
             request.headers().remove(HttpHeaderNames.REFERER);
@@ -56,7 +57,7 @@ public class AccessLoggerTest {
             assertNotNull(value);
             expected = "Hello 2020-09-14 16:52:00.123 2020-09-14T16:52:00.123456789 2020-09-14 20200914 16:52:00.123456789 POST /test /test HTTP/1.1 /test 127.0.0.1 - q1=1&q2=abc localhost 78 application/json {\"action\":\"test\",\"date\":\"2020-09-14\",\"time\":\"16:51:23\",\"timestamp\":1600073543} - - - - 200 OK 200 OK 123.457 ms 47 World!";
             assertEquals(expected, value);
-            
+
         } catch (Exception e) {
             fail(e);
         }
@@ -70,7 +71,8 @@ public class AccessLoggerTest {
         DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST,
                 "/test?q1=1&q2=abc", content);
         HttpUtil.setContentLength(request, content.readableBytes());
-        String base64 = new String(Base64.getEncoder().encode("test-user:12345678".getBytes(CharsetUtil.UTF_8)), CharsetUtil.UTF_8);
+        String base64 = new String(Base64.getEncoder().encode("test-user:12345678".getBytes(CharsetUtil.UTF_8)),
+                CharsetUtil.UTF_8);
         request.headers().set(HttpHeaderNames.HOST, "localhost");
         request.headers().set(HttpHeaderNames.USER_AGENT, "test-agent");
         request.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json; charset=UTF-8");
@@ -115,12 +117,12 @@ public class AccessLoggerTest {
             public PathVariables pathVariables() {
                 return null;
             }
-            
+
             @Override
             public HttpRequestContext pathVariables(PathVariables pathVariables) {
                 return null;
             }
-            
+
             @Override
             public Stream<Object> propertyKeys() {
                 return Stream.empty();

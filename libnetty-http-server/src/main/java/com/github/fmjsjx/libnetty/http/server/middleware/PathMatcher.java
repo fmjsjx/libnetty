@@ -63,6 +63,7 @@ public interface PathMatcher {
                 }
                 ctx.pathVariables(pathVariables);
             }
+            return true;
         }
         return false;
     }

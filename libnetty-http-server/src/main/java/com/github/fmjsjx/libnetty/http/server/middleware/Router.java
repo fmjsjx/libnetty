@@ -3,10 +3,14 @@ package com.github.fmjsjx.libnetty.http.server.middleware;
 import static io.netty.handler.codec.http.HttpMethod.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
@@ -23,6 +27,8 @@ import io.netty.handler.codec.http.HttpMethod;
  * @author MJ Fang
  */
 public class Router implements Middleware {
+
+    private static final Logger logger = LoggerFactory.getLogger(Router.class);
 
     private static final int RUNNING = 1;
 
@@ -54,24 +60,40 @@ public class Router implements Middleware {
     }
 
     private void init0() {
-        this.pathRoutes = routeDefinitions.stream()
+        List<RouteDefinition> definitions = routeDefinitions;
+        logger.debug("Initial router by definitions: {}", definitions);
+        PathRoute[] pathRoutes = definitions.stream()
                 .collect(Collectors.groupingBy(RouteDefinition::path, LinkedHashMap::new, Collectors.toList()))
                 .entrySet().stream().map(e -> {
-                    PathMatcher pathMatcher = PathMatcher.fromPattern(e.getKey());
+                    String path = e.getKey();
+                    PathMatcher pathMatcher = PathMatcher.fromPattern(path);
                     MethodRoute[] methodRoutes = e.getValue().stream().sorted().map(RouteDefinition::toMethodRoute)
                             .toArray(MethodRoute[]::new);
-                    return new PathRoute(pathMatcher, methodRoutes);
+                    return new PathRoute(path, pathMatcher, methodRoutes);
                 }).toArray(PathRoute[]::new);
+        if (logger.isDebugEnabled()) {
+            StringBuilder builder = new StringBuilder();
+            for (PathRoute pathRoute : pathRoutes) {
+                builder.append("\n").append(pathRoute.toString(true));
+            }
+            logger.debug("Effective routes: {}{}", pathRoutes.length, builder);
+        }
+        this.pathRoutes = pathRoutes;
     }
 
     private CompletionStage<HttpResult> routing(HttpRequestContext ctx, MiddlewareChain next) {
+        HttpMethod method = ctx.method();
+        String path = ctx.path();
+        logger.trace("Routing: {} {}", method, path);
         boolean pathMatched = false;
         for (PathRoute pathRoute : pathRoutes) {
+            logger.trace("Try {}", pathRoute);
             if (pathRoute.matches(ctx)) {
                 pathMatched = true;
-                HttpMethod method = ctx.method();
                 for (MethodRoute methodRoute : pathRoute.methodRoutes) {
+                    logger.trace("Try {}", method);
                     if (methodRoute.matches(method)) {
+                        logger.debug("Matched Route ({} {}): {}", method, path, methodRoute);
                         return methodRoute.service.invoke(ctx);
                     }
                 }
@@ -81,6 +103,7 @@ public class Router implements Middleware {
             // throw 405 Method Not Allowed
             return HttpServerUtil.sendMethodNotAllowed(ctx);
         }
+        logger.debug("Miss match for all routes: {} {}", method, path);
         return next.doNext(ctx);
     }
 
@@ -194,15 +217,8 @@ public class Router implements Middleware {
             return this.path;
         }
 
-        private MethodMatcher toMethodMatcher() {
-            if (methods.length == 0) {
-                return MethodMatcher.any();
-            }
-            return MethodMatcher.in(methods);
-        }
-
         private MethodRoute toMethodRoute() {
-            return new MethodRoute(toMethodMatcher(), service);
+            return new MethodRoute(methods, service);
         }
 
         @Override
@@ -215,14 +231,21 @@ public class Router implements Middleware {
             return 0;
         }
 
+        @Override
+        public String toString() {
+            return "RouteDefintion[path=" + path + ", methods=" + Arrays.toString(methods) + "]";
+        }
+
     }
 
     private static final class PathRoute {
 
+        private final String path;
         private final PathMatcher pathMatcher;
         private final MethodRoute[] methodRoutes;
 
-        private PathRoute(PathMatcher pathMatcher, MethodRoute[] methodRoutes) {
+        private PathRoute(String path, PathMatcher pathMatcher, MethodRoute[] methodRoutes) {
+            this.path = path;
             this.pathMatcher = pathMatcher;
             this.methodRoutes = methodRoutes;
         }
@@ -231,15 +254,40 @@ public class Router implements Middleware {
             return pathMatcher.matches(ctx);
         }
 
+        @Override
+        public String toString() {
+            return toString(false);
+        }
+
+        public String toString(boolean withMethodRoutes) {
+            StringBuilder builder = new StringBuilder();
+            builder.append("PathRoute(").append(path).append("): ").append(methodRoutes.length)
+                    .append(" method routes");
+            if (withMethodRoutes) {
+                for (MethodRoute methodRoute : methodRoutes) {
+                    builder.append("\n\t").append(methodRoute);
+                }
+            }
+            return builder.toString();
+        }
+
     }
 
     private static final class MethodRoute {
 
+        private final String methods;
         private final MethodMatcher methodMatcher;
         private final HttpServiceInvoker service;
 
-        private MethodRoute(MethodMatcher methodMatcher, HttpServiceInvoker service) {
-            this.methodMatcher = methodMatcher;
+        private MethodRoute(HttpMethod[] methods, HttpServiceInvoker service) {
+            if (methods.length == 0) {
+                this.methods = "<any>";
+                this.methodMatcher = MethodMatcher.any();
+            } else {
+                this.methods = Arrays.stream(methods).map(HttpMethod::toString).distinct()
+                        .collect(Collectors.joining("|"));
+                this.methodMatcher = MethodMatcher.in(methods);
+            }
             this.service = service;
         }
 
@@ -247,6 +295,10 @@ public class Router implements Middleware {
             return methodMatcher.matches(method);
         }
 
+        @Override
+        public String toString() {
+            return "MethodRoute(" + methods + ") -> " + service;
+        }
     }
 
 }

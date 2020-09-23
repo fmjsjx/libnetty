@@ -23,7 +23,7 @@ public class PathPatternUtil {
 
     private static final Pattern pathVariablePattern = Pattern.compile("\\{[A-Za-z]\\w*\\}");
     private static final Pattern anyPathVariablePattern = Pattern.compile("\\{.+\\}");
-    
+
     /**
      * Build a new {@link PathPattern} from HTTP path pattern.
      * 
@@ -64,28 +64,28 @@ public class PathPatternUtil {
         }
         String base = pathPattern.replace("-", "\\-").replace(".", "\\.").replace("/", "/+");
         Matcher m = pathVariablePattern.matcher(base);
-        StringBuilder b = new StringBuilder().append("^");
+        StringBuilder regexBuilder = new StringBuilder().append("^");
         int start = 0;
         for (; m.find(start); start = m.end()) {
-            b.append(base.substring(start, m.start()));
+            regexBuilder.append(base.substring(start, m.start()));
             String g = m.group();
             String name = g.substring(1, g.length() - 1);
             pathVariableNames.add(name);
-            b.append("(?<").append(name).append(">[^/]+)");
+            regexBuilder.append("(?<").append(name).append(">[^/]+)");
         }
         if (start != base.length()) {
-            b.append(base.substring(start));
+            regexBuilder.append(base.substring(start));
         }
         // append ends
-        b.append("/*");
-        String converted = b.toString();
-        log.debug("Converted path pattern: {} >>> {}", pathPattern, converted);
+        regexBuilder.append("/*$");
+        String regex = regexBuilder.toString();
+        log.debug("Converted path pattern regex: {} >>> {}", pathPattern, regex);
         // check {.*}
-        Matcher cm = anyPathVariablePattern.matcher(converted);
+        Matcher cm = anyPathVariablePattern.matcher(regex);
         if (cm.find()) {
             throw new IllegalArgumentException("illegal path variable " + cm.group());
         }
-        Pattern pattern = Pattern.compile(converted);
+        Pattern pattern = Pattern.compile(regex);
         return pattern;
     }
 
