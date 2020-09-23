@@ -1,9 +1,14 @@
 package com.github.fmjsjx.libnetty.example.http.server;
 
-import static com.github.fmjsjx.libnetty.http.HttpUtil.*;
-import static io.netty.handler.codec.http.HttpHeaderValues.*;
-import static io.netty.handler.codec.http.HttpMethod.*;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
+import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpMethod.DELETE;
+import static io.netty.handler.codec.http.HttpMethod.GET;
+import static io.netty.handler.codec.http.HttpMethod.PATCH;
+import static io.netty.handler.codec.http.HttpMethod.POST;
+import static io.netty.handler.codec.http.HttpMethod.PUT;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 import java.nio.charset.Charset;
 import java.util.NoSuchElementException;
@@ -19,6 +24,8 @@ import com.github.fmjsjx.libnetty.http.server.DefaultHttpServerHandlerProvider;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
+import com.github.fmjsjx.libnetty.http.server.annotation.GetRoute;
+import com.github.fmjsjx.libnetty.http.server.annotation.PostRoute;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLoggerWrapper;
@@ -38,10 +45,10 @@ import lombok.extern.slf4j.Slf4j;
 public class TestDefaultServer {
 
     public static void main(String[] args) throws Exception {
+        TestController controller = new TestController();
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
         DefaultHttpServerHandlerProvider handlerProvider = new DefaultHttpServerHandlerProvider();
-        TestController controller = new TestController();
         handlerProvider.exceptionHandler((ctx, e) -> log.error("EEEEEEEEEEEEEEEEEEEEEEEEEEEE ==> {}", ctx.channel(), e))
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2))
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/"))
@@ -69,6 +76,7 @@ class TestController {
 
     static final ObjectMapper mapper = new ObjectMapper().setSerializationInclusion(Include.NON_ABSENT);
 
+    @GetRoute("/test")
     CompletionStage<HttpResult> getTest(HttpRequestContext ctx) {
         // GET /test
         System.out.println("-- test --");
@@ -78,6 +86,7 @@ class TestController {
         return HttpServerUtil.respond(ctx, OK, body, TEXT_PLAIN);
     }
 
+    @GetRoute("/errors/{code}")
     CompletionStage<HttpResult> getErrors(HttpRequestContext ctx) {
         // GET /errors/{code}
         System.out.println("-- errors --");
@@ -91,6 +100,7 @@ class TestController {
         }
     }
 
+    @GetRoute("/jsons")
     CompletionStage<HttpResult> getJsons(HttpRequestContext ctx) {
         // GET /jsons
         System.out.println("-- jsons --");
@@ -110,6 +120,7 @@ class TestController {
         return HttpServerUtil.respondJson(ctx, OK, body);
     }
 
+    @PostRoute("/echo")
     CompletionStage<HttpResult> postEcho(HttpRequestContext ctx) {
         // POST /echo
         System.out.println("-- echo --");
