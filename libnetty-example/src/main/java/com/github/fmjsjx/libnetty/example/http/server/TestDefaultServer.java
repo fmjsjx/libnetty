@@ -25,6 +25,7 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
 import com.github.fmjsjx.libnetty.http.server.annotation.GetRoute;
+import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.PostRoute;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
@@ -52,8 +53,15 @@ public class TestDefaultServer {
         handlerProvider.exceptionHandler((ctx, e) -> log.error("EEEEEEEEEEEEEEEEEEEEEEEEEEEE ==> {}", ctx.channel(), e))
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2))
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/"))
-                .addLast(new Router().get("/test", controller::getTest).get("/errors/{code}", controller::getErrors)
-                        .get("/jsons", controller::getJsons).post("/echo", controller::postEcho).init());
+                .addLast(new Router().get("/test", controller::getTest).get("/errors/{code}", ctx -> {
+                    int code;
+                    try {
+                        code = ctx.pathVariables().getInt("code").getAsInt();
+                    } catch (NumberFormatException | NoSuchElementException e) {
+                        return HttpServerUtil.respond(ctx, BAD_REQUEST);
+                    }
+                    return controller.getErrors(ctx, code);
+                }).get("/jsons", controller::getJsons).post("/echo", controller::postEcho).init());
         DefaultHttpServer server = new DefaultHttpServer("test", SslContextProviders.selfSignedForServer(), 8443)
                 .corsConfig(corsConfig).ioThreads(1).maxContentLength(10 * 1024 * 1024).soBackLog(1024).tcpNoDelay()
                 .handlerProvider(handlerProvider);
@@ -87,17 +95,12 @@ class TestController {
     }
 
     @GetRoute("/errors/{code}")
-    CompletionStage<HttpResult> getErrors(HttpRequestContext ctx) {
+    CompletionStage<HttpResult> getErrors(HttpRequestContext ctx, @PathVar int code) {
         // GET /errors/{code}
         System.out.println("-- errors --");
-        try {
-            int code = ctx.pathVariables().getInt("code").getAsInt();
-            HttpResponseStatus status = HttpResponseStatus.valueOf(code);
-            System.out.println("status: ==> " + status);
-            return HttpServerUtil.respond(ctx, status);
-        } catch (NumberFormatException | NoSuchElementException e) {
-            return HttpServerUtil.respond(ctx, BAD_REQUEST);
-        }
+        HttpResponseStatus status = HttpResponseStatus.valueOf(code);
+        System.out.println("status: ==> " + status);
+        return HttpServerUtil.respond(ctx, status);
     }
 
     @GetRoute("/jsons")

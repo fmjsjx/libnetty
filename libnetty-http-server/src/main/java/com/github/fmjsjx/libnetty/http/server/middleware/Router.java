@@ -25,6 +25,9 @@ import io.netty.handler.codec.http.HttpMethod;
  * @since 1.1
  *
  * @author MJ Fang
+ * 
+ * @see Middleware
+ * @see MiddlewareChain
  */
 public class Router implements Middleware {
 
