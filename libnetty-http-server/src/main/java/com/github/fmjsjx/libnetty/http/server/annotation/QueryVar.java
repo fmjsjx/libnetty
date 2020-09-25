@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 
 /**
  * Annotation that indicates a parameter variable should be bound to an HTTP
- * path variable.
+ * query parameter.
  * <p>
  * Supported for {@link HttpRoute} annotated handler methods
  * 
@@ -20,7 +20,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RUNTIME)
 @Target(PARAMETER)
-public @interface PathVar {
+public @interface QueryVar {
 
     /**
      * Returns the name of the path variable.
@@ -28,5 +28,14 @@ public @interface PathVar {
      * @return the name of the path variable
      */
     String value() default "";
+
+    /**
+     * Returns whether the path variable is required.
+     * <p>
+     * The default is {@code true}.
+     * 
+     * @return whether the path variable is required
+     */
+    boolean required() default true;
 
 }
