@@ -1,12 +1,16 @@
 package com.github.fmjsjx.libnetty.http.server;
 
+import static com.github.fmjsjx.libnetty.http.server.middleware.PathFilterMiddleware.toFilter;
+
 import java.util.LinkedList;
 import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
 import com.github.fmjsjx.libnetty.http.server.middleware.Middleware;
 import com.github.fmjsjx.libnetty.http.server.middleware.MiddlewareChain;
 import com.github.fmjsjx.libnetty.http.server.middleware.MiddlewareChains;
+import com.github.fmjsjx.libnetty.http.server.middleware.PathFilterMiddleware;
 
 import io.netty.channel.ChannelHandlerContext;
 
@@ -65,6 +69,22 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
         return addLast(middleware);
     }
 
+    public DefaultHttpServerHandlerProvider add(Predicate<String> pathFilter, Middleware middleware) {
+        return addLast(pathFilter, middleware);
+    }
+
+    public DefaultHttpServerHandlerProvider add(String path, Middleware middleware) {
+        return addLast(path, middleware);
+    }
+
+    public DefaultHttpServerHandlerProvider addLast(Predicate<String> pathFilter, Middleware middleware) {
+        return addLast(new PathFilterMiddleware(pathFilter, middleware));
+    }
+
+    public DefaultHttpServerHandlerProvider addLast(String path, Middleware middleware) {
+        return add(toFilter(path), middleware);
+    }
+
     public DefaultHttpServerHandlerProvider addLast(Middleware... middlewares) {
         LinkedList<Middleware> m = this.middlewares;
         for (Middleware middleware : middlewares) {
@@ -76,6 +96,14 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
     public DefaultHttpServerHandlerProvider addFirst(Middleware middleware) {
         middlewares.addFirst(Objects.requireNonNull(middleware, "middleware must not be null"));
         return this;
+    }
+
+    public DefaultHttpServerHandlerProvider addFirst(Predicate<String> pathFilter, Middleware middleware) {
+        return addFirst(new PathFilterMiddleware(pathFilter, middleware));
+    }
+
+    public DefaultHttpServerHandlerProvider addFirst(String path, Middleware middleware) {
+        return addFirst(toFilter(path), middleware);
     }
 
 }
