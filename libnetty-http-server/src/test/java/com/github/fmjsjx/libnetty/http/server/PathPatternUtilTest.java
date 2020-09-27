@@ -13,7 +13,7 @@ public class PathPatternUtilTest {
     @Test
     public void testFromPathPattern() {
         try {
-            PathPattern pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}/");
+            PathPattern pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}");
             assertNotNull(pp);
             Pattern p = pp.pattern();
             assertEquals("^/+users/+(?<userId>[^/]+)/+items/+(?<propId>[^/]+)\\-(?<propType>[^/]+)/*$", p.pattern());
@@ -30,31 +30,6 @@ public class PathPatternUtilTest {
             assertEquals("123", m.group("userId"));
             assertEquals("101", m.group("propId"));
             assertEquals("303", m.group("propType"));
-            m = p.matcher("/nusers/123/items/101-303/");
-            assertFalse(m.matches());
-
-            pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}");
-            assertNotNull(pp);
-            p = pp.pattern();
-            assertEquals("^/+users/+(?<userId>[^/]+)/+items/+(?<propId>[^/]+)\\-(?<propType>[^/]+)/*$", p.pattern());
-            assertNotNull(pp.pathVariableNames());
-            assertEquals(3, pp.pathVariableNames().size());
-            assertIterableEquals(Arrays.asList("userId", "propId", "propType"), pp.pathVariableNames());
-            m = p.matcher("/users/123/items/101-303");
-            assertTrue(m.matches());
-            assertEquals("123", m.group("userId"));
-            assertEquals("101", m.group("propId"));
-            assertEquals("303", m.group("propType"));
-            m = p.matcher("/users/123/items/101-303/");
-            assertTrue(m.matches());
-            assertEquals("123", m.group("userId"));
-            assertEquals("101", m.group("propId"));
-            assertEquals("303", m.group("propType"));
-            m = p.matcher("//users/123/items/101-303/");
-            assertTrue(m.matches());
-            assertEquals("123", m.group("userId"));
-            assertEquals("101", m.group("propId"));
-            assertEquals("303", m.group("propType"));
             m = p.matcher("//users//123/////items//101-303//");
             assertTrue(m.matches());
             assertEquals("123", m.group("userId"));
@@ -62,7 +37,20 @@ public class PathPatternUtilTest {
             assertEquals("303", m.group("propType"));
             m = p.matcher("/nusers/123/items/101-303/");
             assertFalse(m.matches());
-
+            
+            pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}/");
+            assertNotNull(pp);
+            p = pp.pattern();
+            assertEquals("^/+users/+(?<userId>[^/]+)/+items/+(?<propId>[^/]+)\\-(?<propType>[^/]+)/*$", p.pattern());
+            pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}//");
+            assertNotNull(pp);
+            p = pp.pattern();
+            assertEquals("^/+users/+(?<userId>[^/]+)/+items/+(?<propId>[^/]+)\\-(?<propType>[^/]+)/*$", p.pattern());
+            pp = PathPatternUtil.build("/users/{userId}/items/{propId}-{propType}///");
+            assertNotNull(pp);
+            p = pp.pattern();
+            assertEquals("^/+users/+(?<userId>[^/]+)/+items/+(?<propId>[^/]+)\\-(?<propType>[^/]+)/*$", p.pattern());
+            
             pp = PathPatternUtil.build("/images/{name}_{width}x{height}.{type}");
             assertNotNull(pp);
             p = pp.pattern();
