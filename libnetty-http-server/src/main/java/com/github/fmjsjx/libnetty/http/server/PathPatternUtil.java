@@ -4,6 +4,7 @@ import static java.util.Collections.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -60,7 +61,7 @@ public class PathPatternUtil {
             pathPattern = "/" + pathPattern;
         }
         if (pathPattern.endsWith("/")) {
-            pathPattern = pathPattern.substring(0, pathPattern.length() - 1);
+            pathPattern = pathPattern.replaceFirst("^(.*[^/])/+$", "$1");
         }
         String base = pathPattern.replace("-", "\\-").replace(".", "\\.").replace("/", "/+");
         Matcher m = pathVariablePattern.matcher(base);
@@ -111,25 +112,14 @@ public class PathPatternUtil {
 
     }
 
-    private static final class ThreadLocalMatcherPathPattern extends ThreadLocal<Matcher> implements PathPattern {
+    private static final class ThreadLocalMatcherPathPattern extends ThreadLocalMatcher implements PathPattern {
 
-        private final Pattern pattern;
         private final List<String> pathVariableNames;
 
         private ThreadLocalMatcherPathPattern(Pattern pattern, List<String> pathVariableNames) {
-            this.pattern = pattern;
-            this.pathVariableNames = pathVariableNames;
+            super(pattern);
+            this.pathVariableNames = Objects.requireNonNull(pathVariableNames, "pathVariableNames must not be null");
 
-        }
-
-        @Override
-        protected Matcher initialValue() {
-            return pattern.matcher("");
-        }
-
-        @Override
-        public Pattern pattern() {
-            return pattern;
         }
 
         @Override
@@ -139,7 +129,7 @@ public class PathPatternUtil {
 
         @Override
         public Matcher matcher(String path) {
-            return get().reset(path);
+            return reset(path);
         }
 
     }
