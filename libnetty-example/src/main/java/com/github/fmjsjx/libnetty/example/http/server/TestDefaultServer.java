@@ -13,6 +13,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -26,12 +27,14 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
 import com.github.fmjsjx.libnetty.http.server.annotation.GetRoute;
+import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.PostRoute;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLoggerWrapper;
 import com.github.fmjsjx.libnetty.http.server.middleware.AuthBasic;
+import com.github.fmjsjx.libnetty.http.server.middleware.ControllerBeanUtil;
 import com.github.fmjsjx.libnetty.http.server.middleware.Router;
 import com.github.fmjsjx.libnetty.http.server.middleware.ServeStatic;
 
@@ -52,6 +55,8 @@ public class TestDefaultServer {
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
         DefaultHttpServerHandlerProvider handlerProvider = new DefaultHttpServerHandlerProvider();
+        ControllerBeanUtil.register(null, controller);
+        System.exit(0);
         handlerProvider.exceptionHandler((ctx, e) -> log.error("EEEEEEEEEEEEEEEEEEEEEEEEEEEE ==> {}", ctx.channel(), e))
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2))
                 .addLast("/static/auth", new AuthBasic(Collections.singletonMap("test", "123456"), "test"))
@@ -83,12 +88,13 @@ public class TestDefaultServer {
 
 }
 
+@HttpPath("/api")
 class TestController {
 
     static final ObjectMapper mapper = new ObjectMapper().setSerializationInclusion(Include.NON_ABSENT);
 
     @GetRoute("/test")
-    CompletionStage<HttpResult> getTest(HttpRequestContext ctx) {
+    public CompletionStage<HttpResult> getTest(HttpRequestContext ctx) {
         // GET /test
         System.out.println("-- test --");
         // always returns 200 OK
@@ -98,7 +104,7 @@ class TestController {
     }
 
     @GetRoute("/errors/{code}")
-    CompletionStage<HttpResult> getErrors(HttpRequestContext ctx, @PathVar int code) {
+    public CompletionStage<HttpResult> getErrors(HttpRequestContext ctx, @PathVar int code) {
         // GET /errors/{code}
         System.out.println("-- errors --");
         HttpResponseStatus status = HttpResponseStatus.valueOf(code);
@@ -107,7 +113,7 @@ class TestController {
     }
 
     @GetRoute("/jsons")
-    CompletionStage<HttpResult> getJsons(HttpRequestContext ctx) {
+    public CompletableFuture<HttpResult> getJsons(HttpRequestContext ctx) {
         // GET /jsons
         System.out.println("-- jsons --");
         ObjectNode node = mapper.createObjectNode();
@@ -127,7 +133,7 @@ class TestController {
     }
 
     @PostRoute("/echo")
-    CompletionStage<HttpResult> postEcho(HttpRequestContext ctx) {
+    public CompletionStage<HttpResult> postEcho(HttpRequestContext ctx) {
         // POST /echo
         System.out.println("-- echo --");
         ByteBuf content = ctx.request().content();

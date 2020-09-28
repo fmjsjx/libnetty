@@ -6,6 +6,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
+
 /**
  * Annotation for mapping HTTP {@code HEAD} requests onto specific handler
  * methods.
@@ -20,6 +22,7 @@ import java.lang.annotation.Target;
  */
 @Target(METHOD)
 @Retention(RUNTIME)
+@HttpRoute(method = HttpMethodWrapper.HEAD)
 public @interface HeadRoute {
 
     /**

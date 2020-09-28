@@ -204,6 +204,46 @@ public class Router implements Middleware {
         return add(path, DELETE, service);
     }
 
+    /**
+     * Register a controller.
+     * <p>
+     * This method is equivalent to:
+     * 
+     * <pre>
+     * {@code ControllerBeanUtil.register(this, controller);}
+     * </pre>
+     * 
+     * @param controller the controller object
+     * @return this {@code Router}
+     * 
+     * @see ControllerBeanUtil#register(Router, Object)
+     */
+    public Router register(Object controller) {
+        ControllerBeanUtil.register(this, controller);
+        return this;
+    }
+
+    /**
+     * Register a controller.
+     * <p>
+     * This method is equivalent to:
+     * 
+     * <pre>
+     * {@code ControllerBeanUtil.register(this, controller, clazz);}
+     * </pre>
+     * 
+     * @param <T>        the type of the controller
+     * @param controller the controller object
+     * @param clazz      the class of the type
+     * @return this {@code Router}
+     * 
+     * @see ControllerBeanUtil#register(Router, Object, Class)
+     */
+    public <T> Router register(T controller, Class<T> clazz) {
+        ControllerBeanUtil.register(this, controller, clazz);
+        return this;
+    }
+
     private static final class RouteDefinition implements Comparable<RouteDefinition> {
 
         private final String path;
@@ -288,7 +328,7 @@ public class Router implements Middleware {
                 this.methodMatcher = MethodMatcher.any();
             } else {
                 this.methods = Arrays.stream(methods).map(HttpMethod::toString).distinct()
-                        .collect(Collectors.joining("|"));
+                        .collect(Collectors.joining("|")).intern();
                 this.methodMatcher = MethodMatcher.in(methods);
             }
             this.service = service;
