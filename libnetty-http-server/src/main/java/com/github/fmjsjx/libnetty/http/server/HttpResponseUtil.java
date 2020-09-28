@@ -4,7 +4,7 @@ import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaderNames.LOCATION;
-import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
@@ -44,7 +44,9 @@ public class HttpResponseUtil {
      */
     public static final FullHttpResponse create(HttpVersion version, HttpResponseStatus status, boolean keepAlive) {
         FullHttpResponse response = new DefaultFullHttpResponse(version, status, Unpooled.EMPTY_BUFFER);
-        HttpUtil.setKeepAlive(response.headers(), version, keepAlive);
+        HttpHeaders headers = response.headers();
+        HttpUtil.setKeepAlive(headers, version, keepAlive);
+        headers.set(CONTENT_LENGTH, ZERO);
         return response;
     }
 
@@ -65,6 +67,7 @@ public class HttpResponseUtil {
         HttpHeaders headers = response.headers();
         addHeaders.accept(headers);
         HttpUtil.setKeepAlive(headers, version, keepAlive);
+        headers.set(CONTENT_LENGTH, ZERO);
         return response;
     }
 

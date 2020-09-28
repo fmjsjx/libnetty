@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import com.github.fmjsjx.libnetty.http.server.HttpServer.User;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
@@ -239,6 +241,41 @@ public interface HttpRequestContext extends ReferenceCounted {
      * @return this {@code HttpRequestContext}
      */
     HttpRequestContext pathVariables(PathVariables pathVariables);
+
+    /**
+     * Returns the {@link User}.
+     * 
+     * @return an {@code Optional<T>} may contains the user
+     */
+    default Optional<User> user() {
+        return user(User.class);
+    }
+
+    /**
+     * Returns the {@link User}.
+     * 
+     * @param <U>  the real type of the user
+     * @param type the class of the real type
+     * @return an {@code Optional<U extends User>} may contains the user
+     * 
+     * @throws ClassCastException if the user is not {@code null} and is not
+     *                            assignable to the type {@code U}
+     */
+    default <U extends User> Optional<U> user(Class<U> type) throws ClassCastException {
+        return property(User.KEY, type);
+    }
+
+    /**
+     * Returns the property value as parameterized type.
+     * 
+     * @param <T> the type of the property value
+     * @param key the key of the property, also the class of the type
+     * 
+     * @return an {@code Optional<T>} may contains the property value
+     */
+    default <T> Optional<T> property(Class<T> key) {
+        return property(key, key);
+    }
 
     /**
      * Returns the property value as parameterized type.

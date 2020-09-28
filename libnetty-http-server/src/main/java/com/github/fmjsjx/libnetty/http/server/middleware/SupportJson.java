@@ -51,7 +51,7 @@ public class SupportJson implements Middleware {
          * The value is
          * {@code com.github.fmjsjx.libnetty.http.server.middleware.SupportJson.JsonLibrary.class}.
          */
-        Object KEY = JsonLibrary.class;
+        Class<JsonLibrary> KEY = JsonLibrary.class;
 
         /**
          * Read a JSON value from the given content.

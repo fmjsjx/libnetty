@@ -11,6 +11,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionStage;
 
@@ -30,6 +31,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.PostRoute;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLoggerWrapper;
+import com.github.fmjsjx.libnetty.http.server.middleware.AuthBasic;
 import com.github.fmjsjx.libnetty.http.server.middleware.Router;
 import com.github.fmjsjx.libnetty.http.server.middleware.ServeStatic;
 
@@ -52,6 +54,7 @@ public class TestDefaultServer {
         DefaultHttpServerHandlerProvider handlerProvider = new DefaultHttpServerHandlerProvider();
         handlerProvider.exceptionHandler((ctx, e) -> log.error("EEEEEEEEEEEEEEEEEEEEEEEEEEEE ==> {}", ctx.channel(), e))
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2))
+                .addLast("/static/auth", new AuthBasic(Collections.singletonMap("test", "123456"), "test"))
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/"))
                 .addLast(new Router().get("/test", controller::getTest).get("/errors/{code}", ctx -> {
                     int code;

@@ -1,6 +1,7 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
 import java.util.Base64;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiPredicate;
@@ -8,6 +9,8 @@ import java.util.function.BiPredicate;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResponseUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
+import com.github.fmjsjx.libnetty.http.server.HttpServer.AbstractUser;
+import com.github.fmjsjx.libnetty.http.server.HttpServer.User;
 import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
 
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -29,18 +32,64 @@ import io.netty.util.AsciiString;
  */
 public class AuthBasic implements Middleware {
 
+    /**
+     * A {@link User} holding the username parsed from the "HTTP Basic
+     * Authentication" protocol.
+     * 
+     * @since 1.1
+     *
+     * @author MJ Fang
+     */
+    public static final class BasicUser extends AbstractUser {
+
+        /**
+         * Constructs a new {@link BasicUser} instance with the specified
+         * {@code username}.
+         * 
+         * @param username the username parsed from the "HTTP Basic Authentication"
+         *                 protocol
+         */
+        public BasicUser(String username) {
+            super(username);
+        }
+
+    }
+
     private final BiPredicate<String, String> validator;
     private final CharSequence basicRealm;
 
+    /**
+     * Constructs a new {@link AuthBasic} with the specified users and realm.
+     * 
+     * @param users a map contains the users' name and their password
+     * @param realm the realm attribute
+     */
+    public AuthBasic(Map<String, String> users, String realm) {
+        this((n, p) -> {
+            String pwd = users.get(n);
+            if (pwd != null) {
+                return pwd.equals(p);
+            }
+            return false;
+        }, realm);
+    }
+
+    /**
+     * Constructs a new {@link AuthBasic} with the specified validator and realm.
+     * 
+     * @param validator function to validating the user name and password
+     * @param realm     the realm attribute
+     */
     public AuthBasic(BiPredicate<String, String> validator, String realm) {
         this.validator = Objects.requireNonNull(validator, "validator must not be null");
+        Objects.requireNonNull(realm, "realm must not be null");
         this.basicRealm = AsciiString.cached("Basic realm=\"" + realm + "\"");
     }
 
     @Override
     public CompletionStage<HttpResult> apply(HttpRequestContext ctx, MiddlewareChain next) {
         String authorization = ctx.headers().getAsString(HttpHeaderNames.AUTHORIZATION);
-        if (authorization.startsWith("Basic ")) {
+        if (authorization != null && authorization.startsWith("Basic ")) {
             String base64 = authorization.substring(6);
             byte[] auth = Base64.getDecoder().decode(base64);
             int index = -1;
@@ -69,6 +118,7 @@ public class AuthBasic implements Middleware {
                 }
             }
             if (validator.test(name, pwd)) {
+                ctx.property(User.KEY, new BasicUser(name));
                 return next.doNext(ctx);
             }
         }
@@ -79,6 +129,11 @@ public class AuthBasic implements Middleware {
                 keepAlive);
         response.headers().set(HttpHeaderNames.WWW_AUTHENTICATE, basicRealm);
         return HttpServerUtil.sendResponse(ctx, response, 0, keepAlive);
+    }
+
+    @Override
+    public String toString() {
+        return "AuthBasic(" + basicRealm + ")";
     }
 
 }
