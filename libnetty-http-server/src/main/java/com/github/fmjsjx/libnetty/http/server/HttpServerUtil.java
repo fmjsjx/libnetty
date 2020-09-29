@@ -9,6 +9,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 import java.nio.charset.Charset;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -307,11 +308,31 @@ public class HttpServerUtil {
 
     }
 
-    public static final CompletableFuture<HttpResult> sendInternalServerError(HttpRequestContext ctx, Throwable e) {
+    /**
+     * Send HTTP response with {@code "500 Internal Server Error"} to client and
+     * returns the {@link HttpResult} asynchronously.
+     * 
+     * @param ctx   the {@link HttpRequestContext}
+     * @param cause the cause
+     * 
+     * @return a {@code CompletableFuture<HttpResult>}
+     */
+    public static final CompletableFuture<HttpResult> sendInternalServerError(HttpRequestContext ctx, Throwable cause) {
         HttpResponseStatus status = INTERNAL_SERVER_ERROR;
-        String value = status.code() + " " + status.reasonPhrase() + ": " + e.toString();
+        String value = status.code() + " " + status.reasonPhrase() + ": " + cause.toString();
         ByteBuf content = ByteBufUtil.writeUtf8(ctx.alloc(), value);
         return respond(ctx, status, content, TEXT_PLAIN_UTF8);
+    }
+
+    /**
+     * Send HTTP response with {@code "400 Bad Request"} to client and returns the
+     * {@link HttpResult} asynchronously.
+     * 
+     * @param ctx the {@link HttpRequestContext}
+     * @return a {@code CompletableFuture<HttpResult>}
+     */
+    public static final CompletionStage<HttpResult> sendBadReqest(HttpRequestContext ctx) {
+        return sendResponse(ctx, HttpResponseUtil.badRequest(ctx.version(), HttpUtil.isKeepAlive(ctx.request())));
     }
 
     private HttpServerUtil() {

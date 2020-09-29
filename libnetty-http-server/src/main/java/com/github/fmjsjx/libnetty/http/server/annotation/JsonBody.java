@@ -23,6 +23,4 @@ import java.lang.annotation.Target;
 @Retention(RUNTIME)
 public @interface JsonBody {
 
-    String charsetName() default "UTF-8";
-
 }

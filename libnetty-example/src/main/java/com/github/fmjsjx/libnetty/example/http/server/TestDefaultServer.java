@@ -55,21 +55,21 @@ public class TestDefaultServer {
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
         DefaultHttpServerHandlerProvider handlerProvider = new DefaultHttpServerHandlerProvider();
-        ControllerBeanUtil.register(null, controller);
-        System.exit(0);
+//        ControllerBeanUtil.register(null, controller);
         handlerProvider.exceptionHandler((ctx, e) -> log.error("EEEEEEEEEEEEEEEEEEEEEEEEEEEE ==> {}", ctx.channel(), e))
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2))
                 .addLast("/static/auth", new AuthBasic(Collections.singletonMap("test", "123456"), "test"))
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/"))
-                .addLast(new Router().get("/test", controller::getTest).get("/errors/{code}", ctx -> {
-                    int code;
-                    try {
-                        code = ctx.pathVariables().getInt("code").getAsInt();
-                    } catch (NumberFormatException | NoSuchElementException e) {
-                        return HttpServerUtil.respond(ctx, BAD_REQUEST);
-                    }
-                    return controller.getErrors(ctx, code);
-                }).get("/jsons", controller::getJsons).post("/echo", controller::postEcho).init());
+                .addLast(new Router().register(controller).init());
+//                .addLast(new Router().get("/test", controller::getTest).get("/errors/{code}", ctx -> {
+//                    int code;
+//                    try {
+//                        code = ctx.pathVariables().getInt("code").getAsInt();
+//                    } catch (NumberFormatException | NoSuchElementException e) {
+//                        return HttpServerUtil.respond(ctx, BAD_REQUEST);
+//                    }
+//                    return controller.getErrors(ctx, code);
+//                }).get("/jsons", controller::getJsons).post("/echo", controller::postEcho).init());
         DefaultHttpServer server = new DefaultHttpServer("test", SslContextProviders.selfSignedForServer(), 8443)
                 .corsConfig(corsConfig).ioThreads(1).maxContentLength(10 * 1024 * 1024).soBackLog(1024).tcpNoDelay()
                 .handlerProvider(handlerProvider);
@@ -104,7 +104,7 @@ class TestController {
     }
 
     @GetRoute("/errors/{code}")
-    public CompletionStage<HttpResult> getErrors(HttpRequestContext ctx, @PathVar int code) {
+    public CompletionStage<HttpResult> getErrors(HttpRequestContext ctx, @PathVar("code") int code) {
         // GET /errors/{code}
         System.out.println("-- errors --");
         HttpResponseStatus status = HttpResponseStatus.valueOf(code);
