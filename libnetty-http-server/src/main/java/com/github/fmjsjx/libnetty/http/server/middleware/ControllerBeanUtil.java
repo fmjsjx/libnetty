@@ -1,5 +1,7 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -29,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -54,8 +57,10 @@ import com.github.fmjsjx.libnetty.http.server.exception.BadRequestException;
 import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson.JsonLibrary;
 
 import io.netty.buffer.ByteBufUtil;
+import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.StringUtil;
 
@@ -120,7 +125,18 @@ public class ControllerBeanUtil {
         }
         JsonBody jsonResposne = method.getAnnotation(JsonBody.class);
         if (jsonResposne != null) {
-            // TODO
+            if (!method.isAccessible()) {
+                method.setAccessible(true);
+            }
+            Parameter[] params = method.getParameters();
+            switch (params.length) {
+            case 0:
+                router.add(toJsonResponseInvoker(controller, method), path, httpMethods);
+                break;
+            default:
+                router.add(toJsonResponseInvoker(controller, method, params), path, httpMethods);
+                break;
+            }
             return;
         }
         checkReturnType(method);
@@ -134,13 +150,86 @@ public class ControllerBeanUtil {
             router.add(toSimpleInvoker(controller, method), path, httpMethods);
             break;
         default:
-            @SuppressWarnings("unchecked")
-            Function<HttpRequestContext, Object>[] parameterMappers = Arrays.stream(params)
-                    .map(ControllerBeanUtil::toParameterMapper).toArray(Function[]::new);
-            Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(parameterMappers);
-            router.add(toParamsInvoker(controller, method, parametesMapper), path, httpMethods);
+            router.add(toParamsInvoker(controller, method, params), path, httpMethods);
             break;
         }
+    }
+
+    private static final BiFunction<Object, Throwable, CompletionStage<HttpResult>> jsonResponseHandler(
+            HttpRequestContext ctx) {
+        return (result, cause) -> {
+            if (cause != null) {
+                return HttpServerUtil.respondError(ctx, cause);
+            }
+            try {
+                return HttpServerUtil.respondJson(ctx, OK,
+                        ctx.property(JsonLibrary.KEY).orElseThrow(MISSING_JSON_LIBRARY).write(ctx.alloc(), result));
+            } catch (Exception e) {
+                return HttpServerUtil.respondError(ctx, e);
+            }
+        };
+    }
+
+    private static final Function<CompletionStage<HttpResult>, CompletionStage<HttpResult>> resultIdentity = Function
+            .identity();
+
+    @SuppressWarnings("unchecked")
+    private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method) {
+        if (Modifier.isStatic(method.getModifiers())) {
+            return ctx -> {
+                try {
+                    return ((CompletionStage<Object>) method.invoke(null)).handle(jsonResponseHandler(ctx))
+                            .thenCompose(resultIdentity);
+                } catch (InvocationTargetException e) {
+                    return HttpServerUtil.respondError(ctx, e.getTargetException());
+                } catch (Exception e) {
+                    return HttpServerUtil.respondError(ctx, e);
+                }
+            };
+        }
+        return ctx -> {
+            try {
+                return ((CompletionStage<Object>) method.invoke(controller)).handle(jsonResponseHandler(ctx))
+                        .thenCompose(resultIdentity);
+            } catch (InvocationTargetException e) {
+                return HttpServerUtil.respondError(ctx, e.getTargetException());
+            } catch (Exception e) {
+                return HttpServerUtil.respondError(ctx, e);
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method, Parameter[] params) {
+        Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
+        if (Modifier.isStatic(method.getModifiers())) {
+            return ctx -> {
+                try {
+                    return ((CompletionStage<Object>) method.invoke(null, parametesMapper.apply(ctx)))
+                            .handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
+                } catch (InvocationTargetException e) {
+                    return HttpServerUtil.respondError(ctx, e.getTargetException());
+                } catch (Exception e) {
+                    return HttpServerUtil.respondError(ctx, e);
+                }
+            };
+        }
+        return ctx -> {
+            try {
+                return ((CompletionStage<Object>) method.invoke(controller, parametesMapper.apply(ctx)))
+                        .handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
+            } catch (InvocationTargetException e) {
+                return HttpServerUtil.respondError(ctx, e.getTargetException());
+            } catch (Exception e) {
+                return HttpServerUtil.respondError(ctx, e);
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static final Function<HttpRequestContext, Object[]> toParametersMapper(Parameter[] params) {
+        return toParametersMapper(
+                Arrays.stream(params).map(ControllerBeanUtil::toParameterMapper).toArray(Function[]::new));
     }
 
     private static final void requireContext(Parameter[] params) {
@@ -156,9 +245,9 @@ public class ControllerBeanUtil {
                 try {
                     return (CompletionStage<HttpResult>) method.invoke(null, ctx);
                 } catch (InvocationTargetException e) {
-                    return HttpServerUtil.sendInternalServerError(ctx, e.getTargetException());
+                    return HttpServerUtil.respondError(ctx, e.getTargetException());
                 } catch (Exception e) {
-                    return HttpServerUtil.sendInternalServerError(ctx, e);
+                    return HttpServerUtil.respondError(ctx, e);
                 }
             };
         }
@@ -166,46 +255,42 @@ public class ControllerBeanUtil {
             try {
                 return (CompletionStage<HttpResult>) method.invoke(controller, ctx);
             } catch (InvocationTargetException e) {
-                return HttpServerUtil.sendInternalServerError(ctx, e.getTargetException());
+                return HttpServerUtil.respondError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return HttpServerUtil.sendInternalServerError(ctx, e);
+                return HttpServerUtil.respondError(ctx, e);
             }
         };
     }
 
     @SuppressWarnings("unchecked")
-    private static final HttpServiceInvoker toParamsInvoker(Object controller, Method method,
-            Function<HttpRequestContext, Object[]> parametesMapper) {
+    private static final HttpServiceInvoker toParamsInvoker(Object controller, Method method, Parameter[] params) {
+        Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
         if (Modifier.isStatic(method.getModifiers())) {
             return ctx -> {
                 try {
                     return (CompletionStage<HttpResult>) method.invoke(null, parametesMapper.apply(ctx));
-                } catch (BadRequestException e) {
-                    logger.error("Bad request on {} {}", controller, method, e);
-                    return HttpServerUtil.sendBadReqest(ctx);
                 } catch (InvocationTargetException e) {
-                    return HttpServerUtil.sendInternalServerError(ctx, e.getTargetException());
+                    return HttpServerUtil.respondError(ctx, e.getTargetException());
                 } catch (Exception e) {
-                    return HttpServerUtil.sendInternalServerError(ctx, e);
+                    return HttpServerUtil.respondError(ctx, e);
                 }
             };
         }
         return ctx -> {
             try {
                 return (CompletionStage<HttpResult>) method.invoke(controller, parametesMapper.apply(ctx));
-            } catch (BadRequestException e) {
-                logger.error("Bad request on {} {}", controller, method, e);
-                return HttpServerUtil.sendBadReqest(ctx);
             } catch (InvocationTargetException e) {
-                return HttpServerUtil.sendInternalServerError(ctx, e.getTargetException());
+                return HttpServerUtil.respondError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return HttpServerUtil.sendInternalServerError(ctx, e);
+                return HttpServerUtil.respondError(ctx, e);
             }
         };
     }
 
     private static final Function<HttpRequestContext, Object> contextMapper = ctx -> ctx;
     private static final Function<HttpRequestContext, Object> headersMapper = HttpRequestContext::headers;
+    private static final Function<HttpRequestContext, Object> queryMapper = HttpRequestContext::queryStringDecoder;
+    private static final Function<HttpRequestContext, Object> eventLoopMapper = HttpRequestContext::eventLoop;
     private static final Function<HttpRequestContext, Object> remoteAddrMapper = HttpRequestContext::remoteAddress;
 
     private static final Function<HttpRequestContext, Object> toParameterMapper(Parameter param) {
@@ -213,6 +298,10 @@ public class ControllerBeanUtil {
             return contextMapper;
         } else if (param.getType() == HttpHeaders.class) {
             return headersMapper;
+        } else if (param.getType() == QueryStringDecoder.class) {
+            return queryMapper;
+        } else if (param.getType().isAssignableFrom(EventLoop.class)) {
+            return eventLoopMapper;
         }
         PathVar pathVar = param.getAnnotation(PathVar.class);
         if (pathVar != null) {
@@ -238,7 +327,7 @@ public class ControllerBeanUtil {
             }
             return remoteAddrMapper;
         }
-        return null;
+        return toZeroValueMapper(param);
     }
 
     private static Function<HttpRequestContext, Object> toPathVarMapper(Parameter param, PathVar pathVar) {
@@ -676,6 +765,37 @@ public class ControllerBeanUtil {
                     .map(i -> i.atZone(ZoneId.systemDefault()).toOffsetDateTime());
         }
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
+    }
+
+    private static final Map<Class<?>, Function<HttpRequestContext, Object>> zeroValueMappers;
+    private static final Function<HttpRequestContext, Object> nullMapper = ctx -> null;
+
+    static {
+        Map<Class<?>, Function<HttpRequestContext, Object>> map = new HashMap<>();
+        Byte b0 = 0;
+        Short s0 = 0;
+        Integer i0 = 0;
+        Long l0 = 0L;
+        Float f0 = 0F;
+        Double d0 = 0D;
+        map.put(boolean.class, ctx -> Boolean.FALSE);
+        map.put(char.class, ctx -> 0);
+        map.put(byte.class, ctx -> b0);
+        map.put(short.class, ctx -> s0);
+        map.put(int.class, ctx -> i0);
+        map.put(long.class, ctx -> l0);
+        map.put(float.class, ctx -> f0);
+        map.put(double.class, ctx -> d0);
+        zeroValueMappers = map;
+    }
+
+    private static final Function<HttpRequestContext, Object> toZeroValueMapper(Parameter param) {
+        Class<?> type = param.getType();
+        if (type.isPrimitive()) {
+            return zeroValueMappers.get(type);
+        } else {
+            return nullMapper;
+        }
     }
 
     private static final Function<HttpRequestContext, Object[]> toParametersMapper(

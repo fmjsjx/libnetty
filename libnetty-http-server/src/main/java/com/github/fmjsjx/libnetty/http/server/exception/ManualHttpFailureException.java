@@ -34,6 +34,23 @@ public class ManualHttpFailureException extends HttpFailureException {
         this.contentType = contentType;
     }
 
+    /**
+     * Constructs a new {@link ManualHttpFailureException} with the specified
+     * status, content, contentType and message.
+     * 
+     * @param status      the failure status
+     * @param content     the response content string
+     * @param contentType the response content type
+     * @param message     the detail message
+     */
+    public ManualHttpFailureException(HttpResponseStatus status, String content, CharSequence contentType,
+            String message) {
+        super(message);
+        this.status = status;
+        this.content = content;
+        this.contentType = contentType;
+    }
+
     @Override
     public HttpResponseStatus status() {
         return status;
@@ -41,7 +58,8 @@ public class ManualHttpFailureException extends HttpFailureException {
 
     @Override
     public String getLocalizedMessage() {
-        return status + ": " + content;
+        String msg = getMessage();
+        return msg == null ? status + ": " + content : status + " - " + msg + ": " + content;
     }
 
     /**

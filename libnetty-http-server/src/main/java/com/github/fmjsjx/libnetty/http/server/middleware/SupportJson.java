@@ -162,6 +162,7 @@ public class SupportJson implements Middleware {
                 objectMapper.writeValue(out, value);
                 return buf;
             } catch (IOException e) {
+                buf.release();
                 throw new JsonException(e.getMessage(), e);
             }
         }

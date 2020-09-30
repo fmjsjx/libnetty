@@ -12,13 +12,11 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 import java.nio.charset.Charset;
 import java.util.Collections;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -35,19 +33,21 @@ import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
 import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.PostRoute;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
+import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLoggerWrapper;
 import com.github.fmjsjx.libnetty.http.server.middleware.AuthBasic;
-import com.github.fmjsjx.libnetty.http.server.middleware.ControllerBeanUtil;
 import com.github.fmjsjx.libnetty.http.server.middleware.Router;
 import com.github.fmjsjx.libnetty.http.server.middleware.ServeStatic;
 import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.util.CharsetUtil;
@@ -61,22 +61,12 @@ public class TestDefaultServer {
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
         DefaultHttpServerHandlerProvider handlerProvider = new DefaultHttpServerHandlerProvider();
-//        ControllerBeanUtil.register(null, controller);
         handlerProvider.exceptionHandler((ctx, e) -> log.error("EEEEEEEEEEEEEEEEEEEEEEEEEEEE ==> {}", ctx.channel(), e))
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2))
                 .addLast(new SupportJson())
                 .addLast("/static/auth", new AuthBasic(Collections.singletonMap("test", "123456"), "test"))
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/"))
                 .addLast(new Router().register(controller).init());
-//                .addLast(new Router().get("/test", controller::getTest).get("/errors/{code}", ctx -> {
-//                    int code;
-//                    try {
-//                        code = ctx.pathVariables().getInt("code").getAsInt();
-//                    } catch (NumberFormatException | NoSuchElementException e) {
-//                        return HttpServerUtil.respond(ctx, BAD_REQUEST);
-//                    }
-//                    return controller.getErrors(ctx, code);
-//                }).get("/jsons", controller::getJsons).post("/echo", controller::postEcho).init());
         DefaultHttpServer server = new DefaultHttpServer("test", SslContextProviders.selfSignedForServer(), 8443)
                 .corsConfig(corsConfig).ioThreads(1).maxContentLength(10 * 1024 * 1024).soBackLog(1024).tcpNoDelay()
                 .handlerProvider(handlerProvider);
@@ -123,11 +113,12 @@ class TestController {
     }
 
     @GetRoute("/jsons")
-    public CompletableFuture<HttpResult> getJsons(HttpRequestContext ctx) {
+    @JsonBody
+    public CompletableFuture<?> getJsons(QueryStringDecoder query) {
         // GET /jsons
         System.out.println("-- jsons --");
         ObjectNode node = mapper.createObjectNode();
-        ctx.queryStringDecoder().parameters().forEach((key, values) -> {
+        query.parameters().forEach((key, values) -> {
             if (values.size() == 1) {
                 for (String value : values) {
                     node.put(key, value);
@@ -136,10 +127,15 @@ class TestController {
                 node.putPOJO(key, values);
             }
         });
-        String value = toJson(node);
-        ByteBuf body = ByteBufUtil.writeUtf8(ctx.alloc(), value);
-        System.out.println(body.toString(CharsetUtil.UTF_8));
-        return HttpServerUtil.respondJson(ctx, OK, body);
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        if (node.isEmpty()) {
+            future.completeExceptionally(
+                    new ManualHttpFailureException(BAD_REQUEST, "{\"code\":1,\"message\":\"Missing Query String\"}",
+                            HttpHeaderValues.APPLICATION_JSON, "Missing Query String"));
+        } else {
+            future.complete(node);
+        }
+        return future;
     }
 
     @PostRoute("/echo")
@@ -151,15 +147,6 @@ class TestController {
         Charset charset = HttpUtil.getCharset(ctx.request(), CharsetUtil.UTF_8);
         CharSequence contentType = ctx.contentType().orElseGet(() -> contentType(TEXT_PLAIN, charset));
         return HttpServerUtil.respond(ctx, OK, content.retain(), contentType);
-    }
-
-    private static final String toJson(ObjectNode node) {
-        try {
-            return mapper.writeValueAsString(node);
-        } catch (JsonProcessingException e) {
-            // ignore
-        }
-        return "null";
     }
 
 }
