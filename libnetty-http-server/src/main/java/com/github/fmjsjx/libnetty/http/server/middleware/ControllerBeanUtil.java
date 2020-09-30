@@ -9,7 +9,16 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,11 +27,13 @@ import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,15 +43,18 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpServiceInvoker;
+import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpRoute;
 import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
 import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
+import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
 import com.github.fmjsjx.libnetty.http.server.exception.BadRequestException;
 import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson.JsonLibrary;
 
 import io.netty.buffer.ByteBufUtil;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.StringUtil;
@@ -190,10 +204,15 @@ public class ControllerBeanUtil {
         };
     }
 
-    private static final Function<HttpRequestContext, Object> toParameterMapper(Parameter param) {
+    private static final Function<HttpRequestContext, Object> contextMapper = ctx -> ctx;
+    private static final Function<HttpRequestContext, Object> headersMapper = HttpRequestContext::headers;
+    private static final Function<HttpRequestContext, Object> remoteAddrMapper = HttpRequestContext::remoteAddress;
 
+    private static final Function<HttpRequestContext, Object> toParameterMapper(Parameter param) {
         if (param.getType() == HttpRequestContext.class) {
-            return ctx -> ctx;
+            return contextMapper;
+        } else if (param.getType() == HttpHeaders.class) {
+            return headersMapper;
         }
         PathVar pathVar = param.getAnnotation(PathVar.class);
         if (pathVar != null) {
@@ -206,6 +225,18 @@ public class ControllerBeanUtil {
         JsonBody jsonBody = param.getAnnotation(JsonBody.class);
         if (jsonBody != null) {
             return toJsonBodyMapper(param, jsonBody);
+        }
+        HeaderValue headerValue = param.getAnnotation(HeaderValue.class);
+        if (headerValue != null) {
+            return toHeaderValueMapper(param, headerValue);
+        }
+        RemoteAddr remoteAddr = param.getAnnotation(RemoteAddr.class);
+        if (remoteAddr != null) {
+            if (param.getType() != String.class) {
+                throw new IllegalArgumentException(
+                        "unsupperted type " + param.getType() + " for @RemoteAddr, only support String");
+            }
+            return remoteAddrMapper;
         }
         return null;
     }
@@ -255,168 +286,104 @@ public class ControllerBeanUtil {
         String name = StringUtil.isNullOrEmpty(queryVar.value()) ? param.getName() : queryVar.value();
         if (type instanceof Class<?>) {
             if (((Class<?>) type).isArray()) {
-                return arrayMapper(queryVar, type, name);
+                return toArrayMapper(queryVar, type, name);
             } else {
-                return singleMapper(queryVar, type, name);
+                return toSimpleMapper(queryVar, type, name);
             }
         }
-        if (List.class.isAssignableFrom(param.getType())) {
-            return listMapper(queryVar, type, name);
+        if (List.class == param.getType()) {
+            return toListMapper(queryVar, (ParameterizedType) type, name);
         }
-        if (Set.class.isAssignableFrom(param.getType())) {
-            // TODO
+        if (Set.class == param.getType()) {
+            return toSetMapper(queryVar, (ParameterizedType) type, name);
         }
         if (Optional.class == param.getType()) {
-            // TODO
+            return toOptionalMapper(queryVar, (ParameterizedType) type, name);
         }
-        // TODO Auto-generated method stub
         throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
     }
 
-    private static final Function<HttpRequestContext, Object> arrayMapper(QueryVar queryVar, Type type, String name) {
-        Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
-        if (type == String[].class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).orElseThrow(noSuchQueryVariable).stream().toArray(String[]::new);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(values -> values.stream().toArray(String[]::new))
-                        .orElseGet(null);
-            }
-        } else if (type == int[].class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).orElseThrow(noSuchQueryVariable).stream()
-                        .mapToInt(Integer::parseInt).toArray();
-            } else {
-                return ctx -> ctx.queryParameter(name)
-                        .map(values -> values.stream().mapToInt(Integer::parseInt).toArray()).orElse(null);
-            }
-        } else if (type == long[].class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).orElseThrow(noSuchQueryVariable).stream()
-                        .mapToLong(Long::parseLong).toArray();
-            } else {
-                return ctx -> ctx.queryParameter(name)
-                        .map(values -> values.stream().mapToLong(Long::parseLong).toArray()).orElse(null);
-            }
-        } else if (type == Integer[].class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).orElseThrow(noSuchQueryVariable).stream().map(Integer::valueOf)
-                        .toArray(Integer[]::new);
-            } else {
-                return ctx -> ctx.queryParameter(name)
-                        .map(values -> values.stream().map(Integer::valueOf).toArray(Integer[]::new)).orElseGet(null);
-            }
-        } else if (type == Long[].class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).orElseThrow(noSuchQueryVariable).stream().map(Long::valueOf)
-                        .toArray(Long[]::new);
-            } else {
-                return ctx -> ctx.queryParameter(name)
-                        .map(values -> values.stream().map(Long::valueOf).toArray(Long[]::new)).orElseGet(null);
-            }
-        } else {
+    private static final Map<Class<?>, Function<List<String>, Object>> queryValueMappers;
+
+    static {
+        Map<Class<?>, Function<List<String>, Object>> map = new HashMap<>();
+        // arrays
+        map.put(String[].class, values -> values.stream().toArray(String[]::new));
+        map.put(int[].class, values -> values.stream().mapToInt(Integer::parseInt).toArray());
+        map.put(long[].class, values -> values.stream().mapToLong(Long::parseLong).toArray());
+        map.put(Integer[].class, values -> values.stream().map(Integer::valueOf).toArray(Integer[]::new));
+        map.put(Long[].class, values -> values.stream().map(Long::valueOf).toArray(Long[]::new));
+        // simples
+        map.put(String.class, values -> values.size() == 1 ? values.get(0) : String.join(",", values));
+        map.put(Boolean.class, values -> Boolean.valueOf(values.get(0)));
+        map.put(Byte.class, values -> Byte.valueOf(values.get(0)));
+        map.put(Short.class, values -> Short.valueOf(values.get(0)));
+        map.put(Integer.class, values -> Integer.valueOf(values.get(0)));
+        map.put(Long.class, values -> Long.valueOf(values.get(0)));
+        map.put(Float.class, values -> Float.valueOf(values.get(0)));
+        map.put(Double.class, values -> Double.valueOf(values.get(0)));
+        map.put(BigInteger.class, values -> new BigInteger(values.get(0)));
+        map.put(BigDecimal.class, values -> new BigDecimal(values.get(0)));
+        map.put(OptionalInt.class, values -> OptionalInt.of(Integer.parseInt(values.get(0))));
+        map.put(OptionalLong.class, values -> OptionalLong.of(Long.parseLong(values.get(0))));
+        map.put(OptionalDouble.class, values -> OptionalDouble.of(Double.parseDouble(values.get(0))));
+
+        queryValueMappers = map;
+    }
+
+    private static final Function<HttpRequestContext, Object> toArrayMapper(QueryVar queryVar, Type type, String name) {
+        Function<List<String>, Object> mapper = queryValueMappers.get(type == Object[].class ? String[].class : type);
+        if (mapper == null) {
             throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
+        }
+        if (queryVar.required()) {
+            Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
+            return ctx -> ctx.queryParameter(name).map(mapper).orElseThrow(noSuchQueryVariable);
+        } else {
+            return ctx -> ctx.queryParameter(name).map(mapper).orElseGet(null);
         }
     }
 
-    private static Function<HttpRequestContext, Object> singleMapper(QueryVar queryVar, Type type, String name) {
-        Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
-        if (type == String.class) {
-            if (queryVar.required()) {
-                return ctx -> joinStrings(ctx.queryParameter(name).orElseThrow(noSuchQueryVariable));
-
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::joinStrings).orElse(null);
-            }
+    private static Function<HttpRequestContext, Object> toSimpleMapper(QueryVar queryVar, Type type, String name) {
+        Function<List<String>, Object> mapper;
+        if (type == String.class || type == Object.class) {
+            mapper = queryValueMappers.get(String.class);
         } else if (type == int.class || type == Integer.class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Integer::valueOf)
-                        .orElseThrow(noSuchQueryVariable);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Integer::valueOf)
-                        .orElse(null);
-            }
+            mapper = queryValueMappers.get(Integer.class);
         } else if (type == long.class || type == Long.class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Long::valueOf)
-                        .orElseThrow(noSuchQueryVariable);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Long::valueOf).orElse(null);
-            }
+            mapper = queryValueMappers.get(Long.class);
         } else if (type == double.class || type == Double.class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Double::valueOf)
-                        .orElseThrow(noSuchQueryVariable);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Double::valueOf).orElse(null);
-            }
+            mapper = queryValueMappers.get(Double.class);
         } else if (type == boolean.class || type == Boolean.class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Boolean::valueOf)
-                        .orElseThrow(noSuchQueryVariable);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Boolean::valueOf)
-                        .orElse(null);
-            }
+            mapper = queryValueMappers.get(Boolean.class);
         } else if (type == byte.class || type == Byte.class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Byte::valueOf)
-                        .orElseThrow(noSuchQueryVariable);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Byte::valueOf).orElse(null);
-            }
+            mapper = queryValueMappers.get(Byte.class);
         } else if (type == short.class || type == Short.class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Short::valueOf)
-                        .orElseThrow(noSuchQueryVariable);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Short::valueOf).orElse(null);
-            }
+            mapper = queryValueMappers.get(Short.class);
         } else if (type == float.class || type == Float.class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Float::valueOf)
-                        .orElseThrow(noSuchQueryVariable);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Float::valueOf).orElse(null);
-            }
+            mapper = queryValueMappers.get(Float.class);
         } else if (type == BigInteger.class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(BigInteger::new)
-                        .orElseThrow(noSuchQueryVariable);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(BigInteger::new).orElse(null);
-            }
+            mapper = queryValueMappers.get(BigInteger.class);
         } else if (type == BigDecimal.class) {
-            if (queryVar.required()) {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(BigDecimal::new)
-                        .orElseThrow(noSuchQueryVariable);
-            } else {
-                return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(BigDecimal::new).orElse(null);
-            }
+            mapper = queryValueMappers.get(BigDecimal.class);
         } else if (type == OptionalInt.class) {
-            return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Integer::valueOf)
-                    .map(OptionalInt::of).orElse(OptionalInt.empty());
+            mapper = queryValueMappers.get(OptionalInt.class);
+            return ctx -> ctx.queryParameter(name).map(mapper).orElse(OptionalInt.empty());
         } else if (type == OptionalLong.class) {
-            return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Long::valueOf)
-                    .map(OptionalLong::of).orElse(OptionalLong.empty());
+            mapper = queryValueMappers.get(OptionalLong.class);
+            return ctx -> ctx.queryParameter(name).map(mapper).orElse(OptionalLong.empty());
         } else if (type == OptionalDouble.class) {
-            return ctx -> ctx.queryParameter(name).map(ControllerBeanUtil::first).map(Double::valueOf)
-                    .map(OptionalDouble::of).orElse(OptionalDouble.empty());
+            mapper = queryValueMappers.get(OptionalDouble.class);
+            return ctx -> ctx.queryParameter(name).map(mapper).orElse(OptionalDouble.empty());
         } else {
             throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
         }
-    }
-
-    private static final String joinStrings(List<String> values) {
-        if (values.size() == 1) {
-            return first(values);
+        if (queryVar.required()) {
+            Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
+            return ctx -> ctx.queryParameter(name).map(mapper).orElseThrow(noSuchQueryVariable);
         } else {
-            return String.join(",", values);
+            return ctx -> ctx.queryParameter(name).map(mapper).orElse(null);
         }
-    }
-
-    private static final String first(List<String> values) {
-        return values.get(0);
     }
 
     private static final Supplier<IllegalArgumentException> noSuchQueryVariable(String name) {
@@ -426,17 +393,93 @@ public class ControllerBeanUtil {
         return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
-    private static final Function<HttpRequestContext, Object> listMapper(QueryVar queryVar, Type type, String name) {
-        // TODO Auto-generated method stub
-        return null;
+    private static final Map<Class<?>, Function<List<String>, Object>> queryListValueMappers;
+
+    static {
+        Map<Class<?>, Function<List<String>, Object>> map = new HashMap<>();
+        Collector<Object, ?, ?> toList = Collectors.toList();
+        map.put(String.class, ArrayList::new);
+        map.put(Byte.class, values -> values.stream().map(Byte::valueOf).collect(toList));
+        map.put(Short.class, values -> values.stream().map(Short::valueOf).collect(toList));
+        map.put(Integer.class, values -> values.stream().map(Integer::valueOf).collect(toList));
+        map.put(Long.class, values -> values.stream().map(Long::valueOf).collect(toList));
+        map.put(Float.class, values -> values.stream().map(Float::valueOf).collect(toList));
+        map.put(Double.class, values -> values.stream().map(Double::valueOf).collect(toList));
+        map.put(Boolean.class, values -> values.stream().map(Boolean::valueOf).collect(toList));
+        map.put(BigInteger.class, values -> values.stream().map(BigInteger::new).collect(toList));
+        map.put(BigDecimal.class, values -> values.stream().map(BigDecimal::new).collect(toList));
+        queryListValueMappers = map;
     }
+
+    private static final Function<HttpRequestContext, Object> toListMapper(QueryVar queryVar, ParameterizedType type,
+            String name) {
+        Type atype = type.getActualTypeArguments()[0];
+        Function<List<String>, Object> mapper = queryListValueMappers.get(atype == Object.class ? String.class : atype);
+        if (mapper == null) {
+            throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
+        }
+        if (queryVar.required()) {
+            Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
+            return ctx -> ctx.queryParameter(name).map(mapper).orElseThrow(noSuchQueryVariable);
+        } else {
+            return ctx -> ctx.queryParameter(name).map(mapper).orElse(null);
+        }
+    }
+
+    private static final Map<Class<?>, Function<List<String>, Object>> querySetValueMappers;
+
+    static {
+        Map<Class<?>, Function<List<String>, Object>> map = new HashMap<>();
+        Collector<Object, ?, ?> toSet = Collectors.toCollection(LinkedHashSet::new);
+        map.put(String.class, LinkedHashSet::new);
+        map.put(Byte.class, values -> values.stream().map(Byte::valueOf).collect(toSet));
+        map.put(Short.class, values -> values.stream().map(Short::valueOf).collect(toSet));
+        map.put(Integer.class, values -> values.stream().map(Integer::valueOf).collect(toSet));
+        map.put(Long.class, values -> values.stream().map(Long::valueOf).collect(toSet));
+        map.put(Float.class, values -> values.stream().map(Float::valueOf).collect(toSet));
+        map.put(Double.class, values -> values.stream().map(Double::valueOf).collect(toSet));
+        map.put(Boolean.class, values -> values.stream().map(Boolean::valueOf).collect(toSet));
+        map.put(BigInteger.class, values -> values.stream().map(BigInteger::new).collect(toSet));
+        map.put(BigDecimal.class, values -> values.stream().map(BigDecimal::new).collect(toSet));
+        querySetValueMappers = map;
+    }
+
+    private static final Function<HttpRequestContext, Object> toSetMapper(QueryVar queryVar, ParameterizedType type,
+            String name) {
+        Type atype = type.getActualTypeArguments()[0];
+        Function<List<String>, Object> mapper = querySetValueMappers.get(atype == Object.class ? String.class : atype);
+        if (mapper == null) {
+            throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
+        }
+        if (queryVar.required()) {
+            Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
+            return ctx -> ctx.queryParameter(name).map(mapper).orElseThrow(noSuchQueryVariable);
+        } else {
+            return ctx -> ctx.queryParameter(name).map(mapper).orElse(null);
+        }
+    }
+
+    private static final Function<HttpRequestContext, Object> toOptionalMapper(QueryVar queryVar,
+            ParameterizedType type, String name) {
+        Type atype = type.getActualTypeArguments()[0];
+        Function<List<String>, Object> mapper = queryValueMappers.get(atype == Object.class ? String.class : atype);
+        if (mapper == null) {
+            throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
+        }
+        return ctx -> ctx.queryParameter(name).map(mapper);
+    }
+
+    private static final Function<HttpRequestContext, Object> contentToStringMapper = ctx -> ctx.request().content()
+            .toString(CharsetUtil.UTF_8);
+    private static final Function<HttpRequestContext, Object> contentToBytesMapper = ctx -> ByteBufUtil
+            .getBytes(ctx.request().content());
 
     private static final Function<HttpRequestContext, Object> toJsonBodyMapper(Parameter param, JsonBody jsonBody) {
         Type type = param.getParameterizedType();
         if (type == String.class) {
-            return ctx -> ctx.request().content().toString(CharsetUtil.UTF_8);
+            return contentToStringMapper;
         } else if (type == byte[].class) {
-            return ctx -> ByteBufUtil.getBytes(ctx.request().content());
+            return contentToBytesMapper;
         } else {
             return ctx -> ctx.property(JsonLibrary.KEY).orElseThrow(MISSING_JSON_LIBRARY).read(ctx.request().content(),
                     type);
@@ -446,6 +489,194 @@ public class ControllerBeanUtil {
     private static final IllegalArgumentException MISSING_JSON_LIBRARY_EXCEPTION = new IllegalArgumentException();
 
     private static final Supplier<IllegalArgumentException> MISSING_JSON_LIBRARY = () -> MISSING_JSON_LIBRARY_EXCEPTION;
+
+    private static final Supplier<IllegalArgumentException> noSuchHeader(String name) {
+        String message = "missing header " + name;
+        IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
+                IllegalArgumentException::new);
+        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
+    }
+
+    private static final Function<HttpRequestContext, Object> toHeaderValueMapper(Parameter param,
+            HeaderValue headerValue) {
+        Type type = param.getParameterizedType();
+        String name = headerValue.value();
+        if (type instanceof Class<?>) {
+            return toSimpleMapper(headerValue, type, name);
+        }
+        if (Optional.class == param.getType()) {
+            return toOptionalMapper(headerValue, (ParameterizedType) type, name);
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
+    }
+
+    private static Function<HttpRequestContext, Object> toSimpleMapper(HeaderValue headerValue, Type type,
+            String name) {
+        if (type == String.class || type == Object.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> ctx.headers().get(name);
+            }
+        } else if (type == int.class || type == Integer.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().getInt(name)).orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> ctx.headers().getInt(name);
+            }
+        } else if (type == short.class || type == Short.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().getShort(name)).orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> ctx.headers().getShort(name);
+            }
+        } else if (type == long.class || type == Long.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Long::valueOf).orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Long::valueOf).orElse(null);
+            }
+        } else if (type == byte.class || type == Byte.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Byte::valueOf).orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Byte::valueOf).orElse(null);
+            }
+        } else if (type == float.class || type == Float.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Float::valueOf)
+                        .orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Float::valueOf).orElse(null);
+            }
+        } else if (type == double.class || type == Double.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Double::valueOf)
+                        .orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Double::valueOf).orElse(null);
+            }
+        } else if (type == BigInteger.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(BigInteger::new)
+                        .orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(BigInteger::new).orElse(null);
+            }
+        } else if (type == BigDecimal.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(BigDecimal::new)
+                        .orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(BigDecimal::new).orElse(null);
+            }
+        } else if (type == Date.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Date::new)
+                        .orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Date::new).orElse(null);
+            }
+        } else if (type == Instant.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                        .orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                        .orElse(null);
+            }
+        } else if (type == ZonedDateTime.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                        .map(i -> i.atZone(ZoneId.systemDefault())).orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                        .map(i -> i.atZone(ZoneId.systemDefault())).orElse(null);
+            }
+        } else if (type == OffsetDateTime.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                        .map(i -> i.atZone(ZoneId.systemDefault()).toOffsetDateTime()).orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                        .map(i -> i.atZone(ZoneId.systemDefault()).toOffsetDateTime()).orElse(null);
+            }
+        } else if (type == LocalDateTime.class) {
+            if (headerValue.required()) {
+                Supplier<IllegalArgumentException> noSuchHeader = noSuchHeader(name);
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                        .map(i -> LocalDateTime.ofInstant(i, ZoneId.systemDefault())).orElseThrow(noSuchHeader);
+            } else {
+                return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                        .map(i -> LocalDateTime.ofInstant(i, ZoneId.systemDefault())).orElse(null);
+            }
+        } else if (type == OptionalInt.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().getInt(name)).map(OptionalInt::of)
+                    .orElse(OptionalInt.empty());
+        } else if (type == OptionalLong.class) {
+            return ctx -> {
+                String v = ctx.headers().get(name);
+                return v == null ? OptionalLong.empty() : OptionalLong.of(Long.parseLong(v));
+            };
+        } else if (type == OptionalDouble.class) {
+            return ctx -> {
+                String v = ctx.headers().get(name);
+                return v == null ? OptionalDouble.empty() : OptionalDouble.of(Double.parseDouble(v));
+            };
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
+    }
+
+    private static final Function<HttpRequestContext, Object> toOptionalMapper(HeaderValue headerValue,
+            ParameterizedType type, String name) {
+        Type atype = type.getActualTypeArguments()[0];
+        if (atype == String.class || atype == Object.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().get(name));
+        } else if (atype == Integer.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().getInt(name));
+        } else if (atype == Short.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().getShort(name));
+        } else if (atype == Long.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Long::valueOf);
+        } else if (atype == Byte.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Byte::valueOf);
+        } else if (atype == Double.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Double::valueOf);
+        } else if (atype == Float.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(Float::valueOf);
+        } else if (atype == BigDecimal.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(BigDecimal::new);
+        } else if (atype == BigInteger.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().get(name)).map(BigInteger::new);
+        } else if (atype == Date.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Date::new);
+        } else if (atype == Instant.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli);
+        } else if (atype == LocalDateTime.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                    .map(i -> LocalDateTime.ofInstant(i, ZoneId.systemDefault()));
+        } else if (atype == ZonedDateTime.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                    .map(i -> i.atZone(ZoneId.systemDefault()));
+        } else if (atype == OffsetDateTime.class) {
+            return ctx -> Optional.ofNullable(ctx.headers().getTimeMillis(name)).map(Instant::ofEpochMilli)
+                    .map(i -> i.atZone(ZoneId.systemDefault()).toOffsetDateTime());
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
+    }
 
     private static final Function<HttpRequestContext, Object[]> toParametersMapper(
             Function<HttpRequestContext, Object>[] parameterMappers) {

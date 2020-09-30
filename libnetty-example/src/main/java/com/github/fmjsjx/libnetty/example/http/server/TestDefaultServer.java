@@ -13,11 +13,13 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
@@ -27,9 +29,12 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
 import com.github.fmjsjx.libnetty.http.server.annotation.GetRoute;
+import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
+import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
 import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.PostRoute;
+import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLoggerWrapper;
@@ -37,6 +42,7 @@ import com.github.fmjsjx.libnetty.http.server.middleware.AuthBasic;
 import com.github.fmjsjx.libnetty.http.server.middleware.ControllerBeanUtil;
 import com.github.fmjsjx.libnetty.http.server.middleware.Router;
 import com.github.fmjsjx.libnetty.http.server.middleware.ServeStatic;
+import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -58,6 +64,7 @@ public class TestDefaultServer {
 //        ControllerBeanUtil.register(null, controller);
         handlerProvider.exceptionHandler((ctx, e) -> log.error("EEEEEEEEEEEEEEEEEEEEEEEEEEEE ==> {}", ctx.channel(), e))
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2))
+                .addLast(new SupportJson())
                 .addLast("/static/auth", new AuthBasic(Collections.singletonMap("test", "123456"), "test"))
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/"))
                 .addLast(new Router().register(controller).init());
@@ -104,11 +111,14 @@ class TestController {
     }
 
     @GetRoute("/errors/{code}")
-    public CompletionStage<HttpResult> getErrors(HttpRequestContext ctx, @PathVar("code") int code) {
+    public CompletionStage<HttpResult> getErrors(HttpRequestContext ctx, @PathVar("code") int code,
+            @RemoteAddr String clientIp, @HeaderValue("user-agent") Optional<String> userAgent) {
         // GET /errors/{code}
         System.out.println("-- errors --");
+        System.out.println("client IP ==> " + clientIp);
+        System.out.println("user agent ==> " + userAgent);
         HttpResponseStatus status = HttpResponseStatus.valueOf(code);
-        System.out.println("status: ==> " + status);
+        System.out.println("status ==> " + status);
         return HttpServerUtil.respond(ctx, status);
     }
 
@@ -133,12 +143,12 @@ class TestController {
     }
 
     @PostRoute("/echo")
-    public CompletionStage<HttpResult> postEcho(HttpRequestContext ctx) {
+    public CompletionStage<HttpResult> postEcho(HttpRequestContext ctx, @JsonBody JsonNode value) {
         // POST /echo
         System.out.println("-- echo --");
+        System.out.println("value ==> " + value);
         ByteBuf content = ctx.request().content();
         Charset charset = HttpUtil.getCharset(ctx.request(), CharsetUtil.UTF_8);
-        System.out.println(content.toString(charset));
         CharSequence contentType = ctx.contentType().orElseGet(() -> contentType(TEXT_PLAIN, charset));
         return HttpServerUtil.respond(ctx, OK, content.retain(), contentType);
     }
