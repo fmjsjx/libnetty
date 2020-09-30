@@ -25,7 +25,7 @@ public abstract class HttpFailureException extends HttpRuntimeException {
     }
 
     protected HttpFailureException(Throwable cause) {
-        super(cause);
+        super(cause.getMessage(), cause);
     }
 
     /**
@@ -34,5 +34,11 @@ public abstract class HttpFailureException extends HttpRuntimeException {
      * @return the failure status
      */
     public abstract HttpResponseStatus status();
+
+    @Override
+    public String getLocalizedMessage() {
+        String msg = getMessage();
+        return msg == null ? status().toString() : status() + ": " + getMessage();
+    }
 
 }
