@@ -142,6 +142,9 @@ public class SupportJson implements Middleware {
         public <T> T read(ByteBuf content, Type valueType) {
             try (InputStream src = new ByteBufInputStream(content.duplicate())) {
                 if (valueType instanceof Class) {
+                    if (com.fasterxml.jackson.databind.JsonNode.class.isAssignableFrom((Class<T>) valueType)) {
+                        return (T) objectMapper.readTree(src);
+                    }
                     return objectMapper.readValue(src, (Class<T>) valueType);
                 }
                 com.fasterxml.jackson.databind.JavaType javaType = cachedJavaTypes.computeIfAbsent(valueType,
