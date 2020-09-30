@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  * Annotation that indicates method parameter should be bound to the HTTP header
  * with the specified name.
  * <p>
- * Supported for {@link HttpRoute} annotated handler methods
+ * Supported for {@link HttpRoute} annotated handler methods.
  * 
  * @since 1.1
  *
