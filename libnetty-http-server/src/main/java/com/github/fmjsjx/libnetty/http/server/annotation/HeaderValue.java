@@ -27,4 +27,13 @@ public @interface HeaderValue {
      */
     String value();
 
+    /**
+     * Returns whether the header is required.
+     * <p>
+     * The default is {@code true}.
+     * 
+     * @return whether the header is required
+     */
+    boolean required() default true;
+
 }
