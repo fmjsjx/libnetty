@@ -9,7 +9,9 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 import java.nio.charset.Charset;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
+
+import com.github.fmjsjx.libnetty.http.server.exception.HttpFailureException;
+import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -331,8 +333,41 @@ public class HttpServerUtil {
      * @param ctx the {@link HttpRequestContext}
      * @return a {@code CompletableFuture<HttpResult>}
      */
-    public static final CompletionStage<HttpResult> sendBadReqest(HttpRequestContext ctx) {
+    public static final CompletableFuture<HttpResult> sendBadReqest(HttpRequestContext ctx) {
         return sendResponse(ctx, HttpResponseUtil.badRequest(ctx.version(), HttpUtil.isKeepAlive(ctx.request())));
+    }
+
+    /**
+     * Respond HTTP response to client and returns the {@link HttpResult}
+     * asynchronously.
+     * 
+     * @param ctx   the {@link HttpRequestContext}
+     * @param cause the cause
+     * @return a {@code CompletableFuture<HttpResult>}
+     */
+    public static final CompletableFuture<HttpResult> respond(HttpRequestContext ctx, HttpFailureException cause) {
+        if (cause instanceof ManualHttpFailureException) {
+            ManualHttpFailureException e = (ManualHttpFailureException) cause;
+            ByteBuf content = ByteBufUtil.writeUtf8(ctx.alloc(), e.content());
+            return respond(ctx, e.status(), content, e.contentType());
+        }
+        ByteBuf content = ByteBufUtil.writeUtf8(ctx.alloc(), cause.getLocalizedMessage());
+        return respond(ctx, cause.status(), content, TEXT_PLAIN_UTF8);
+    }
+
+    /**
+     * Respond HTTP error response to client and returns the {@link HttpResult}
+     * asynchronously.
+     * 
+     * @param ctx   the {@link HttpRequestContext}
+     * @param cause the cause
+     * @return a {@code CompletableFuture<HttpResult>}
+     */
+    public static final CompletableFuture<HttpResult> respondError(HttpRequestContext ctx, Throwable cause) {
+        if (cause instanceof HttpFailureException) {
+            return respond(ctx, (HttpFailureException) cause);
+        }
+        return sendInternalServerError(ctx, cause);
     }
 
     private HttpServerUtil() {
