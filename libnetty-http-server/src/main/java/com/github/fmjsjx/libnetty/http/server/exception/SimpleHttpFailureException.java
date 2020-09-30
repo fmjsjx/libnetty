@@ -9,65 +9,65 @@ import io.netty.handler.codec.http.HttpResponseStatus;
  *
  * @author MJ Fang
  */
-public class DefaultHttpFailureException extends HttpFailureException {
+public class SimpleHttpFailureException extends HttpFailureException {
 
     private static final long serialVersionUID = 5524273483668587550L;
 
     private final HttpResponseStatus status;
 
     /**
-     * Constructs a new {@link DefaultHttpFailureException} instance with the
+     * Constructs a new {@link SimpleHttpFailureException} instance with the
      * specified status, message and cause.
      * 
      * @param status  the failure status
      * @param message the detail message
      * @param cause   the cause
      */
-    public DefaultHttpFailureException(HttpResponseStatus status, String message, Throwable cause) {
+    public SimpleHttpFailureException(HttpResponseStatus status, String message, Throwable cause) {
         super(message, cause);
         this.status = status;
     }
 
     /**
-     * Constructs a new {@link DefaultHttpFailureException} instance with the
+     * Constructs a new {@link SimpleHttpFailureException} instance with the
      * specified status and message.
      * 
      * @param status  the failure status
      * @param message the detail message
      */
-    public DefaultHttpFailureException(HttpResponseStatus status, String message) {
+    public SimpleHttpFailureException(HttpResponseStatus status, String message) {
         super(message);
         this.status = status;
     }
 
     /**
-     * Constructs a new {@link DefaultHttpFailureException} instance with the status
+     * Constructs a new {@link SimpleHttpFailureException} instance with the status
      * "500 Internal Server Error" and the specified message and cause.
      * 
      * @param message the detail message
      * @param cause   the cause
      */
-    public DefaultHttpFailureException(String message, Throwable cause) {
+    public SimpleHttpFailureException(String message, Throwable cause) {
         this(HttpResponseStatus.INTERNAL_SERVER_ERROR, message, cause);
     }
 
     /**
-     * Constructs a new {@link DefaultHttpFailureException} instance with the status
+     * Constructs a new {@link SimpleHttpFailureException} instance with the status
      * "500 Internal Server Error" and the specified message.
      * 
      * @param message the detail message
      */
-    public DefaultHttpFailureException(String message) {
+    public SimpleHttpFailureException(String message) {
         this(HttpResponseStatus.INTERNAL_SERVER_ERROR, message);
     }
 
     /**
-     * Constructs a new {@link DefaultHttpFailureException} instance with the status
+     * Constructs a new {@link SimpleHttpFailureException} instance with the status
      * "500 Internal Server Error" and the specified cause.
      * 
      * @param cause the cause
      */
-    public DefaultHttpFailureException(Throwable cause) {
+    public SimpleHttpFailureException(Throwable cause) {
         this(cause.getMessage(), cause);
     }
 
