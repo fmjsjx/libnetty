@@ -12,6 +12,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 import java.nio.charset.Charset;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -21,8 +22,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
+import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpServer;
-import com.github.fmjsjx.libnetty.http.server.DefaultHttpServerHandlerProvider;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
@@ -44,6 +45,7 @@ import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
@@ -56,29 +58,40 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TestDefaultServer {
 
+    private static final Map<String, String> passwds() {
+        return Collections.singletonMap("test", "123456");
+    }
+
     public static void main(String[] args) throws Exception {
         TestController controller = new TestController();
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
-        DefaultHttpServerHandlerProvider handlerProvider = new DefaultHttpServerHandlerProvider();
-        handlerProvider.exceptionHandler((ctx, e) -> log.error("EEEEEEEEEEEEEEEEEEEEEEEEEEEE ==> {}", ctx.channel(), e))
-                .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2))
-                .addLast(new SupportJson())
-                .addLast("/static/auth", new AuthBasic(Collections.singletonMap("test", "123456"), "test"))
-                .addLast(new ServeStatic("/static/", "src/main/resources/static/"))
-                .addLast(new Router().register(controller).init());
-        DefaultHttpServer server = new DefaultHttpServer("test", SslContextProviders.selfSignedForServer(), 8443)
-                .corsConfig(corsConfig).ioThreads(1).maxContentLength(10 * 1024 * 1024).soBackLog(1024).tcpNoDelay()
-                .handlerProvider(handlerProvider);
+        DefaultHttpServer server = new DefaultHttpServer("test", 8443) // server name and port
+                .enableSsl(SslContextProviders.selfSignedForServer()) // SSL
+                .neverTimeout() // never timeout
+                .corsConfig(corsConfig) // CORS support
+                .ioThreads(1) // IO threads (event loop)
+                .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
+                .soBackLog(1024).tcpNoDelay() // channel options
+                .applyCompressionSettings(HttpContentCompressorFactory.defaultSettings()) // compression support
+        ;
+        server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
+                .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
+                .addLast(new SupportJson()) // JSON support
+                .addLast("/static/auth", new AuthBasic(passwds(), "test")) // HTTP Basic Authentication
+                .addLast(new ServeStatic("/static/", "src/main/resources/static/")) // static resources
+                .addLast(new Router().register(controller).init()) // router
+        ;
         try {
             server.startup();
+            log.info("Server {} started.", server);
             System.in.read();
         } catch (Exception e) {
-            System.err.println("Unexpected error occurs when startup " + server);
-            e.printStackTrace();
+            log.error("Unexpected error occurs when startup {}", server, e);
         } finally {
             if (server.isRunning()) {
                 server.shutdown();
+                log.info("Server {} stopped.", server);
             }
         }
     }
@@ -114,28 +127,25 @@ class TestController {
 
     @GetRoute("/jsons")
     @JsonBody
-    public CompletableFuture<?> getJsons(QueryStringDecoder query) {
+    public CompletableFuture<?> getJsons(QueryStringDecoder query, EventLoop eventLoop) {
         // GET /jsons
         System.out.println("-- jsons --");
         ObjectNode node = mapper.createObjectNode();
         query.parameters().forEach((key, values) -> {
             if (values.size() == 1) {
-                for (String value : values) {
-                    node.put(key, value);
-                }
+                node.put(key, values.get(0));
             } else {
                 node.putPOJO(key, values);
             }
         });
-        CompletableFuture<Object> future = new CompletableFuture<>();
-        if (node.isEmpty()) {
-            future.completeExceptionally(
-                    new ManualHttpFailureException(BAD_REQUEST, "{\"code\":1,\"message\":\"Missing Query String\"}",
-                            HttpHeaderValues.APPLICATION_JSON, "Missing Query String"));
-        } else {
-            future.complete(node);
-        }
-        return future;
+        return CompletableFuture.supplyAsync(() -> {
+            if (node.isEmpty()) {
+                throw new ManualHttpFailureException(BAD_REQUEST, "{\"code\":1,\"message\":\"Missing Query String\"}",
+                        HttpHeaderValues.APPLICATION_JSON, "Missing Query String");
+            } else {
+                return node;
+            }
+        }, eventLoop);
     }
 
     @PostRoute("/echo")
