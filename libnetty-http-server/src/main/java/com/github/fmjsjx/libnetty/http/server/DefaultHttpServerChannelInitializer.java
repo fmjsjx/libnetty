@@ -55,7 +55,10 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     @Override
     protected void initChannel(Channel ch) throws Exception {
         ChannelPipeline pipeline = ch.pipeline();
-        pipeline.addLast(new ReadTimeoutHandler(timeoutSeconds));
+        int timeoutSeconds = this.timeoutSeconds;
+        if (timeoutSeconds > 0) {
+            pipeline.addLast(new ReadTimeoutHandler(timeoutSeconds));
+        }
         if (sslEnabled) {
             SslContext sslContext = sslContextProvider.get();
             pipeline.addLast(sslContext.newHandler(ch.alloc()));

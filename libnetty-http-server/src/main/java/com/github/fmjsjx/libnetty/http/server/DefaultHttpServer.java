@@ -47,7 +47,7 @@ public class DefaultHttpServer implements HttpServer {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultHttpServer.class);
 
-    private static final int DEFAULT_MAX_CONTENT_LENGTH = 1 * 1024 * 1024;
+    private static final int DEFAULT_MAX_CONTENT_LENGTH = Integer.MAX_VALUE;
     private static final int DEFAULT_TIMEOUT_SECONDS = 60;
 
     private String name;
@@ -314,7 +314,7 @@ public class DefaultHttpServer implements HttpServer {
     /**
      * Set the maximum length of HTTP content.
      * <p>
-     * The default value is {@code 1048576(1MB)}.
+     * The default value is {@code 2147483647(Integer.MAX_VALUE)}.
      * 
      * @param maxContentLength the maximum length of HTTP content
      * @return this server
@@ -366,6 +366,29 @@ public class DefaultHttpServer implements HttpServer {
         }
         this.timeoutSeconds = timeoutSeconds;
         return this;
+    }
+
+    /**
+     * Let connections never timeout.
+     * <p>
+     * This method is equivalent to:
+     * 
+     * <pre>
+     * {@code
+     *     timeoutSeconds(0);
+     * }
+     * 
+     * or
+     * 
+     * {@code
+     *     timeout(Duration.ZERO);
+     * }
+     * </pre>
+     * 
+     * @return this server
+     */
+    public DefaultHttpServer neverTimeout() {
+        return timeoutSeconds(0);
     }
 
     /**
@@ -459,6 +482,17 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
+     * Disable SSL support.
+     * 
+     * @return this server
+     */
+    public DefaultHttpServer disableSsl() {
+        ensureNotStarted();
+        this.sslContextProvider = null;
+        return this;
+    }
+
+    /**
      * Enable HTTP content compression feature and apply compression settings.
      * 
      * @param action the apply action
@@ -500,6 +534,16 @@ public class DefaultHttpServer implements HttpServer {
         ensureNotStarted();
         this.handlerProvider = requireNonNull(handlerProvider, "handlerProvider must not be null");
         return this;
+    }
+
+    /**
+     * Use and returns the {@link DefaultHttpServerHandlerProvider} for this server.
+     * 
+     * @return the {@code DefaultHttpServerHandlerProvider}
+     */
+    public DefaultHttpServerHandlerProvider defaultHandlerProvider() {
+        ensureNotStarted();
+        return (DefaultHttpServerHandlerProvider) (handlerProvider = new DefaultHttpServerHandlerProvider());
     }
 
     /**
