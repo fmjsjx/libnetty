@@ -1,5 +1,7 @@
 package com.github.fmjsjx.libnetty.http;
 
+import java.util.function.Consumer;
+
 import io.netty.handler.codec.http.HttpContentCompressor;
 
 /**
@@ -17,6 +19,18 @@ public class HttpContentCompressorFactory {
     private static final int DEFAULT_WINDOW_BITS = 15;
     private static final int DEFAULT_MEM_LEVEL = 8;
     private static final int DEFAULT_CONTENT_SIZE_THRESHOLD = 1024;
+
+    /**
+     * Returns an apply action that just create builder with default settings but do
+     * nothing.
+     * 
+     * @return a {@code Consumer<HttpContentCompressorFactory.Builder>}
+     */
+    public static final Consumer<Builder> defaultSettings() {
+        return builder -> {
+            // just create builder with default settings
+        };
+    }
 
     /**
      * Creates a new {@link Builder}.
