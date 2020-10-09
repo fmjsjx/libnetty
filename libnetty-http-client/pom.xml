@@ -53,6 +53,10 @@
       <groupId>com.jcraft</groupId>
       <artifactId>jzlib</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.brotli</groupId>
+      <artifactId>dec</artifactId>
+    </dependency>
     <!-- Test -->
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>

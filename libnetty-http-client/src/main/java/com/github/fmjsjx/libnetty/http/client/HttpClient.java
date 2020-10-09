@@ -829,4 +829,10 @@ public interface HttpClient extends AutoCloseable {
 
     }
 
+    /**
+     * {@code "gzip,deflate,br"}
+     * 
+     * @since 1.1
+     */
+    AsciiString GZIP_DEFLATE_BR = AsciiString.cached("gzip,deflate,br");
 }

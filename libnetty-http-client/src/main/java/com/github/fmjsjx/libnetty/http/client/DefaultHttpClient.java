@@ -74,8 +74,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
     private final ConcurrentMap<String, ConcurrentLinkedDeque<HttpConnection>> cachedPools = new ConcurrentHashMap<String, ConcurrentLinkedDeque<HttpConnection>>();
 
-    DefaultHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContextProvider sslContextProvider,
-            boolean compressionEnabled, boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
+    DefaultHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
+            SslContextProvider sslContextProvider, boolean compressionEnabled, boolean shutdownGroupOnClose,
+            int timeoutSeconds, int maxContentLength) {
         super(group, channelClass, sslContextProvider, compressionEnabled);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
@@ -115,13 +116,19 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
                             ChannelPipeline cp = ch.pipeline();
+                            boolean decompression = compressionEnabled;
                             cp.addLast(new IdleStateHandler(0, 0, timeoutSeconds));
                             if (ssl) {
                                 cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
                             }
                             cp.addLast(new HttpClientCodec());
-                            cp.addLast(new HttpContentDecompressor());
+                            if (decompression) {
+                                cp.addLast(new HttpContentDecompressor());
+                            }
                             cp.addLast(new HttpObjectAggregator(maxContentLength));
+                            if (decompression) {
+                                cp.addLast(BrotliDecompressor.INSTANCE);
+                            }
                             cp.addLast(handler);
                         }
                     });
@@ -301,10 +308,11 @@ public class DefaultHttpClient extends AbstractHttpClient {
                             }
                         }
                         if (compressionEnabled) {
-                            headers.set(ACCEPT_ENCODING, GZIP_DEFLATE);
+                            headers.set(ACCEPT_ENCODING, GZIP_DEFLATE_BR);
                         } else {
                             headers.remove(ACCEPT_ENCODING);
                         }
+                        System.err.println(req);
                         HttpUtil.setKeepAlive(req, true);
                         channel.writeAndFlush(req);
                     } else {
@@ -384,8 +392,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
          */
         public DefaultHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled, false, timeoutSeconds(),
-                    maxContentLength);
+            return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled, false,
+                    timeoutSeconds(), maxContentLength);
         }
 
     }

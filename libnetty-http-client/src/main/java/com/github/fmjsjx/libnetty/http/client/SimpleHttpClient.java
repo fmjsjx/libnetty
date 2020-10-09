@@ -164,13 +164,19 @@ public class SimpleHttpClient extends AbstractHttpClient {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
                         ChannelPipeline cp = ch.pipeline();
+                        boolean decompression = compressionEnabled;
                         cp.addLast(new ReadTimeoutHandler(timeoutSeconds));
                         if (ssl) {
                             cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
                         }
                         cp.addLast(new HttpClientCodec());
-                        cp.addLast(new HttpContentDecompressor());
+                        if (decompression) {
+                            cp.addLast(new HttpContentDecompressor());
+                        }
                         cp.addLast(new HttpObjectAggregator(maxContentLength));
+                        if (decompression) {
+                            cp.addLast(BrotliDecompressor.INSTANCE);
+                        }
                         cp.addLast(new SimpleHttpClientHandler<>(future, contentHandler, executor));
                     }
                 });
@@ -193,7 +199,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
                     }
                 }
                 if (compressionEnabled) {
-                    headers.set(ACCEPT_ENCODING, GZIP_DEFLATE);
+                    headers.set(ACCEPT_ENCODING, GZIP_DEFLATE_BR);
                 } else {
                     headers.remove(ACCEPT_ENCODING);
                 }
