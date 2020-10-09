@@ -17,6 +17,7 @@ import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.ReferenceCounted;
@@ -111,6 +112,16 @@ public interface HttpRequestContext extends ReferenceCounted {
      * @return a {@code FullHttpRequest}
      */
     FullHttpRequest request();
+
+    /**
+     * Returns if the connection is {@code keep-alive} or not.
+     * 
+     * @return {@code true} if the connection is {@code keep-alive}, {@code false}
+     *         otherwise
+     */
+    default boolean isKeepAlive() {
+        return HttpUtil.isKeepAlive(request());
+    }
 
     /**
      * Returns the protocol version of the HTTP request.

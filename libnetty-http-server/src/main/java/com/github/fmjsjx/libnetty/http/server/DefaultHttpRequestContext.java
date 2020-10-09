@@ -29,6 +29,7 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
     private final int contentLength;
 
     private String remoteAddress;
+    private int keepAliveFlag = -1;
     private Optional<CharSequence> contentType;
     private QueryStringDecoder queryStringDecoder;
     private AtomicReference<PathVariables> pathVariablesRef = new AtomicReference<>();
@@ -78,6 +79,15 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
     }
 
     @Override
+    public boolean isKeepAlive() {
+        int flag = keepAliveFlag;
+        if (flag == -1) {
+            keepAliveFlag = flag = HttpUtil.isKeepAlive(request()) ? 1 : 0;
+        }
+        return flag == 1;
+    }
+
+    @Override
     public int contentLength() {
         return contentLength;
     }
@@ -99,12 +109,12 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
         }
         return decoder;
     }
-    
+
     @Override
     public PathVariables pathVariables() {
         return pathVariablesRef.get();
     }
-    
+
     @Override
     public HttpRequestContext pathVariables(PathVariables pathVariables) {
         this.pathVariablesRef.set(pathVariables);
