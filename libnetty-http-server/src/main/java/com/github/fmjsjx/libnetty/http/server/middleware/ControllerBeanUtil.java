@@ -28,6 +28,7 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -58,8 +59,10 @@ import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson.JsonLibrary
 
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.EventLoop;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.StringUtil;
@@ -159,6 +162,9 @@ public class ControllerBeanUtil {
             HttpRequestContext ctx) {
         return (result, cause) -> {
             if (cause != null) {
+                if (cause instanceof CompletionException) {
+                    return HttpServerUtil.respondError(ctx, cause.getCause());
+                }
                 return HttpServerUtil.respondError(ctx, cause);
             }
             try {
@@ -288,6 +294,7 @@ public class ControllerBeanUtil {
     }
 
     private static final Function<HttpRequestContext, Object> contextMapper = ctx -> ctx;
+    private static final Function<HttpRequestContext, Object> fullRequestMapper = HttpRequestContext::request;
     private static final Function<HttpRequestContext, Object> headersMapper = HttpRequestContext::headers;
     private static final Function<HttpRequestContext, Object> queryMapper = HttpRequestContext::queryStringDecoder;
     private static final Function<HttpRequestContext, Object> eventLoopMapper = HttpRequestContext::eventLoop;
@@ -296,6 +303,8 @@ public class ControllerBeanUtil {
     private static final Function<HttpRequestContext, Object> toParameterMapper(Parameter param) {
         if (param.getType() == HttpRequestContext.class) {
             return contextMapper;
+        } else if (param.getType() == HttpRequest.class || param.getType() == FullHttpRequest.class) {
+            return fullRequestMapper;
         } else if (param.getType() == HttpHeaders.class) {
             return headersMapper;
         } else if (param.getType() == QueryStringDecoder.class) {
