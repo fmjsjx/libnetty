@@ -37,6 +37,7 @@ public interface PathPattern {
      * Returns a matcher that will match the given {@code path} against this
      * pattern.
      * 
+     * @param path the path
      * @return a matcher for this pattern
      */
     default Matcher matcher(String path) {
