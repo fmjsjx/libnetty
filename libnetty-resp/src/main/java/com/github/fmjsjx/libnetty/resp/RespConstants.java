@@ -6,51 +6,114 @@ import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.AsciiString;
 
 /**
- * In-package accessible constants of RESP.
+ * Constants of RESP.
  * 
  * @since 1.0
  *
  * @author MJ Fang
  */
-class RespConstants {
+public class RespConstants {
 
-    static final int TYPE_LENGTH = 1;
+    /**
+     * Length of type: {@code 1}
+     */
+    public static final int TYPE_LENGTH = 1;
 
-    static final int EOL_LENGTH = 2;
+    /**
+     * Length of EOL: {@code 2}
+     */
+    public static final int EOL_LENGTH = 2;
 
-    static final int NULL_LENGTH = 2;
+    /**
+     * Length of null: {@code 2}
+     */
+    public static final int NULL_LENGTH = 2;
 
-    static final int NULL_VALUE = -1;
+    /**
+     * Value of null: {@code -1}
+     */
+    public static final int NULL_VALUE = -1;
 
-    static final int RESP_MESSAGE_MAX_LENGTH = 512 * 1024 * 1024; // 512MB
+    /**
+     * Maximum length of RESP message: {@code 512MB}
+     */
+    public static final int RESP_MESSAGE_MAX_LENGTH = 512 * 1024 * 1024;
 
-    // 64KB is max inline length of current Redis server implementation.
-    static final int RESP_INLINE_MESSAGE_MAX_LENGTH = 64 * 1024;
+    /**
+     * Maximum length of RESP in-line message.
+     * <p>
+     * 64KB is max inline length of current Redis server implementation.
+     */
+    public static final int RESP_INLINE_MESSAGE_MAX_LENGTH = 64 * 1024;
 
-    static final int POSITIVE_LONG_MAX_LENGTH = 19; // length of Long.MAX_VALUE
+    /**
+     * Maximum length of positive long: {@code 19}
+     */
+    public static final int POSITIVE_LONG_MAX_LENGTH = 19;
 
-    static final int POSITIVE_INT_MAX_LENGTH = 10; // length of Integer.MAX_VALUE
+    /**
+     * Maximum length of positive int: {@code 10}
+     */
+    public static final int POSITIVE_INT_MAX_LENGTH = 10;
 
-    static final int LONG_MAX_LENGTH = POSITIVE_LONG_MAX_LENGTH + 1; // +1 is sign
+    /**
+     * Maximum length of long: {@code 20}
+     */
+    public static final int LONG_MAX_LENGTH = POSITIVE_LONG_MAX_LENGTH + 1; // +1 is sign
 
-    static final int INT_MAX_LENGTH = POSITIVE_INT_MAX_LENGTH + 1; // +1 is sign
+    /**
+     * Maximum length of int: {@code 11}
+     */
+    public static final int INT_MAX_LENGTH = POSITIVE_INT_MAX_LENGTH + 1; // +1 is sign
 
-    static final short NULL_SHORT = RespCodecUtil.makeShort('-', '1');
+    /**
+     * Short value of null.
+     */
+    public static final short NULL_SHORT = RespCodecUtil.makeShort('-', '1');
 
-    static final short EOL_SHORT = RespCodecUtil.makeShort('\r', '\n');
+    /**
+     * Short value of EOL.
+     */
+    public static final short EOL_SHORT = RespCodecUtil.makeShort('\r', '\n');
 
-    static final ByteBuf EOL_BUF = Unpooled.unreleasableBuffer(
+    /**
+     * {@link ByteBuf} contains EOL value.
+     * <p>
+     * The {@link ByteBuf} is unreleasable and read-only.
+     */
+    public static final ByteBuf EOL_BUF = Unpooled.unreleasableBuffer(
             UnpooledByteBufAllocator.DEFAULT.buffer(EOL_LENGTH, EOL_LENGTH).writeShort(EOL_SHORT).asReadOnly());
 
-    static final byte TYPE_ARRAY = '*';
-    static final byte TYPE_BULK_STRING = '$';
-    static final byte TYPE_SIMPLE_STRING = '+';
-    static final byte TYPE_ERROR = '-';
-    static final byte TYPE_INTEGER = ':';
-    
-    static final byte SPACE = ' ';
+    /**
+     * Sign of type array: {@code *}
+     */
+    public static final byte TYPE_ARRAY = '*';
+    /**
+     * Sign of type bulk string: {@code $}
+     */
+    public static final byte TYPE_BULK_STRING = '$';
+    /**
+     * Sign of type simple string: {@code +}
+     */
+    public static final byte TYPE_SIMPLE_STRING = '+';
+    /**
+     * Sign of type error: {@code -}
+     */
+    public static final byte TYPE_ERROR = '-';
+    /**
+     * Sign of type integer: {@code :}
+     */
+    public static final byte TYPE_INTEGER = ':';
 
-    static final AsciiString ERR = AsciiString.cached("ERR");
+    /**
+     * ASCII value of space.
+     */
+    public static final byte SPACE = ' ';
+
+    /**
+     * {@code "ERR"}
+     */
+    public static final AsciiString ERR = AsciiString.cached("ERR");
 
     private RespConstants() {
     }

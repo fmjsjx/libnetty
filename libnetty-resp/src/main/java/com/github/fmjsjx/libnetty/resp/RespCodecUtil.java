@@ -11,35 +11,60 @@ import io.netty.util.CharsetUtil;
 import io.netty.util.internal.PlatformDependent;
 
 /**
- * In-package accessible utility class for RESP CODEC.
+ * Utility class for RESP CODEC.
  *
  * @since 1.0
  *
  * @author MJ Fang
  */
-class RespCodecUtil {
+public class RespCodecUtil {
 
-    static byte[] longToAsciiBytes(long value) {
+    /**
+     * Convert long value to ASCII bytes.
+     * 
+     * @param value the value
+     * @return ASCII bytes
+     */
+    public static final byte[] longToAsciiBytes(long value) {
         if (value > -128 && value < 127) { // cached
             return LongCache.asciiBytesCache[(int) value + 128];
         }
         return encodeLongToAscii(value);
     }
 
-    static byte[] doubleToAsciiBytes(double value) {
+    /**
+     * Convert double value to ASCII bytes.
+     * 
+     * @param value the value
+     * @return ASCII bytes
+     */
+    public static final byte[] doubleToAsciiBytes(double value) {
         return Double.toString(value).getBytes(CharsetUtil.US_ASCII);
     }
 
-    private static byte[] encodeLongToAscii(long value) {
+    private static final byte[] encodeLongToAscii(long value) {
         return Long.toString(value).getBytes(CharsetUtil.US_ASCII);
     }
 
-    static short makeShort(char first, char second) {
+    /**
+     * Convert to short value.
+     * 
+     * @param first  the first ASCII char
+     * @param second the second ASCII char
+     * @return the converted short value
+     */
+    public static final short makeShort(char first, char second) {
         return PlatformDependent.BIG_ENDIAN_NATIVE_ORDER ? (short) ((second << 8) | first)
                 : (short) ((first << 8) | second);
     }
 
-    static byte[] shortToBytes(short value) {
+    /**
+     * Convert short value to ASCII bytes.
+     * 
+     * @param value the value
+     * @return ASCII bytes
+     */
+    public static final byte[] shortToBytes(short value) {
         byte[] bytes = new byte[2];
         if (PlatformDependent.BIG_ENDIAN_NATIVE_ORDER) {
             bytes[1] = (byte) ((value >> 8) & 0xff);
@@ -51,14 +76,29 @@ class RespCodecUtil {
         return bytes;
     }
 
-    static ByteBuf writeAsciiFixed(ByteBufAllocator alloc, AsciiString ascii) {
+    /**
+     * Writes ASCII string to a fixed {@link ByteBuf}.
+     * 
+     * @param alloc the allocator allocates {@link ByteBuf}s
+     * @param ascii the ASCII string
+     * @return a {@code ByteBuf}
+     */
+    public static final ByteBuf writeAsciiFixed(ByteBufAllocator alloc, AsciiString ascii) {
         if (ascii.length() == 0) {
             return Unpooled.EMPTY_BUFFER;
         }
         return alloc.buffer(ascii.length(), ascii.length()).writeBytes(ascii.array());
     }
 
-    static ByteBuf writeStringFixed(ByteBufAllocator alloc, String string, Charset charset) {
+    /**
+     * Writes string to a fixed {@link ByteBuf}.
+     * 
+     * @param alloc   the allocator allocates {@link ByteBuf}s
+     * @param string  the string
+     * @param charset the character-set of the string
+     * @return a {@code ByteBuf}
+     */
+    public static final ByteBuf writeStringFixed(ByteBufAllocator alloc, String string, Charset charset) {
         byte[] b = string.getBytes(charset);
         if (b.length == 0) {
             return Unpooled.EMPTY_BUFFER;
@@ -66,15 +106,34 @@ class RespCodecUtil {
         return alloc.buffer(b.length, b.length).writeBytes(b);
     }
 
-    static String toString(ByteBuf content) {
-        return content == null ? null : content.toString(CharsetUtil.UTF_8);
+    /**
+     * Safe toString() for {@link ByteBuf}.
+     * 
+     * @param content the content
+     * @return toString() result
+     */
+    public static final String toString(ByteBuf content) {
+        return toString(content, CharsetUtil.UTF_8);
     }
 
-    static String toString(ByteBuf content, Charset charset) {
+    /**
+     * Safe toString() for {@link ByteBuf}.
+     * 
+     * @param content the content
+     * @param charset the character-set of the content
+     * @return toString() result
+     */
+    public static final String toString(ByteBuf content, Charset charset) {
         return content == null ? null : content.toString(charset);
     }
 
-    static int decodeInt(ByteBuf content) {
+    /**
+     * Decode an int value from the specified {@link ByteBuf}.
+     * 
+     * @param content the content
+     * @return decoded int value
+     */
+    public static final int decodeInt(ByteBuf content) {
         int begin = content.readerIndex();
         int end = content.writerIndex();
         boolean negative = content.getByte(begin) == '-' ? true : false;
@@ -86,11 +145,24 @@ class RespCodecUtil {
         return numberProcessor.value;
     }
 
-    static long decodeLong(ByteBuf content) {
+    /**
+     * Decode a long value from the specified {@link ByteBuf}.
+     * 
+     * @param content the content
+     * @return decoded long value
+     */
+    public static final long decodeLong(ByteBuf content) {
         return decodeLong(content, new ToPositiveLongProcessor());
     }
-    
-    static long decodeLong(ByteBuf content, ToPositiveLongProcessor numberProcessor) {
+
+    /**
+     * Decode a long value from the specified {@link ByteBuf}.
+     * 
+     * @param content         the content
+     * @param numberProcessor a processor to parse numbers
+     * @return decoded long value
+     */
+    public static final long decodeLong(ByteBuf content, ToPositiveLongProcessor numberProcessor) {
         int begin = content.readerIndex();
         int length = content.readableBytes();
         if (length == 0) {
@@ -108,12 +180,22 @@ class RespCodecUtil {
         return numberProcessor.value;
     }
 
-    static final NumberFormatException NaN = new NumberFormatException("value is not a number");
+    /**
+     * Not a number exception.
+     */
+    public static final NumberFormatException NaN = new NumberFormatException("value is not a number");
 
     private RespCodecUtil() {
     }
 
-    static final class ToPositiveIntProcessor implements ByteProcessor {
+    /**
+     * A {@link ByteProcessor} to parse positive int value.
+     * 
+     * @since 1.0
+     *
+     * @author MJ Fang
+     */
+    public static final class ToPositiveIntProcessor implements ByteProcessor {
 
         private static final NumberFormatException int32Overflow = new NumberFormatException(
                 "number overflow for 32-bit integer");
@@ -134,17 +216,32 @@ class RespCodecUtil {
             }
         }
 
-        int value() {
+        /**
+         * Returns the parsed int value.
+         * 
+         * @return the parsed int value
+         */
+        public int value() {
             return value;
         }
 
-        void reset() {
+        /**
+         * Reset this processor.
+         */
+        public void reset() {
             value = 0;
         }
 
     }
 
-    static final class ToPositiveLongProcessor implements ByteProcessor {
+    /**
+     * A {@link ByteProcessor} to parse positive long value.
+     * 
+     * @since 1.0
+     *
+     * @author MJ Fang
+     */
+    public static final class ToPositiveLongProcessor implements ByteProcessor {
 
         private static final NumberFormatException int64Overflow = new NumberFormatException(
                 "number overflow for 64-bit integer");
@@ -165,11 +262,19 @@ class RespCodecUtil {
             }
         }
 
-        long value() {
+        /**
+         * Returns the parsed long value.
+         * 
+         * @return the parsed long value
+         */
+        public long value() {
             return value;
         }
 
-        void reset() {
+        /**
+         * Reset this processor.
+         */
+        public void reset() {
             value = 0L;
         }
 
