@@ -75,9 +75,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
     private final ConcurrentMap<String, ConcurrentLinkedDeque<HttpConnection>> cachedPools = new ConcurrentHashMap<String, ConcurrentLinkedDeque<HttpConnection>>();
 
     DefaultHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
-            SslContextProvider sslContextProvider, boolean compressionEnabled, boolean shutdownGroupOnClose,
-            int timeoutSeconds, int maxContentLength) {
-        super(group, channelClass, sslContextProvider, compressionEnabled);
+            SslContextProvider sslContextProvider, boolean compressionEnabled, boolean brotliEnabled,
+            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
+        super(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
@@ -116,17 +116,14 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
                             ChannelPipeline cp = ch.pipeline();
-                            boolean decompression = compressionEnabled;
                             cp.addLast(new IdleStateHandler(0, 0, timeoutSeconds));
                             if (ssl) {
                                 cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
                             }
                             cp.addLast(new HttpClientCodec());
-                            if (decompression) {
-                                cp.addLast(new HttpContentDecompressor());
-                            }
+                            cp.addLast(new HttpContentDecompressor());
                             cp.addLast(new HttpObjectAggregator(maxContentLength));
-                            if (decompression) {
+                            if (brotliEnabled) {
                                 cp.addLast(BrotliDecompressor.INSTANCE);
                             }
                             cp.addLast(handler);
@@ -308,7 +305,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                             }
                         }
                         if (compressionEnabled) {
-                            headers.set(ACCEPT_ENCODING, GZIP_DEFLATE_BR);
+                            headers.set(ACCEPT_ENCODING, brotliEnabled ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
                         } else {
                             headers.remove(ACCEPT_ENCODING);
                         }
@@ -366,8 +363,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
             return new DefaultHttpClient(transportLibrary.createGroup(0, threadFactory),
-                    transportLibrary.channelClass(), sslContextProvider, compressionEnabled, true, timeoutSeconds(),
-                    maxContentLength);
+                    transportLibrary.channelClass(), sslContextProvider, compressionEnabled, brotliEnabled, true,
+                    timeoutSeconds(), maxContentLength);
         }
 
         /**
@@ -392,8 +389,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
          */
         public DefaultHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled, false,
-                    timeoutSeconds(), maxContentLength);
+            return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled,
+                    false, timeoutSeconds(), maxContentLength);
         }
 
     }

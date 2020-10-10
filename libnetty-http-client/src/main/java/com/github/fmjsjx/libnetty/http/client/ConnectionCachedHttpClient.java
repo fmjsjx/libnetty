@@ -81,7 +81,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
     ConnectionCachedHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
             SslContextProvider sslContextProvider, boolean compressionEnabled, boolean shutdownGroupOnClose,
             int timeoutSeconds, int maxContentLength) {
-        super(group, channelClass, sslContextProvider, compressionEnabled);
+        super(group, channelClass, sslContextProvider, compressionEnabled, false);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;

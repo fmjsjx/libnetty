@@ -820,12 +820,34 @@ public interface HttpClient extends AutoCloseable {
         Builder sslContextProvider(SslContextProvider sslContextProvider);
 
         /**
+         * Enable content compression feature.
+         * 
+         * @return this {@code Builder}
+         */
+        Builder enableCompression();
+
+        /**
          * Sets if the content compression feature is enabled or not.
          * 
          * @param enabled {@code true} if enabled
          * @return this {@code Builder}
          */
         Builder compression(boolean enabled);
+
+        /**
+         * Enable Brotli.
+         * 
+         * @return this {@code Builder}
+         */
+        Builder enableBrotli();
+
+        /**
+         * Sets if Brotli is enabled or not.
+         * 
+         * @param enabled {@code true} if enabled
+         * @return this {@code Builder}
+         */
+        Builder brotli(boolean enabled);
 
     }
 

@@ -37,16 +37,18 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected final Class<? extends Channel> channelClass;
     protected final SslContextProvider sslContextProvider;
     protected final boolean compressionEnabled;
+    protected final boolean brotliEnabled;
 
     private final Object closeLock = new Object();
     protected volatile boolean closed;
 
     protected AbstractHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
-            SslContextProvider sslContextProvider, boolean compressionEnabled) {
+            SslContextProvider sslContextProvider, boolean compressionEnabled, boolean brotliEnabled) {
         this.group = Objects.requireNonNull(group, "group must not be null");
         this.channelClass = Objects.requireNonNull(channelClass, "channelClass must not be null");
         this.sslContextProvider = Objects.requireNonNull(sslContextProvider, "sslContextProvider must not be null");
         this.compressionEnabled = compressionEnabled;
+        this.brotliEnabled = brotliEnabled;
     }
 
     protected EventLoopGroup group() {
@@ -129,6 +131,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         protected int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
         protected SslContextProvider sslContextProvider;
         protected boolean compressionEnabled;
+        protected boolean brotliEnabled;
 
         /**
          * Returns the timeout duration for this client.
@@ -202,9 +205,15 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         @Override
+        public Self enableCompression() {
+            return compression(true);
+        }
+
+        @Override
         @SuppressWarnings("unchecked")
         public Self compression(boolean enabled) {
             this.compressionEnabled = enabled;
+            this.brotliEnabled = false;
             return (Self) this;
         }
 
@@ -215,6 +224,28 @@ public abstract class AbstractHttpClient implements HttpClient {
          */
         public boolean compressionEnabled() {
             return compressionEnabled;
+        }
+
+        @Override
+        public Self enableBrotli() {
+            return brotli(true);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Self brotli(boolean enabled) {
+            this.compressionEnabled = enabled;
+            this.brotliEnabled = enabled;
+            return (Self) this;
+        }
+
+        /**
+         * Returns {@code true} if Brotli is enabled.
+         * 
+         * @return {@code true} if Brotli is enabled
+         */
+        public boolean brotliEnabled() {
+            return brotliEnabled;
         }
 
     }
