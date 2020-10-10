@@ -9,12 +9,12 @@ import java.lang.annotation.Target;
 import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
 
 /**
- * Annotation for mapping HTTP {@code HEAD} requests onto specific handler
+ * Annotation for mapping HTTP {@code PATCH} requests onto specific handler
  * methods.
  *
  * <p>
- * Specifically, {@code @HeadRoute} is a <em>composed annotation</em> that acts
- * as a shortcut for {@code @HttpRoute(method = HttpMethodWrapper.HEAD)}.
+ * Specifically, {@code @HttpPatch} is a <em>composed annotation</em> that acts
+ * as a shortcut for {@code @HttpRoute(method = HttpMethodWrapper.PATCH)}.
  * 
  * @since 1.1
  *
@@ -22,8 +22,8 @@ import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
  */
 @Target(METHOD)
 @Retention(RUNTIME)
-@HttpRoute(method = HttpMethodWrapper.HEAD)
-public @interface HeadRoute {
+@HttpRoute(method = HttpMethodWrapper.PATCH)
+public @interface HttpPatch {
 
     /**
      * Returns the path pattern of this route.

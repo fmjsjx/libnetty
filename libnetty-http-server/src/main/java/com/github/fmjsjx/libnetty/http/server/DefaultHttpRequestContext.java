@@ -1,14 +1,27 @@
 package com.github.fmjsjx.libnetty.http.server;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
+
+import java.nio.charset.Charset;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
 
@@ -19,7 +32,7 @@ import io.netty.handler.codec.http.QueryStringDecoder;
  *
  * @author MJ Fang
  */
-public class DefaultHttpRequestContext implements HttpRequestContext {
+class DefaultHttpRequestContext implements HttpRequestContext {
 
     private final long recievedNanoTime = System.nanoTime();
     private final ZonedDateTime receivedTime = ZonedDateTime.now();
@@ -35,6 +48,8 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
     private AtomicReference<PathVariables> pathVariablesRef = new AtomicReference<>();
 
     private final ConcurrentMap<Object, Object> properties = new ConcurrentHashMap<>();
+    private final HttpResponseFactoryImpl responseFactory = new HttpResponseFactoryImpl();
+    private final Optional<Consumer<HttpHeaders>> addHeaders;
 
     /**
      * Creates a new {@link DefaultHttpRequestContext} with the specified
@@ -43,10 +58,15 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
      * @param channel the channel
      * @param request the HTTP request
      */
-    public DefaultHttpRequestContext(Channel channel, FullHttpRequest request) {
+    DefaultHttpRequestContext(Channel channel, FullHttpRequest request) {
+        this(channel, request, null);
+    }
+
+    DefaultHttpRequestContext(Channel channel, FullHttpRequest request, Consumer<HttpHeaders> addHeaders) {
         this.channel = channel;
         this.request = request;
         this.contentLength = request.content().readableBytes();
+        this.addHeaders = Optional.ofNullable(addHeaders);
     }
 
     @Override
@@ -116,7 +136,7 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
     }
 
     @Override
-    public HttpRequestContext pathVariables(PathVariables pathVariables) {
+    public HttpResponder pathVariables(PathVariables pathVariables) {
         this.pathVariablesRef.set(pathVariables);
         return this;
     }
@@ -163,6 +183,11 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
     }
 
     @Override
+    public HttpResponseFactory responseFactory() {
+        return responseFactory;
+    }
+
+    @Override
     public String toString() {
         StringBuilder b = new StringBuilder().append("DefaultHttpRequestContext(receivedTime: ").append(receivedTime)
                 .append(", channel: ").append(channel()).append(", remoteAddress: ").append(remoteAddress())
@@ -170,6 +195,60 @@ public class DefaultHttpRequestContext implements HttpRequestContext {
                 .append(", properties: ").append(properties).append(")\n");
         b.append(request().toString());
         return b.toString();
+    }
+
+    private class HttpResponseFactoryImpl implements HttpResponseFactory {
+
+        @Override
+        public HttpResponse create(HttpResponseStatus status) {
+            DefaultHttpResponse response = new DefaultHttpResponse(version(), status);
+            initHeaders(response);
+            return response;
+        }
+
+        private HttpHeaders initHeaders(HttpResponse response) {
+            HttpHeaders headers = response.headers();
+            Optional<Consumer<HttpHeaders>> addHeaders = DefaultHttpRequestContext.this.addHeaders;
+            if (addHeaders.isPresent()) {
+                addHeaders.get().accept(headers);
+            }
+            HttpUtil.setKeepAlive(headers, response.protocolVersion(), isKeepAlive());
+            return headers;
+        }
+
+        @Override
+        public FullHttpResponse createFull(HttpResponseStatus status) {
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(version(), status, Unpooled.EMPTY_BUFFER);
+            HttpHeaders headers = initHeaders(response);
+            headers.set(CONTENT_LENGTH, ZERO);
+            return response;
+        }
+
+        @Override
+        public FullHttpResponse createFull(HttpResponseStatus status, ByteBuf content, int contentLength,
+                CharSequence contentType) {
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(version(), status, content);
+            HttpHeaders headers = initHeaders(response);
+            headers.setInt(CONTENT_LENGTH, contentLength);
+            headers.set(CONTENT_TYPE, contentType);
+            return response;
+        }
+
+        @Override
+        public FullHttpResponse createFullText(HttpResponseStatus status) {
+            byte[] b = status.toString().getBytes();
+            ByteBuf content = alloc().buffer(b.length, b.length).writeBytes(b);
+            return createFull(status, content, b.length, TEXT_PLAIN_UTF8);
+        }
+
+        @Override
+        public FullHttpResponse createFullText(HttpResponseStatus status, Charset charset) {
+            byte[] b = status.toString().getBytes();
+            ByteBuf content = alloc().buffer(b.length, b.length).writeBytes(b);
+            CharSequence contentType = com.github.fmjsjx.libnetty.http.HttpUtil.contentType(TEXT_PLAIN, charset);
+            return createFull(status, content, b.length, contentType);
+        }
+
     }
 
 }

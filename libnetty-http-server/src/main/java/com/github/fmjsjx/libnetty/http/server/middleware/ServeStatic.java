@@ -1,7 +1,5 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
-import static com.github.fmjsjx.libnetty.http.server.HttpResponseUtil.*;
-import static com.github.fmjsjx.libnetty.http.server.HttpServerUtil.*;
 import static io.netty.channel.ChannelFutureListener.*;
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
@@ -191,7 +189,7 @@ public class ServeStatic implements Middleware {
                 continue L1;
             }
             if (!isGet) {
-                return sendMethodNotAllowed(ctx);
+                return ctx.simpleRespond(METHOD_NOT_ALLOWED);
             }
             Path p = Paths.get(mapping.location, path.substring(uri.length()));
             if (!Files.exists(p)) {
@@ -202,11 +200,11 @@ public class ServeStatic implements Middleware {
                 boolean hitRedirect = !path.endsWith("/");
                 if (hitRedirect && redirectDirectory) {
                     String rawQuery = ctx.rawQuery();
-                    if (StringUtil.isNullOrEmpty(rawQuery)) {
-                        return sendRedirect(ctx, path + "/");
-                    } else {
-                        return sendRedirect(ctx, path + "/?" + rawQuery);
-                    }
+                    String location = StringUtil.isNullOrEmpty(rawQuery) ? path + "/" : path + "/?" + rawQuery;
+                    FullHttpResponse response = ctx.responseFactory().createFull(FOUND);
+                    addCustomHeaders(response.headers());
+                    response.headers().set(LOCATION, location);
+                    return ctx.sendResponse(response, 0);
                 } else {
                     boolean exists = false;
                     for (String index : indexes) {
@@ -243,18 +241,18 @@ public class ServeStatic implements Middleware {
                     if (!ifNoneMatches.isEmpty()) {
                         headers.remove(IF_MODIFIED_SINCE); // skip header if-modified-since
                         if (ifNoneMatches.stream().anyMatch(etag::equals)) { // not modified
-                            FullHttpResponse response = create(version, NOT_MODIFIED, keepAlive);
-                            setDateAndCacheHeaders(now, etag, lastModified, expires, response);
-                            return sendResponse(ctx, response, 0, keepAlive);
+                            FullHttpResponse response = ctx.responseFactory().createFull(NOT_MODIFIED);
+                            setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
+                            return ctx.sendResponse(response, 0);
                         }
                     }
                 }
                 if (lastModifiedEnabled) {
                     Long ims = headers.getTimeMillis(IF_MODIFIED_SINCE);
                     if (ims != null && ims.longValue() >= lastModified.toEpochMilli()) { // not modified
-                        FullHttpResponse response = create(version, NOT_MODIFIED, keepAlive);
-                        setDateAndCacheHeaders(now, etag, lastModified, expires, response);
-                        return sendResponse(ctx, response, 0, keepAlive);
+                        FullHttpResponse response = ctx.responseFactory().createFull(NOT_MODIFIED);
+                        setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
+                        return ctx.sendResponse(response, 0);
                     }
                 }
                 long contentLength = fileAttrs.size();
@@ -262,7 +260,7 @@ public class ServeStatic implements Middleware {
                 HttpUtil.setKeepAlive(response, keepAlive);
                 HttpUtil.setContentLength(response, contentLength);
                 response.headers().set(CONTENT_TYPE, MimeTypeUtil.probeContentType(p));
-                setDateAndCacheHeaders(now, etag, lastModified, expires, response);
+                setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
                 CompletableFuture<HttpResult> future = new CompletableFuture<>();
                 ChannelFutureListener[] cbs = new ChannelFutureListener[] { cf -> {
                     if (cf.isSuccess()) {
@@ -295,8 +293,8 @@ public class ServeStatic implements Middleware {
     }
 
     private void setDateAndCacheHeaders(Instant date, String etag, Instant lastModified, Instant expires,
-            HttpResponse response) {
-        HttpHeaders headers = response.headers();
+            HttpHeaders headers) {
+        addCustomHeaders(headers);
         if (!cacheControl.isEmpty()) {
             headers.add(CACHE_CONTROL, cacheControl);
         }
@@ -308,7 +306,6 @@ public class ServeStatic implements Middleware {
         if (lastModifiedEnabled) {
             headers.set(LAST_MODIFIED, Date.from(lastModified));
         }
-        addCustomHeaders(headers);
     }
 
     private void addCustomHeaders(HttpHeaders headers) {

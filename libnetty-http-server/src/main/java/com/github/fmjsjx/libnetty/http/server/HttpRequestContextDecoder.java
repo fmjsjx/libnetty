@@ -1,25 +1,36 @@
 package com.github.fmjsjx.libnetty.http.server;
 
+import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
+
 import java.util.List;
+import java.util.function.Consumer;
 
 import io.netty.channel.ChannelHandler.Sharable;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.util.CharsetUtil;
 
 @Sharable
 class HttpRequestContextDecoder extends MessageToMessageDecoder<FullHttpRequest> {
 
-    private static final class InstanceHolder {
-        private static final HttpRequestContextDecoder instance = new HttpRequestContextDecoder();
-    }
+    private final Consumer<HttpHeaders> addHeaders;
 
-    static final HttpRequestContextDecoder getInstance() {
-        return InstanceHolder.instance;
+    HttpRequestContextDecoder(Consumer<HttpHeaders> addHeaders) {
+        this.addHeaders = addHeaders;
     }
 
     @Override
@@ -31,14 +42,26 @@ class HttpRequestContextDecoder extends MessageToMessageDecoder<FullHttpRequest>
     protected void decode(ChannelHandlerContext ctx, FullHttpRequest msg, List<Object> out) throws Exception {
         DecoderResult decoderResult = msg.decoderResult();
         if (decoderResult.isFailure()) {
-            // Just respond 400 Bad Request
+            HttpVersion version = msg.protocolVersion();
             boolean keepAlive = HttpUtil.isKeepAlive(msg);
-            ChannelFuture cf = ctx.writeAndFlush(HttpResponseUtil.badRequest(msg.protocolVersion(), keepAlive));
+            String text = BAD_REQUEST + " - " + decoderResult.cause();
+            ByteBuf content = ctx.alloc().buffer();
+            int contentLength = ByteBufUtil.writeUtf8(content, text);
+            FullHttpResponse response = new DefaultFullHttpResponse(version, BAD_REQUEST, content);
+            HttpHeaders headers = response.headers();
+            if (addHeaders != null) {
+                addHeaders.accept(headers);
+            }
+            HttpUtil.setKeepAlive(headers, version, keepAlive);
+            headers.setInt(CONTENT_LENGTH, contentLength);
+            headers.set(CONTENT_TYPE, contentType(TEXT_PLAIN, CharsetUtil.UTF_8));
+            // Just respond 400 Bad Request
+            ChannelFuture cf = ctx.writeAndFlush(response);
             if (!keepAlive) {
                 cf.addListener(ChannelFutureListener.CLOSE);
             }
         } else {
-            out.add(new DefaultHttpRequestContext(ctx.channel(), msg.retain()));
+            out.add(new DefaultHttpRequestContext(ctx.channel(), msg.retain(), addHeaders));
         }
     }
 

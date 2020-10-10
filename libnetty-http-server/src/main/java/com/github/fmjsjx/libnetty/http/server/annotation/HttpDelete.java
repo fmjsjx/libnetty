@@ -9,12 +9,12 @@ import java.lang.annotation.Target;
 import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
 
 /**
- * Annotation for mapping HTTP {@code PATCH} requests onto specific handler
+ * Annotation for mapping HTTP {@code DELETE} requests onto specific handler
  * methods.
  *
  * <p>
- * Specifically, {@code @PatchRoute} is a <em>composed annotation</em> that acts
- * as a shortcut for {@code @HttpRoute(method = HttpMethodWrapper.PATCH)}.
+ * Specifically, {@code @HttpDelete} is a <em>composed annotation</em> that acts
+ * as a shortcut for {@code @HttpRoute(method = HttpMethodWrapper.DELETE)}.
  * 
  * @since 1.1
  *
@@ -22,8 +22,8 @@ import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
  */
 @Target(METHOD)
 @Retention(RUNTIME)
-@HttpRoute(method = HttpMethodWrapper.PATCH)
-public @interface PatchRoute {
+@HttpRoute(method = HttpMethodWrapper.DELETE)
+public @interface HttpDelete {
 
     /**
      * Returns the path pattern of this route.

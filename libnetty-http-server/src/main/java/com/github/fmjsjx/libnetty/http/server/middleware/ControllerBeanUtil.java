@@ -1,6 +1,9 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
+import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
+import static io.netty.util.CharsetUtil.*;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
@@ -44,8 +47,9 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
+import com.github.fmjsjx.libnetty.http.server.HttpRequestContext.HttpResponseFactory;
+import com.github.fmjsjx.libnetty.http.server.HttpResponder;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
-import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpServiceInvoker;
 import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
@@ -57,6 +61,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
 import com.github.fmjsjx.libnetty.http.server.exception.BadRequestException;
 import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson.JsonLibrary;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -64,7 +69,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.util.CharsetUtil;
+import io.netty.util.AsciiString;
 import io.netty.util.internal.StringUtil;
 
 /**
@@ -97,7 +102,7 @@ public class ControllerBeanUtil {
         METHODS_LOOP: for (Method method : methods) {
             HttpRoute route = method.getAnnotation(HttpRoute.class);
             if (route != null) {
-                String path = (pathPrefix + "/" + String.join("/", route.value())).replaceAll("//+", "/");
+                String path = httpPathJoin(pathPrefix, route.value());
                 HttpMethod[] httpMethods = Arrays.stream(route.method()).map(HttpMethodWrapper::wrapped)
                         .toArray(HttpMethod[]::new);
                 registerMethod(router, controller, method, path, httpMethods);
@@ -110,7 +115,7 @@ public class ControllerBeanUtil {
                 if (methodRoute != null) {
                     HttpMethod[] httpMethods = Arrays.stream(methodRoute.method()).map(HttpMethodWrapper::wrapped)
                             .toArray(HttpMethod[]::new);
-                    String path = (pathPrefix + "/" + String.join("/", routeValue(ma))).replaceAll("//+", "/");
+                    String path = httpPathJoin(pathPrefix, routeValue(ma));
                     registerMethod(router, controller, method, path, httpMethods);
                     num++;
                     continue METHODS_LOOP;
@@ -118,6 +123,10 @@ public class ControllerBeanUtil {
             }
         }
         return num;
+    }
+
+    private static final String httpPathJoin(String pathPrefix, String[] value) {
+        return (pathPrefix + "/" + String.join("/", value)).replaceAll("//+", "/");
     }
 
     private static final void registerMethod(Router router, Object controller, Method method, String path,
@@ -163,17 +172,28 @@ public class ControllerBeanUtil {
         return (result, cause) -> {
             if (cause != null) {
                 if (cause instanceof CompletionException) {
-                    return HttpServerUtil.respondError(ctx, cause.getCause());
+                    return ctx.respondError(cause.getCause());
                 }
-                return HttpServerUtil.respondError(ctx, cause);
+                return ctx.respondError(cause);
             }
             try {
-                return HttpServerUtil.respondJson(ctx, OK,
-                        ctx.property(JsonLibrary.KEY).orElseThrow(MISSING_JSON_LIBRARY).write(ctx.alloc(), result));
+                ByteBuf content = ctx.property(JsonLibrary.KEY).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
+                        .write(ctx.alloc(), result);
+                return ctx.simpleRespond(OK, content, JsonConstants.APPLICATION_JSON_UTF8);
             } catch (Exception e) {
-                return HttpServerUtil.respondError(ctx, e);
+                return ctx.respondError(e);
             }
         };
+    }
+
+    private static final class JsonConstants {
+
+        private static final AsciiString APPLICATION_JSON_UTF8 = contentType(APPLICATION_JSON, UTF_8);
+
+        private static final IllegalArgumentException MISSING_JSON_LIBRARY_EXCEPTION = new IllegalArgumentException();
+
+        private static final Supplier<IllegalArgumentException> MISSING_JSON_LIBRARY = () -> MISSING_JSON_LIBRARY_EXCEPTION;
+
     }
 
     private static final Function<CompletionStage<HttpResult>, CompletionStage<HttpResult>> resultIdentity = Function
@@ -187,9 +207,9 @@ public class ControllerBeanUtil {
                     return ((CompletionStage<Object>) method.invoke(null)).handle(jsonResponseHandler(ctx))
                             .thenCompose(resultIdentity);
                 } catch (InvocationTargetException e) {
-                    return HttpServerUtil.respondError(ctx, e.getTargetException());
+                    return ctx.respondError(e.getTargetException());
                 } catch (Exception e) {
-                    return HttpServerUtil.respondError(ctx, e);
+                    return ctx.respondError(e);
                 }
             };
         }
@@ -198,9 +218,9 @@ public class ControllerBeanUtil {
                 return ((CompletionStage<Object>) method.invoke(controller)).handle(jsonResponseHandler(ctx))
                         .thenCompose(resultIdentity);
             } catch (InvocationTargetException e) {
-                return HttpServerUtil.respondError(ctx, e.getTargetException());
+                return ctx.respondError(e.getTargetException());
             } catch (Exception e) {
-                return HttpServerUtil.respondError(ctx, e);
+                return ctx.respondError(e);
             }
         };
     }
@@ -214,9 +234,9 @@ public class ControllerBeanUtil {
                     return ((CompletionStage<Object>) method.invoke(null, parametesMapper.apply(ctx)))
                             .handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (InvocationTargetException e) {
-                    return HttpServerUtil.respondError(ctx, e.getTargetException());
+                    return ctx.respondError(e.getTargetException());
                 } catch (Exception e) {
-                    return HttpServerUtil.respondError(ctx, e);
+                    return ctx.respondError(e);
                 }
             };
         }
@@ -225,9 +245,9 @@ public class ControllerBeanUtil {
                 return ((CompletionStage<Object>) method.invoke(controller, parametesMapper.apply(ctx)))
                         .handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
             } catch (InvocationTargetException e) {
-                return HttpServerUtil.respondError(ctx, e.getTargetException());
+                return ctx.respondError(e.getTargetException());
             } catch (Exception e) {
-                return HttpServerUtil.respondError(ctx, e);
+                return ctx.respondError(e);
             }
         };
     }
@@ -251,9 +271,9 @@ public class ControllerBeanUtil {
                 try {
                     return (CompletionStage<HttpResult>) method.invoke(null, ctx);
                 } catch (InvocationTargetException e) {
-                    return HttpServerUtil.respondError(ctx, e.getTargetException());
+                    return ctx.respondError(e.getTargetException());
                 } catch (Exception e) {
-                    return HttpServerUtil.respondError(ctx, e);
+                    return ctx.respondError(e);
                 }
             };
         }
@@ -261,9 +281,9 @@ public class ControllerBeanUtil {
             try {
                 return (CompletionStage<HttpResult>) method.invoke(controller, ctx);
             } catch (InvocationTargetException e) {
-                return HttpServerUtil.respondError(ctx, e.getTargetException());
+                return ctx.respondError(e.getTargetException());
             } catch (Exception e) {
-                return HttpServerUtil.respondError(ctx, e);
+                return ctx.respondError(e);
             }
         };
     }
@@ -276,9 +296,9 @@ public class ControllerBeanUtil {
                 try {
                     return (CompletionStage<HttpResult>) method.invoke(null, parametesMapper.apply(ctx));
                 } catch (InvocationTargetException e) {
-                    return HttpServerUtil.respondError(ctx, e.getTargetException());
+                    return ctx.respondError(e.getTargetException());
                 } catch (Exception e) {
-                    return HttpServerUtil.respondError(ctx, e);
+                    return ctx.respondError(e);
                 }
             };
         }
@@ -286,14 +306,15 @@ public class ControllerBeanUtil {
             try {
                 return (CompletionStage<HttpResult>) method.invoke(controller, parametesMapper.apply(ctx));
             } catch (InvocationTargetException e) {
-                return HttpServerUtil.respondError(ctx, e.getTargetException());
+                return ctx.respondError(e.getTargetException());
             } catch (Exception e) {
-                return HttpServerUtil.respondError(ctx, e);
+                return ctx.respondError(e);
             }
         };
     }
 
     private static final Function<HttpRequestContext, Object> contextMapper = ctx -> ctx;
+    private static final Function<HttpRequestContext, Object> responseFactoryMapper = HttpRequestContext::responseFactory;
     private static final Function<HttpRequestContext, Object> fullRequestMapper = HttpRequestContext::request;
     private static final Function<HttpRequestContext, Object> headersMapper = HttpRequestContext::headers;
     private static final Function<HttpRequestContext, Object> queryMapper = HttpRequestContext::queryStringDecoder;
@@ -301,8 +322,10 @@ public class ControllerBeanUtil {
     private static final Function<HttpRequestContext, Object> remoteAddrMapper = HttpRequestContext::remoteAddress;
 
     private static final Function<HttpRequestContext, Object> toParameterMapper(Parameter param) {
-        if (param.getType() == HttpRequestContext.class) {
+        if (param.getType() == HttpRequestContext.class || param.getType() == HttpResponder.class) {
             return contextMapper;
+        } else if (param.getType() == HttpResponseFactory.class) {
+            return responseFactoryMapper;
         } else if (param.getType() == HttpRequest.class || param.getType() == FullHttpRequest.class) {
             return fullRequestMapper;
         } else if (param.getType() == HttpHeaders.class) {
@@ -568,7 +591,7 @@ public class ControllerBeanUtil {
     }
 
     private static final Function<HttpRequestContext, Object> contentToStringMapper = ctx -> ctx.request().content()
-            .toString(CharsetUtil.UTF_8);
+            .toString(UTF_8);
     private static final Function<HttpRequestContext, Object> contentToBytesMapper = ctx -> ByteBufUtil
             .getBytes(ctx.request().content());
 
@@ -579,14 +602,10 @@ public class ControllerBeanUtil {
         } else if (type == byte[].class) {
             return contentToBytesMapper;
         } else {
-            return ctx -> ctx.property(JsonLibrary.KEY).orElseThrow(MISSING_JSON_LIBRARY).read(ctx.request().content(),
-                    type);
+            return ctx -> ctx.property(JsonLibrary.KEY).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
+                    .read(ctx.request().content(), type);
         }
     }
-
-    private static final IllegalArgumentException MISSING_JSON_LIBRARY_EXCEPTION = new IllegalArgumentException();
-
-    private static final Supplier<IllegalArgumentException> MISSING_JSON_LIBRARY = () -> MISSING_JSON_LIBRARY_EXCEPTION;
 
     private static final Supplier<IllegalArgumentException> noSuchHeader(String name) {
         String message = "missing header " + name;

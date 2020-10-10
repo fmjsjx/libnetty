@@ -26,13 +26,12 @@ import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpServer;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
-import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
-import com.github.fmjsjx.libnetty.http.server.annotation.GetRoute;
+import com.github.fmjsjx.libnetty.http.server.annotation.HttpGet;
 import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
 import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
-import com.github.fmjsjx.libnetty.http.server.annotation.PostRoute;
+import com.github.fmjsjx.libnetty.http.server.annotation.HttpPost;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
@@ -73,7 +72,10 @@ public class TestDefaultServer {
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
                 .soBackLog(1024).tcpNoDelay() // channel options
-                .applyCompressionSettings(HttpContentCompressorFactory.defaultSettings()) // compression support
+                .applyCompressionSettings( // compression support
+                        HttpContentCompressorFactory.defaultSettings()) // default settings
+//                        b -> b.compressionLevel(1).memLevel(1).windowBits(9).contentSizeThreshold(4096)) // fastest
+//                        b -> b.compressionLevel(9).memLevel(9).windowBits(15).contentSizeThreshold(512)) // best
         ;
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
@@ -103,17 +105,17 @@ class TestController {
 
     static final ObjectMapper mapper = new ObjectMapper().setSerializationInclusion(Include.NON_ABSENT);
 
-    @GetRoute("/test")
+    @HttpGet("/test")
     public CompletionStage<HttpResult> getTest(HttpRequestContext ctx) {
         // GET /test
         System.out.println("-- test --");
         // always returns 200 OK
         ByteBuf body = ByteBufUtil.writeAscii(ctx.alloc(), "200 OK");
         System.out.println(body.toString(CharsetUtil.UTF_8));
-        return HttpServerUtil.respond(ctx, OK, body, TEXT_PLAIN);
+        return ctx.simpleRespond(OK, body, TEXT_PLAIN);
     }
 
-    @GetRoute("/errors/{code}")
+    @HttpGet("/errors/{code}")
     public CompletionStage<HttpResult> getErrors(HttpRequestContext ctx, @PathVar("code") int code,
             @RemoteAddr String clientIp, @HeaderValue("user-agent") Optional<String> userAgent) {
         // GET /errors/{code}
@@ -122,10 +124,10 @@ class TestController {
         System.out.println("user agent ==> " + userAgent);
         HttpResponseStatus status = HttpResponseStatus.valueOf(code);
         System.out.println("status ==> " + status);
-        return HttpServerUtil.respond(ctx, status);
+        return ctx.simpleRespond(status);
     }
 
-    @GetRoute("/jsons")
+    @HttpGet("/jsons")
     @JsonBody
     public CompletableFuture<?> getJsons(QueryStringDecoder query, EventLoop eventLoop) {
         // GET /jsons
@@ -148,7 +150,7 @@ class TestController {
         }, eventLoop);
     }
 
-    @PostRoute("/echo")
+    @HttpPost("/echo")
     public CompletionStage<HttpResult> postEcho(HttpRequestContext ctx, @JsonBody JsonNode value) {
         // POST /echo
         System.out.println("-- echo --");
@@ -156,7 +158,7 @@ class TestController {
         ByteBuf content = ctx.request().content();
         Charset charset = HttpUtil.getCharset(ctx.request(), CharsetUtil.UTF_8);
         CharSequence contentType = ctx.contentType().orElseGet(() -> contentType(TEXT_PLAIN, charset));
-        return HttpServerUtil.respond(ctx, OK, content.retain(), contentType);
+        return ctx.simpleRespond(OK, content.retain(), contentType);
     }
 
 }

@@ -1,12 +1,11 @@
 package com.github.fmjsjx.libnetty.http.server;
 
+import static io.netty.channel.ChannelOption.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static java.util.Objects.*;
 
 import java.time.Duration;
 import java.util.ArrayList;
-
-import static io.netty.channel.ChannelOption.*;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +28,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -49,6 +49,10 @@ public class DefaultHttpServer implements HttpServer {
 
     private static final int DEFAULT_MAX_CONTENT_LENGTH = Integer.MAX_VALUE;
     private static final int DEFAULT_TIMEOUT_SECONDS = 60;
+
+    private static final Consumer<HttpHeaders> defaultAddHeaders = headers -> {
+        headers.set(SERVER, "libnetty");
+    };
 
     private String name;
     private String host;
@@ -78,6 +82,8 @@ public class DefaultHttpServer implements HttpServer {
     private HttpContentCompressorFactory httpContentCompressorFactory;
 
     private HttpServerHandlerProvider handlerProvider;
+
+    private Consumer<HttpHeaders> addHeaders = defaultAddHeaders;
 
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified {@code name}
@@ -547,6 +553,48 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
+     * Set the function to add HTTP response headers. Include default headers.
+     * <p>
+     * The default headers:
+     * 
+     * <pre>
+     * {@code server: libnetty}
+     * </pre>
+     * 
+     * @param addHeaders the function to add HTTP response headers
+     * @return this server
+     */
+    public DefaultHttpServer addHeaders(Consumer<HttpHeaders> addHeaders) {
+        return addHeaders(addHeaders, false);
+    }
+
+    /**
+     * Set the function to add HTTP response headers.
+     * <p>
+     * The default headers:
+     * 
+     * <pre>
+     * {@code server: libnetty}
+     * </pre>
+     * 
+     * @param addHeaders the function to add HTTP response headers
+     * @param force      if {@code true} then only invoke given function, if
+     *                   {@code false} then will invoke both default function and
+     *                   given function
+     * @return this server
+     */
+    public DefaultHttpServer addHeaders(Consumer<HttpHeaders> addHeaders, boolean force) {
+        ensureNotStarted();
+        requireNonNull(addHeaders, "addHeaders must not be null");
+        if (force) {
+            this.addHeaders = addHeaders;
+        } else {
+            this.addHeaders = defaultAddHeaders.andThen(addHeaders);
+        }
+        return this;
+    }
+
+    /**
      * Reset all settings of this server.
      * 
      * @return this server
@@ -575,6 +623,8 @@ public class DefaultHttpServer implements HttpServer {
         compressionSettingsListeners.clear();
 
         handlerProvider = null;
+
+        addHeaders = defaultAddHeaders;
         return this;
     }
 
@@ -594,7 +644,8 @@ public class DefaultHttpServer implements HttpServer {
             options.forEach(bootstrap::option);
             childOptions.forEach(bootstrap::childOption);
             DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
-                    maxContentLength, corsConfig, sslContextProvider, httpContentCompressorFactory, handlerProvider);
+                    maxContentLength, corsConfig, sslContextProvider, httpContentCompressorFactory, handlerProvider,
+                    addHeaders);
 
             bootstrap.childHandler(initializer);
 

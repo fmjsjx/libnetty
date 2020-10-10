@@ -9,12 +9,12 @@ import java.lang.annotation.Target;
 import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
 
 /**
- * Annotation for mapping HTTP {@code PUT} requests onto specific handler
+ * Annotation for mapping HTTP {@code POST} requests onto specific handler
  * methods.
  *
  * <p>
- * Specifically, {@code @PutRoute} is a <em>composed annotation</em> that acts
- * as a shortcut for {@code @HttpRoute(method = HttpMethodWrapper.PUT)}.
+ * Specifically, {@code @HttpPost} is a <em>composed annotation</em> that acts
+ * as a shortcut for {@code @HttpRoute(method = HttpMethodWrapper.POST)}.
  * 
  * @since 1.1
  *
@@ -22,8 +22,8 @@ import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
  */
 @Target(METHOD)
 @Retention(RUNTIME)
-@HttpRoute(method = HttpMethodWrapper.PUT)
-public @interface PutRoute {
+@HttpRoute(method = HttpMethodWrapper.POST)
+public @interface HttpPost {
 
     /**
      * Returns the path pattern of this route.

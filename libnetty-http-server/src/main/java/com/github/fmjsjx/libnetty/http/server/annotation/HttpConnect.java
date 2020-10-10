@@ -9,12 +9,13 @@ import java.lang.annotation.Target;
 import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
 
 /**
- * Annotation for mapping HTTP {@code GET} requests onto specific handler
+ * Annotation for mapping HTTP {@code CONNECT} requests onto specific handler
  * methods.
  *
  * <p>
- * Specifically, {@code @GetRoute} is a <em>composed annotation</em> that acts
- * as a shortcut for {@code @HttpRoute(method = HttpMethodWrapper.GET)}.
+ * Specifically, {@code @HttpConnect} is a <em>composed annotation</em> that
+ * acts as a shortcut for
+ * {@code @HttpRoute(method = HttpMethodWrapper.CONNECT)}.
  * 
  * @since 1.1
  *
@@ -22,8 +23,8 @@ import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
  */
 @Target(METHOD)
 @Retention(RUNTIME)
-@HttpRoute(method = HttpMethodWrapper.GET)
-public @interface GetRoute {
+@HttpRoute(method = HttpMethodWrapper.CONNECT)
+public @interface HttpConnect {
 
     /**
      * Returns the path pattern of this route.

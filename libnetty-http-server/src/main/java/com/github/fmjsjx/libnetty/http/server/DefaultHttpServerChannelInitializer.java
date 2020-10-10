@@ -1,6 +1,7 @@
 package com.github.fmjsjx.libnetty.http.server;
 
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
@@ -9,6 +10,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpContentDecompressor;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.cors.CorsConfig;
@@ -38,10 +40,12 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final HttpContentCompressorFactory httpContentCompressorFactory;
 
     private final HttpServerHandlerProvider handlerProvider;
+    
+    private final HttpRequestContextDecoder contextDecoder;
 
     DefaultHttpServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
             SslContextProvider sslContextProvider, HttpContentCompressorFactory httpContentCompressorFactory,
-            HttpServerHandlerProvider handlerProvider) {
+            HttpServerHandlerProvider handlerProvider, Consumer<HttpHeaders> addHeaders) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.corsConfig = Optional.ofNullable(corsConfig);
@@ -50,6 +54,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         this.autoCompressionEnabled = httpContentCompressorFactory != null;
         this.httpContentCompressorFactory = httpContentCompressorFactory;
         this.handlerProvider = handlerProvider;
+        this.contextDecoder = new HttpRequestContextDecoder(addHeaders);
     }
 
     @Override
@@ -75,7 +80,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         }
         corsConfig.map(CorsHandler::new).ifPresent(pipeline::addLast);
         pipeline.addLast(new ChunkedWriteHandler());
-        pipeline.addLast(HttpRequestContextDecoder.getInstance());
+        pipeline.addLast(contextDecoder);
         pipeline.addLast(handlerProvider.get());
     }
 

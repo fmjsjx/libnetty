@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import com.github.fmjsjx.libnetty.http.HttpHeaderXNames;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
+import com.github.fmjsjx.libnetty.http.server.HttpResponder;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.PathVariables;
 
@@ -119,7 +120,7 @@ public class AccessLoggerTest {
             }
 
             @Override
-            public HttpRequestContext pathVariables(PathVariables pathVariables) {
+            public HttpResponder pathVariables(PathVariables pathVariables) {
                 return null;
             }
 
@@ -129,7 +130,7 @@ public class AccessLoggerTest {
             }
 
             @Override
-            public HttpRequestContext property(Object key, Object value) {
+            public HttpResponder property(Object key, Object value) {
                 return this;
             }
 
@@ -155,6 +156,11 @@ public class AccessLoggerTest {
 
             @Override
             public Channel channel() {
+                return null;
+            }
+            
+            @Override
+            public HttpResponseFactory responseFactory() {
                 return null;
             }
         };

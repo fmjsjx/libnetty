@@ -1,25 +1,41 @@
 package com.github.fmjsjx.libnetty.http.server;
 
+import static io.netty.channel.ChannelFutureListener.CLOSE;
+import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+
+import java.nio.charset.Charset;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import com.github.fmjsjx.libnetty.http.server.HttpServer.User;
+import com.github.fmjsjx.libnetty.http.server.exception.HttpFailureException;
+import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.util.AsciiString;
+import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCounted;
 
 /**
@@ -29,7 +45,12 @@ import io.netty.util.ReferenceCounted;
  *
  * @author MJ Fang
  */
-public interface HttpRequestContext extends ReferenceCounted {
+public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
+
+    /**
+     * {@code "text/plain; charset=UTF-8"}
+     */
+    AsciiString TEXT_PLAIN_UTF8 = com.github.fmjsjx.libnetty.http.HttpUtil.contentType(TEXT_PLAIN, CharsetUtil.UTF_8);
 
     /**
      * Returns the value of the running Java Virtual Machine'shigh-resolution time
@@ -251,7 +272,7 @@ public interface HttpRequestContext extends ReferenceCounted {
      * @param pathVariables the path variables
      * @return this {@code HttpRequestContext}
      */
-    HttpRequestContext pathVariables(PathVariables pathVariables);
+    HttpResponder pathVariables(PathVariables pathVariables);
 
     /**
      * Returns the {@link User}.
@@ -324,7 +345,7 @@ public interface HttpRequestContext extends ReferenceCounted {
      * 
      * @return this {@code HttpRequestContext}
      */
-    HttpRequestContext property(Object key, Object value);
+    HttpResponder property(Object key, Object value);
 
     /**
      * Returns {@code true} if this {@link HttpRequestContext} contains a property
@@ -396,6 +417,164 @@ public interface HttpRequestContext extends ReferenceCounted {
     @Override
     default boolean release(int decrement) {
         return request().release(decrement);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> simpleRespond(HttpResponseStatus status) {
+        return simpleRespond(status, null);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> simpleRespond(HttpResponseStatus status, Consumer<HttpHeaders> addHeaders) {
+        FullHttpResponse response = responseFactory().createFull(status);
+        if (addHeaders != null) {
+            addHeaders.accept(response.headers());
+        }
+        return sendResponse(response, 0);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> respondError(Throwable cause) {
+        if (cause instanceof HttpFailureException) {
+            return simpleRespond((HttpFailureException) cause);
+        }
+        return respondInternalServerError(cause);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> simpleRespond(HttpFailureException cause) {
+        if (cause instanceof ManualHttpFailureException) {
+            ManualHttpFailureException e = (ManualHttpFailureException) cause;
+            ByteBuf content = alloc().buffer();
+            int contentLength = ByteBufUtil.writeUtf8(content, e.content());
+            return simpleRespond(e.status(), content, contentLength, e.contentType());
+        }
+        ByteBuf content = alloc().buffer();
+        int contentLength = ByteBufUtil.writeUtf8(content, cause.getLocalizedMessage());
+        return simpleRespond(cause.status(), content, contentLength, TEXT_PLAIN_UTF8);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> simpleRespond(HttpResponseStatus status, ByteBuf content,
+            CharSequence contentType) {
+        return simpleRespond(status, content, content.readableBytes(), contentType);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> simpleRespond(HttpResponseStatus status, ByteBuf content, int contentLength,
+            CharSequence contentType) {
+        return sendResponse(responseFactory().createFull(status, content, contentLength, contentType), contentLength);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> respondInternalServerError(Throwable cause) {
+        HttpResponseStatus status = INTERNAL_SERVER_ERROR;
+        String value = status.code() + " " + status.reasonPhrase() + ": " + cause.toString();
+        ByteBuf content = alloc().buffer();
+        int contentLength = ByteBufUtil.writeUtf8(content, value);
+        return simpleRespond(status, content, contentLength, TEXT_PLAIN_UTF8);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> sendResponse(FullHttpResponse response, int contentLength) {
+        CompletableFuture<HttpResult> future = new CompletableFuture<>();
+        ChannelFuture sendFuture = channel().writeAndFlush(response);
+        sendFuture.addListener((ChannelFuture cf) -> {
+            if (cf.isSuccess()) {
+                future.complete(new DefaultHttpResult(this, contentLength, response.status()));
+            } else if (cf.cause() != null) {
+                future.completeExceptionally(cf.cause());
+            }
+        });
+        if (!isKeepAlive()) {
+            sendFuture.addListener(CLOSE);
+        }
+        return future;
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> sendResponse(FullHttpResponse response) {
+        return sendResponse(response, response.content().readableBytes());
+    }
+
+    /**
+     * Returns the factory creates {@link HttpResponse}s.
+     * 
+     * @return the factory creates {@link HttpResponse}s
+     */
+    HttpResponseFactory responseFactory();
+
+    /**
+     * A factory to create {@link HttpResponse}s.
+     * 
+     * @author MJ Fang
+     */
+    interface HttpResponseFactory {
+
+        /**
+         * Creates a new {@link HttpResponse} instance with the specified status.
+         * 
+         * @param status the status
+         * @return a {@code HttpResponse}
+         */
+        HttpResponse create(HttpResponseStatus status);
+
+        /**
+         * Creates a new {@link FullHttpResponse} instance with the specified status and
+         * {@code EMPTY} content.
+         * 
+         * @param status the status
+         * @return a {@code FullHttpResponse}
+         */
+        FullHttpResponse createFull(HttpResponseStatus status);
+
+        /**
+         * Creates a new {@link FullHttpResponse} instance with the specified status and
+         * content.
+         * 
+         * @param status      the status
+         * @param content     a {@link ByteBuf} contains response body
+         * @param contentType the MIME type of the content
+         * @return a {@code FullHttpResponse}
+         */
+        default FullHttpResponse createFull(HttpResponseStatus status, ByteBuf content, CharSequence contentType) {
+            return createFull(status, content, content.readableBytes(), contentType);
+        }
+
+        /**
+         * Creates a new {@link FullHttpResponse} instance with the specified status and
+         * content.
+         * 
+         * @param status        the status
+         * @param content       a {@link ByteBuf} contains response body
+         * @param contentLength the length of the content
+         * @param contentType   the MIME type of the content
+         * @return a {@code FullHttpResponse}
+         */
+        FullHttpResponse createFull(HttpResponseStatus status, ByteBuf content, int contentLength,
+                CharSequence contentType);
+
+        /**
+         * Creates a new {@link FullHttpResponse} instance with the specified status and
+         * the content be same with status as {@code text/plain}.
+         * 
+         * @param status the status
+         * @return a {@code FullHttpResponse}
+         */
+        default FullHttpResponse createFullText(HttpResponseStatus status) {
+            return createFullText(status, CharsetUtil.UTF_8);
+        }
+
+        /**
+         * Creates a new {@link FullHttpResponse} instance with the specified status and
+         * the content be same with status as {@code text/plain}.
+         * 
+         * @param status  the status
+         * @param charset the character-set of the content
+         * @return a {@code FullHttpResponse}
+         */
+        FullHttpResponse createFullText(HttpResponseStatus status, Charset charset);
+
     }
 
 }

@@ -1,6 +1,11 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
-import static io.netty.handler.codec.http.HttpMethod.*;
+import static io.netty.handler.codec.http.HttpMethod.DELETE;
+import static io.netty.handler.codec.http.HttpMethod.GET;
+import static io.netty.handler.codec.http.HttpMethod.PATCH;
+import static io.netty.handler.codec.http.HttpMethod.POST;
+import static io.netty.handler.codec.http.HttpMethod.PUT;
+import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,7 +19,6 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
-import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpServiceInvoker;
 
 import io.netty.handler.codec.http.HttpMethod;
@@ -104,7 +108,7 @@ public class Router implements Middleware {
         }
         if (pathMatched) {
             // throw 405 Method Not Allowed
-            return HttpServerUtil.sendMethodNotAllowed(ctx);
+            return ctx.simpleRespond(METHOD_NOT_ALLOWED);
         }
         logger.debug("Miss match for all routes: {} {}", method, path);
         return next.doNext(ctx);

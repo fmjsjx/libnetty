@@ -1,5 +1,9 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.AUTHORIZATION;
+import static io.netty.handler.codec.http.HttpHeaderNames.WWW_AUTHENTICATE;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
@@ -7,17 +11,11 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.BiPredicate;
 
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
-import com.github.fmjsjx.libnetty.http.server.HttpResponseUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServer.AbstractUser;
 import com.github.fmjsjx.libnetty.http.server.HttpServer.User;
-import com.github.fmjsjx.libnetty.http.server.HttpServerUtil;
 
-import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.AsciiString;
 
 /**
@@ -88,7 +86,7 @@ public class AuthBasic implements Middleware {
 
     @Override
     public CompletionStage<HttpResult> apply(HttpRequestContext ctx, MiddlewareChain next) {
-        String authorization = ctx.headers().getAsString(HttpHeaderNames.AUTHORIZATION);
+        String authorization = ctx.headers().getAsString(AUTHORIZATION);
         if (authorization != null && authorization.startsWith("Basic ")) {
             String base64 = authorization.substring(6);
             byte[] auth = Base64.getDecoder().decode(base64);
@@ -123,12 +121,9 @@ public class AuthBasic implements Middleware {
             }
         }
         // validation failure
-        FullHttpRequest request = ctx.request();
-        boolean keepAlive = HttpUtil.isKeepAlive(request);
-        FullHttpResponse response = HttpResponseUtil.create(request.protocolVersion(), HttpResponseStatus.UNAUTHORIZED,
-                keepAlive);
-        response.headers().set(HttpHeaderNames.WWW_AUTHENTICATE, basicRealm);
-        return HttpServerUtil.sendResponse(ctx, response, 0, keepAlive);
+        FullHttpResponse response = ctx.responseFactory().createFull(UNAUTHORIZED);
+        response.headers().set(WWW_AUTHENTICATE, basicRealm);
+        return ctx.sendResponse(response, 0);
     }
 
     @Override
