@@ -17,9 +17,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
@@ -103,8 +102,6 @@ public class TestDefaultServer {
 @HttpPath("/api")
 class TestController {
 
-    static final ObjectMapper mapper = new ObjectMapper().setSerializationInclusion(Include.NON_ABSENT);
-
     @HttpGet("/test")
     public CompletionStage<HttpResult> getTest(HttpRequestContext ctx) {
         // GET /test
@@ -132,7 +129,7 @@ class TestController {
     public CompletableFuture<?> getJsons(QueryStringDecoder query, EventLoop eventLoop) {
         // GET /jsons
         System.out.println("-- jsons --");
-        ObjectNode node = mapper.createObjectNode();
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
         query.parameters().forEach((key, values) -> {
             if (values.size() == 1) {
                 node.put(key, values.get(0));
