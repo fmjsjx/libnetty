@@ -184,7 +184,7 @@ public class SslContextProviders {
 
     /**
      * Returns a simple implementation of {@link SslContextProvider} which just
-     * holding the specified {@link sslContext}.
+     * holding the specified {@link SslContext}.
      * 
      * @param sslContext a {@code SslContext}
      * @return a {@code SslContextProvider}
