@@ -254,8 +254,9 @@ public class ControllerBeanUtil {
 
     @SuppressWarnings("unchecked")
     private static final Function<HttpRequestContext, Object[]> toParametersMapper(Parameter[] params) {
-        return toParametersMapper(
-                Arrays.stream(params).map(ControllerBeanUtil::toParameterMapper).toArray(Function[]::new));
+        Function<HttpRequestContext, Object>[] parameterMappers = Arrays.stream(params)
+                .map(ControllerBeanUtil::toParameterMapper).toArray(Function[]::new);
+        return toParametersMapper(parameterMappers);
     }
 
     private static final void requireContext(Parameter[] params) {
