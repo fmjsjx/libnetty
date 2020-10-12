@@ -68,7 +68,7 @@ public class RespMessageType {
     private final String text;
     private final ByteBuf content;
 
-    private RespMessageType(byte value, boolean inline, String name) {
+    protected RespMessageType(byte value, boolean inline, String name) {
         this.value = value;
         this.inline = inline;
         if (value == 0) {
