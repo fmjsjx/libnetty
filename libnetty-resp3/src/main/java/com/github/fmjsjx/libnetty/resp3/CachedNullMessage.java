@@ -14,20 +14,20 @@ import com.github.fmjsjx.libnetty.resp.RespCodecUtil;
  *
  * @author MJ Fang
  */
-public class CachedResp3NullMessage extends CachedRespMessage implements Resp3NullMessage {
+public class CachedNullMessage extends CachedRespMessage implements Resp3NullMessage {
 
-    static final CachedResp3NullMessage INSTANCE = new CachedResp3NullMessage();
+    static final CachedNullMessage INSTANCE = new CachedNullMessage();
 
     /**
-     * Returns the singleton {@link CachedResp3NullMessage} instance.
+     * Returns the singleton {@link CachedNullMessage} instance.
      * 
-     * @return the singleton {@link CachedResp3NullMessage} instance
+     * @return the singleton {@link CachedNullMessage} instance
      */
-    public static final CachedResp3NullMessage getInstance() {
+    public static final CachedNullMessage getInstance() {
         return INSTANCE;
     }
 
-    private CachedResp3NullMessage() {
+    private CachedNullMessage() {
         super(RespCodecUtil.buffer(TYPE_LENGTH + EOL_LENGTH).writeByte(Resp3MessageType.NULL.value())
                 .writeShort(EOL_SHORT));
     }
