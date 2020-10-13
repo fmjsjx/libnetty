@@ -1,7 +1,6 @@
 package com.github.fmjsjx.libnetty.resp;
 
-import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_SHORT;
-import static com.github.fmjsjx.libnetty.resp.RespConstants.TYPE_LENGTH;
+import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
 
 import io.netty.buffer.ByteBuf;
 
@@ -12,8 +11,7 @@ import io.netty.buffer.ByteBuf;
  *
  * @author MJ Fang
  */
-public class CachedIntegerMessage extends AbstractCachedRespMessage<CachedIntegerMessage>
-        implements RespIntegerMessage {
+public class CachedIntegerMessage extends CachedRespMessage implements RespIntegerMessage {
 
     /**
      * Returns a new {@link CachedIntegerMessage} with the specific {@code value}
@@ -25,27 +23,21 @@ public class CachedIntegerMessage extends AbstractCachedRespMessage<CachedIntege
     public static final CachedIntegerMessage create(long value) {
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
         int length = bytes.length;
-        ByteBuf fullContent = fixedBuffer(length).writeBytes(RespMessageType.INTEGER.content()).writeBytes(bytes)
-                .writeShort(EOL_SHORT).asReadOnly();
-        ByteBuf content = fullContent.slice(fullContent.readerIndex() + TYPE_LENGTH, length);
-        return new CachedIntegerMessage(content, fullContent, value);
+        ByteBuf fullContent = RespCodecUtil.buffer(TYPE_LENGTH + length + EOL_LENGTH)
+                .writeBytes(RespMessageType.INTEGER.content()).writeBytes(bytes).writeShort(EOL_SHORT).asReadOnly();
+        return new CachedIntegerMessage(fullContent, value);
     }
 
     private final long value;
 
-    private CachedIntegerMessage(ByteBuf content, ByteBuf fullContent, long value) {
-        super(content, fullContent);
+    private CachedIntegerMessage(ByteBuf fullContent, long value) {
+        super(fullContent);
         this.value = value;
     }
 
     @Override
     public RespMessageType type() {
         return RespMessageType.INTEGER;
-    }
-
-    @Override
-    public CachedIntegerMessage replace(ByteBuf content) {
-        return new CachedIntegerMessage(content, fullContent, value);
     }
 
     @Override

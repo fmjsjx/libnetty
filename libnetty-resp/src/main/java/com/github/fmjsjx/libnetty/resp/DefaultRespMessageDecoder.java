@@ -7,8 +7,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-import com.github.fmjsjx.libnetty.resp.RespCodecUtil.ToPositiveLongProcessor;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.CharsetUtil;
 
@@ -20,12 +18,6 @@ import io.netty.util.CharsetUtil;
  * @author MJ Fang
  */
 public class DefaultRespMessageDecoder extends RespMessageDecoder {
-
-    private static final ThreadLocal<ToPositiveLongProcessor> currentPositiveLongProcessor = new ThreadLocal<ToPositiveLongProcessor>() {
-        protected ToPositiveLongProcessor initialValue() {
-            return new ToPositiveLongProcessor();
-        }
-    };
 
     static final class ArrayBuilder {
 
@@ -154,9 +146,7 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
 
     private void decodeInteger(ByteBuf inlineBytes, List<Object> out) {
         requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
-        ToPositiveLongProcessor numberProcessor = currentPositiveLongProcessor.get();
-        numberProcessor.reset();
-        long value = RespCodecUtil.decodeLong(inlineBytes, numberProcessor);
+        long value = RespCodecUtil.decodeLong(inlineBytes);
         RespMessage msg = new DefaultIntegerMessage(value);
         appendMessage(msg, out);
     }

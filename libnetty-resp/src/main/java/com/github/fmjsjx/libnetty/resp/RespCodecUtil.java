@@ -5,6 +5,7 @@ import java.nio.charset.Charset;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.AsciiString;
 import io.netty.util.ByteProcessor;
 import io.netty.util.CharsetUtil;
@@ -140,7 +141,8 @@ public class RespCodecUtil {
         if (negative) {
             begin++;
         }
-        ToPositiveIntProcessor numberProcessor = new ToPositiveIntProcessor();
+        ToPositiveIntProcessor numberProcessor = ThreadLocalToPositiveIntProcessor.INSTANCE.get();
+        numberProcessor.reset();
         content.forEachByte(begin, end - begin, numberProcessor);
         return numberProcessor.value;
     }
@@ -152,17 +154,6 @@ public class RespCodecUtil {
      * @return decoded long value
      */
     public static final long decodeLong(ByteBuf content) {
-        return decodeLong(content, new ToPositiveLongProcessor());
-    }
-
-    /**
-     * Decode a long value from the specified {@link ByteBuf}.
-     * 
-     * @param content         the content
-     * @param numberProcessor a processor to parse numbers
-     * @return decoded long value
-     */
-    public static final long decodeLong(ByteBuf content, ToPositiveLongProcessor numberProcessor) {
         int begin = content.readerIndex();
         int length = content.readableBytes();
         if (length == 0) {
@@ -176,14 +167,57 @@ public class RespCodecUtil {
         if (length == 0) {
             throw NaN;
         }
+        ToPositiveLongProcessor numberProcessor = ThreadLocalToPositiveLongProcessor.INSTANCE.get();
+        numberProcessor.reset();
         content.forEachByte(begin, length, numberProcessor);
         return numberProcessor.value;
+    }
+
+    /**
+     * Decode a long value from the specified {@link ByteBuf}.
+     * 
+     * @param content         the content
+     * @param numberProcessor a processor to parse numbers
+     * @return decoded long value
+     * 
+     * @deprecated please always use {@link #decodeLong(ByteBuf)}
+     */
+    @Deprecated
+    public static final long decodeLong(ByteBuf content, ToPositiveLongProcessor numberProcessor) {
+        return decodeLong(content);
     }
 
     /**
      * Not a number exception.
      */
     public static final NumberFormatException NaN = new NumberFormatException("value is not a number");
+
+    private static final ByteBufAllocator ALLOC = UnpooledByteBufAllocator.DEFAULT;
+
+    /**
+     * Allocate a {@link ByteBuf} with the given capacity.
+     * 
+     * @param alloc    the {@link ByteBufAllocator} that allocates {@link ByteBuf}s
+     * @param capacity the capacity (both initial and maximal)
+     * @return a {@code ByteBuf}
+     * 
+     * @since 1.1
+     */
+    public static final ByteBuf buffer(ByteBufAllocator alloc, int capacity) {
+        return alloc.buffer(capacity, capacity);
+    }
+
+    /**
+     * Allocate a {@link ByteBuf} with the given capacity.
+     * 
+     * @param capacity the capacity (both initial and maximal)
+     * @return a {@code ByteBuf}
+     * 
+     * @since 1.1
+     */
+    public static final ByteBuf buffer(int capacity) {
+        return buffer(ALLOC, capacity);
+    }
 
     private RespCodecUtil() {
     }
@@ -234,6 +268,16 @@ public class RespCodecUtil {
 
     }
 
+    private static final class ThreadLocalToPositiveIntProcessor extends ThreadLocal<ToPositiveIntProcessor> {
+
+        private static final ThreadLocalToPositiveIntProcessor INSTANCE = new ThreadLocalToPositiveIntProcessor();
+
+        @Override
+        protected ToPositiveIntProcessor initialValue() {
+            return new ToPositiveIntProcessor();
+        }
+    }
+
     /**
      * A {@link ByteProcessor} to parse positive long value.
      * 
@@ -276,6 +320,17 @@ public class RespCodecUtil {
          */
         public void reset() {
             value = 0L;
+        }
+
+    }
+
+    private static final class ThreadLocalToPositiveLongProcessor extends ThreadLocal<ToPositiveLongProcessor> {
+
+        private static final ThreadLocalToPositiveLongProcessor INSTANCE = new ThreadLocalToPositiveLongProcessor();
+
+        @Override
+        protected ToPositiveLongProcessor initialValue() {
+            return new ToPositiveLongProcessor();
         }
 
     }

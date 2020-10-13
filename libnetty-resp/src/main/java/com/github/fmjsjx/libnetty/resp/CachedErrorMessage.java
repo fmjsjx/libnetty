@@ -15,7 +15,7 @@ import io.netty.util.CharsetUtil;
  *
  * @author MJ Fang
  */
-public class CachedErrorMessage extends AbstractCachedRespMessage<CachedErrorMessage> implements RespErrorMessage {
+public class CachedErrorMessage extends CachedRespMessage implements RespErrorMessage {
 
     /**
      * Returns a new {@link CachedErrorMessage} by the full {@code text} given.
@@ -26,7 +26,7 @@ public class CachedErrorMessage extends AbstractCachedRespMessage<CachedErrorMes
     public static final CachedErrorMessage createAscii(CharSequence text) {
         String[] error = text.toString().split(" ", 2);
         if (ERR.toString().equalsIgnoreCase(error[0])) {
-            return createErr(error[1], CharsetUtil.US_ASCII);
+            return createErrAscii(error[1]);
         }
         return createAscii(error[0], error[1]);
     }
@@ -51,19 +51,7 @@ public class CachedErrorMessage extends AbstractCachedRespMessage<CachedErrorMes
      * @return a {@code CachedErrorMessage}
      */
     public static final CachedErrorMessage createErrAscii(String message) {
-        return createErr(message, CharsetUtil.US_ASCII);
-    }
-
-    /**
-     * Returns a new {@link CachedErrorMessage} with the {@code ERR} code and the
-     * specific {@code message} given.
-     * 
-     * @param message the message of the error
-     * @param charset the {@link Charset} of the error message
-     * @return a {@code CachedErrorMessage}
-     */
-    public static final CachedErrorMessage createErr(String message, Charset charset) {
-        return create(ERR, message, charset);
+        return createAscii(ERR, message);
     }
 
     /**
@@ -72,10 +60,13 @@ public class CachedErrorMessage extends AbstractCachedRespMessage<CachedErrorMes
      * 
      * @param code    the code of the error
      * @param message the message of the error
-     * @param charset the {@link Charset} of the error message
      * @return a {@code CachedErrorMessage}
      */
-    public static final CachedErrorMessage create(CharSequence code, String message, Charset charset) {
+    public static final CachedErrorMessage create(CharSequence code, String message) {
+        return create(code, message, CharsetUtil.UTF_8);
+    }
+
+    private static final CachedErrorMessage create(CharSequence code, String message, Charset charset) {
         if (code instanceof AsciiString) {
             return create((AsciiString) code, message, charset);
         }
@@ -83,26 +74,23 @@ public class CachedErrorMessage extends AbstractCachedRespMessage<CachedErrorMes
     }
 
     private static final CachedErrorMessage create(AsciiString code, String message, Charset charset) {
-        String text = code.toUpperCase() + " " + message;
+        code = code.toUpperCase();
+        String text = code + " " + message;
         byte[] bytes = text.getBytes(charset);
         int length = bytes.length;
-        ByteBuf fullContent = fixedBuffer(length).writeBytes(RespMessageType.ERROR.content()).writeBytes(bytes)
-                .writeShort(EOL_SHORT).asReadOnly();
-        ByteBuf content = fullContent.slice(fullContent.readerIndex() + TYPE_LENGTH, length);
-        return new CachedErrorMessage(content, fullContent, code, message, charset, text);
+        ByteBuf fullContent = RespCodecUtil.buffer(TYPE_LENGTH + length + EOL_LENGTH)
+                .writeBytes(RespMessageType.ERROR.content()).writeBytes(bytes).writeShort(EOL_SHORT).asReadOnly();
+        return new CachedErrorMessage(fullContent, code, message, text);
     }
 
-    private final AsciiString code;
+    private final CharSequence code;
     private final String message;
-    private final Charset charset;
     private final String text;
 
-    private CachedErrorMessage(ByteBuf content, ByteBuf fullContent, AsciiString code, String message, Charset charset,
-            String text) {
-        super(content, fullContent);
+    private CachedErrorMessage(ByteBuf fullContent, CharSequence code, String message, String text) {
+        super(fullContent);
         this.code = code;
         this.message = message;
-        this.charset = charset;
         this.text = text;
     }
 
@@ -112,12 +100,7 @@ public class CachedErrorMessage extends AbstractCachedRespMessage<CachedErrorMes
     }
 
     @Override
-    public CachedErrorMessage replace(ByteBuf content) {
-        return new CachedErrorMessage(content, fullContent, code, message, charset, text);
-    }
-
-    @Override
-    public AsciiString code() {
+    public CharSequence code() {
         return code;
     }
 

@@ -7,7 +7,6 @@ import static com.github.fmjsjx.libnetty.resp.RespConstants.TYPE_LENGTH;
 import java.util.List;
 import java.util.function.Supplier;
 
-import com.github.fmjsjx.libnetty.resp.RespCodecUtil.ToPositiveIntProcessor;
 import com.github.fmjsjx.libnetty.resp.exception.RespDecoderException;
 
 import io.netty.buffer.ByteBuf;
@@ -32,12 +31,6 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
 
     protected static final RespDecoderException DECODING_OF_INLINE_COMMANDS_DISABLED = new RespDecoderException(
             "decoding of inline commands is disabled");
-
-    protected static final ThreadLocal<ToPositiveIntProcessor> currentToPositiveIntProcessor = new ThreadLocal<ToPositiveIntProcessor>() {
-        protected ToPositiveIntProcessor initialValue() {
-            return new ToPositiveIntProcessor();
-        }
-    };
 
     protected static final void requireReadable(ByteBuf inlineBytes, Supplier<RespDecoderException> errorSupplier) {
         if (!inlineBytes.isReadable()) {
@@ -140,10 +133,7 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
     }
 
     protected int parsePostiveInt(ByteBuf byteBuf) {
-        ToPositiveIntProcessor toPositiveIntProcessor = currentToPositiveIntProcessor.get();
-        toPositiveIntProcessor.reset();
-        byteBuf.forEachByte(toPositiveIntProcessor);
-        return toPositiveIntProcessor.value();
+        return RespCodecUtil.decodeInt(byteBuf);
     }
 
     protected int parseLength(ByteBuf byteBuf) {

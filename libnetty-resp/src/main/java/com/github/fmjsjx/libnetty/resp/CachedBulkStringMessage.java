@@ -23,8 +23,7 @@ import io.netty.util.CharsetUtil;
  * 
  * @author MJ Fang
  */
-public class CachedBulkStringMessage extends AbstractCachedRespMessage<CachedBulkStringMessage>
-        implements RespBulkStringMessage {
+public class CachedBulkStringMessage extends CachedRespMessage implements RespBulkStringMessage {
 
     /**
      * Returns a new {@link CachedBulkStringMessage} with the specific {@code value}
@@ -82,12 +81,12 @@ public class CachedBulkStringMessage extends AbstractCachedRespMessage<CachedBul
      * @param charset the {@link Charset} of the value
      * @return a {@code CachedBulkStringMessage}
      */
-    public static final CachedBulkStringMessage create(CharSequence value, Charset charset) {
+    private static final CachedBulkStringMessage create(CharSequence value, Charset charset) {
         String text = value.toString();
         byte[] bytes = text.getBytes(charset);
         int length = bytes.length;
         byte[] lengthBytes = RespCodecUtil.longToAsciiBytes(length);
-        ByteBuf fullContent = fixedBuffer(lengthBytes.length + EOL_LENGTH + length)
+        ByteBuf fullContent = RespCodecUtil.buffer(TYPE_LENGTH + lengthBytes.length + EOL_LENGTH + length + EOL_LENGTH)
                 .writeBytes(RespMessageType.BULK_STRING.content()).writeBytes(lengthBytes).writeShort(EOL_SHORT)
                 .writeBytes(bytes).writeShort(EOL_SHORT).asReadOnly();
         ByteBuf content = length == 0 ? Unpooled.EMPTY_BUFFER
@@ -101,12 +100,14 @@ public class CachedBulkStringMessage extends AbstractCachedRespMessage<CachedBul
         return bulkString;
     }
 
+    private final ByteBuf data;
     private final AsciiString asciiValue;
     private final ConcurrentMap<Class<? extends Number>, Number> cachedNumbers = new ConcurrentHashMap<>();
     private final ConcurrentMap<Charset, String> cachedTexts = new ConcurrentHashMap<>();
 
     private CachedBulkStringMessage(ByteBuf content, ByteBuf fullContent, AsciiString asciiValue) {
-        super(content, fullContent);
+        super(fullContent);
+        this.data = Unpooled.unreleasableBuffer(content.asReadOnly());
         this.asciiValue = asciiValue;
     }
 
@@ -142,7 +143,12 @@ public class CachedBulkStringMessage extends AbstractCachedRespMessage<CachedBul
 
     @Override
     public String textValue(Charset charset) {
-        return cachedTexts.computeIfAbsent(charset, super::toText);
+        return cachedTexts.computeIfAbsent(charset, this::toText);
+    }
+
+    @Override
+    public String toText(Charset charset) {
+        return data.toString(charset);
     }
 
     @Override
@@ -157,12 +163,68 @@ public class CachedBulkStringMessage extends AbstractCachedRespMessage<CachedBul
 
     @Override
     public CachedBulkStringMessage replace(ByteBuf content) {
-        return new CachedBulkStringMessage(content, fullContent, asciiValue);
+        // not support replace, just return this
+        return this;
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName() + "[" + type() + textValue(CharsetUtil.UTF_8) + "]";
+    }
+
+    @Override
+    public ByteBuf content() {
+        return data.duplicate();
+    }
+
+    @Override
+    public int refCnt() {
+        return data.refCnt();
+    }
+
+    @Override
+    public boolean release() {
+        return false;
+    }
+
+    @Override
+    public boolean release(int decrement) {
+        return false;
+    }
+
+    @Override
+    public CachedBulkStringMessage copy() {
+        return this;
+    }
+
+    @Override
+    public CachedBulkStringMessage duplicate() {
+        return this;
+    }
+
+    @Override
+    public CachedBulkStringMessage retainedDuplicate() {
+        return this;
+    }
+
+    @Override
+    public CachedBulkStringMessage retain() {
+        return this;
+    }
+
+    @Override
+    public CachedBulkStringMessage retain(int increment) {
+        return this;
+    }
+
+    @Override
+    public CachedBulkStringMessage touch() {
+        return this;
+    }
+
+    @Override
+    public CachedBulkStringMessage touch(Object hint) {
+        return this;
     }
 
 }

@@ -1,8 +1,6 @@
 package com.github.fmjsjx.libnetty.resp;
 
-import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_SHORT;
-import static com.github.fmjsjx.libnetty.resp.RespConstants.NULL_LENGTH;
-import static com.github.fmjsjx.libnetty.resp.RespConstants.NULL_SHORT;
+import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -23,9 +21,9 @@ import io.netty.util.AsciiString;
  *
  * @author MJ Fang
  */
-public class CachedNullMessage extends AbstractCachedRespMessage<CachedNullMessage> implements RespBulkStringMessage {
+public class CachedNullMessage extends CachedRespMessage implements RespBulkStringMessage {
 
-    static final CachedNullMessage instance = new CachedNullMessage();
+    private static final CachedNullMessage instance = new CachedNullMessage();
 
     /**
      * Returns the <b>SINGLETON</b> {@link CachedNullMessage} instance.
@@ -37,8 +35,8 @@ public class CachedNullMessage extends AbstractCachedRespMessage<CachedNullMessa
     }
 
     private CachedNullMessage() {
-        super(Unpooled.EMPTY_BUFFER, fixedBuffer(NULL_LENGTH).writeBytes(RespMessageType.BULK_STRING.content())
-                .writeShort(NULL_SHORT).writeShort(EOL_SHORT));
+        super(RespCodecUtil.buffer(TYPE_LENGTH + NULL_LENGTH + EOL_LENGTH)
+                .writeBytes(RespMessageType.BULK_STRING.content()).writeShort(NULL_SHORT).writeShort(EOL_SHORT));
     }
 
     @Override
@@ -124,6 +122,61 @@ public class CachedNullMessage extends AbstractCachedRespMessage<CachedNullMessa
     @Override
     public String toString() {
         return getClass().getSimpleName() + "[" + type() + "null]";
+    }
+
+    @Override
+    public ByteBuf content() {
+        return Unpooled.EMPTY_BUFFER;
+    }
+
+    @Override
+    public int refCnt() {
+        return Unpooled.EMPTY_BUFFER.refCnt();
+    }
+
+    @Override
+    public boolean release() {
+        return false;
+    }
+
+    @Override
+    public boolean release(int decrement) {
+        return false;
+    }
+
+    @Override
+    public CachedNullMessage copy() {
+        return this;
+    }
+
+    @Override
+    public CachedNullMessage duplicate() {
+        return this;
+    }
+
+    @Override
+    public CachedNullMessage retainedDuplicate() {
+        return this;
+    }
+
+    @Override
+    public CachedNullMessage retain() {
+        return this;
+    }
+
+    @Override
+    public CachedNullMessage retain(int increment) {
+        return this;
+    }
+
+    @Override
+    public CachedNullMessage touch() {
+        return this;
+    }
+
+    @Override
+    public CachedNullMessage touch(Object hint) {
+        return this;
     }
 
 }

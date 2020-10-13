@@ -1,7 +1,6 @@
 package com.github.fmjsjx.libnetty.resp;
 
-import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_SHORT;
-import static com.github.fmjsjx.libnetty.resp.RespConstants.TYPE_LENGTH;
+import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
 
 import java.nio.charset.Charset;
 
@@ -15,8 +14,7 @@ import io.netty.util.CharsetUtil;
  *
  * @author MJ Fang
  */
-public class CachedSimpleStringMessage extends AbstractCachedRespMessage<CachedSimpleStringMessage>
-        implements RespSimpleStringMessage {
+public class CachedSimpleStringMessage extends CachedRespMessage implements RespSimpleStringMessage {
 
     /**
      * Returns a new cached {@link CachedSimpleStringMessage} with the specific
@@ -40,41 +38,25 @@ public class CachedSimpleStringMessage extends AbstractCachedRespMessage<CachedS
         return create(message, CharsetUtil.UTF_8);
     }
 
-    /**
-     * Returns a new cached {@link CachedSimpleStringMessage} with the specific
-     * {@code message} and {@code charset} given.
-     * 
-     * @param message the value message
-     * @param charset the {@link Charset} of the message
-     * @return a {@code CachedSimpleStringMessage}
-     */
-    public static final CachedSimpleStringMessage create(CharSequence message, Charset charset) {
+    private static final CachedSimpleStringMessage create(CharSequence message, Charset charset) {
         String value = message.toString();
         byte[] bytes = value.getBytes(charset);
-        int length = bytes.length;
-        ByteBuf fullContent = fixedBuffer(length).writeBytes(RespMessageType.SIMPLE_STRING.content()).writeBytes(bytes)
-                .writeShort(EOL_SHORT).asReadOnly();
-        ByteBuf content = fullContent.slice(fullContent.readerIndex() + TYPE_LENGTH, length);
-        return new CachedSimpleStringMessage(content, fullContent, value, charset);
+        ByteBuf fullContent = RespCodecUtil.buffer(TYPE_LENGTH + bytes.length + EOL_LENGTH)
+                .writeBytes(RespMessageType.SIMPLE_STRING.content()).writeBytes(bytes).writeShort(EOL_SHORT)
+                .asReadOnly();
+        return new CachedSimpleStringMessage(fullContent, value);
     }
 
     private final String value;
-    private final Charset charset;
 
-    private CachedSimpleStringMessage(ByteBuf content, ByteBuf fullContent, String value, Charset charset) {
-        super(content, fullContent);
+    private CachedSimpleStringMessage(ByteBuf fullContent, String value) {
+        super(fullContent);
         this.value = value;
-        this.charset = charset;
     }
 
     @Override
     public RespMessageType type() {
         return RespMessageType.SIMPLE_STRING;
-    }
-
-    @Override
-    public CachedSimpleStringMessage replace(ByteBuf content) {
-        return new CachedSimpleStringMessage(content, fullContent, value, charset);
     }
 
     @Override
