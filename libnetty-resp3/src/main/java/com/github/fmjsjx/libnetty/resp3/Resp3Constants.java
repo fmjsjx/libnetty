@@ -8,7 +8,7 @@ package com.github.fmjsjx.libnetty.resp3;
  * @author MJ Fang
  */
 public class Resp3Constants {
-
+    
     /**
      * Sign of type null: {@code _}
      */
