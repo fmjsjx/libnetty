@@ -83,11 +83,6 @@ public class CachedSimpleStringMessage extends AbstractCachedRespMessage<CachedS
     }
 
     @Override
-    public Charset charset() {
-        return charset;
-    }
-
-    @Override
     public String toString() {
         return getClass().getSimpleName() + "[" + type() + value + "]";
     }

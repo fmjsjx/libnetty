@@ -2,13 +2,6 @@ package com.github.fmjsjx.libnetty.resp;
 
 import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
 
-import java.nio.CharBuffer;
-import java.nio.charset.Charset;
-import java.util.List;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
@@ -19,91 +12,62 @@ import io.netty.util.CharsetUtil;
  *
  * @author MJ Fang
  */
-public class DefaultErrorMessage extends AbstractContentRespMessage<DefaultErrorMessage> implements RespErrorMessage {
+public class DefaultErrorMessage extends AbstractSimpleRespMessage implements RespErrorMessage {
 
     /**
      * Creates a new {@link DefaultErrorMessage} with the {@code ERR} code and the
-     * {@code message} encoded in {@code US-ASCII} character set.
+     * {@code message}.
      * 
-     * @param alloc   the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
-     * @param message the message encoded in {@code US-ASCII}
+     * @param message the error message
      * @return a {@code DefaultErrorMessage}
      */
-    public static final DefaultErrorMessage createErrAscii(ByteBufAllocator alloc, CharSequence message) {
-        return createAscii(alloc, ERR, message);
-    }
-
-    /**
-     * Creates a new {@link DefaultErrorMessage} with the {@code ERR} code and the
-     * {@code message} encoded in {@code UTF-8} character set.
-     * 
-     * @param alloc   the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
-     * @param message the message encoded in {@code UTF-8}
-     * @return a {@code DefaultErrorMessage}
-     */
-    public static final DefaultErrorMessage createErrUtf8(ByteBufAllocator alloc, CharSequence message) {
-        return createUtf8(alloc, ERR, message);
+    public static final DefaultErrorMessage createErr(CharSequence message) {
+        return create(ERR, message);
     }
 
     /**
      * Creates a new {@link DefaultErrorMessage} with the specified {@code code} and
-     * the {@code message} encoded in {@code US-ASCII} character set.
+     * the {@code message}.
      * 
-     * @param alloc   the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
      * @param code    the error code
-     * @param message the message encoded in {@code US-ASCII}
+     * @param message the error message
      * @return a {@code DefaultErrorMessage}
      */
-    public static final DefaultErrorMessage createAscii(ByteBufAllocator alloc, CharSequence code,
-            CharSequence message) {
-        String text = code + " " + message;
-        return new DefaultErrorMessage(ByteBufUtil.writeAscii(alloc, text), AsciiString.of(code), message.toString(),
-                CharsetUtil.US_ASCII, text);
+    public static final DefaultErrorMessage create(CharSequence code, CharSequence message) {
+        if (code instanceof AsciiString) {
+            return new DefaultErrorMessage(((AsciiString) code).toUpperCase(), message.toString());
+        } else {
+            AsciiString acode = AsciiString.cached(code.toString().toUpperCase());
+            return new DefaultErrorMessage(acode, message.toString());
+        }
     }
 
-    /**
-     * Creates a new {@link DefaultErrorMessage} with the specified {@code code} and
-     * the {@code message} encoded in {@code UTF-8} character set.
-     * 
-     * @param alloc   the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
-     * @param code    the error code
-     * @param message the message encoded in {@code UTF-8}
-     * @return a {@code DefaultErrorMessage}
-     */
-    public static final DefaultErrorMessage createUtf8(ByteBufAllocator alloc, CharSequence code,
-            CharSequence message) {
-        String text = code + " " + message;
-        return new DefaultErrorMessage(ByteBufUtil.writeUtf8(alloc, text), AsciiString.of(code), message.toString(),
-                CharsetUtil.UTF_8, text);
-    }
-
-    /**
-     * Creates a new {@link DefaultErrorMessage} with the specified {@code code} and
-     * the {@code message} encoded in specified {@link Charset}.
-     * 
-     * @param alloc   the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
-     * @param code    the error code
-     * @param message the message
-     * @param charset the {@code Charset} of the message
-     * @return a {@code DefaultErrorMessage}
-     */
-    public static final DefaultErrorMessage create(ByteBufAllocator alloc, CharSequence code, CharSequence message,
-            Charset charset) {
-        String text = code + " " + message;
-        return new DefaultErrorMessage(ByteBufUtil.encodeString(alloc, CharBuffer.wrap(text), charset),
-                AsciiString.of(code), message.toString(), charset, text);
-    }
-
-    private final AsciiString code;
+    private final CharSequence code;
     private final String message;
-    private final Charset charset;
     private final String text;
 
-    DefaultErrorMessage(ByteBuf content, AsciiString code, String message, Charset charset, String text) {
-        super(content);
+    /**
+     * Constructs a new {@link DefaultErrorMessage} instance with the specified code
+     * and message.
+     * 
+     * @param code    the error code
+     * @param message the error message
+     */
+    public DefaultErrorMessage(CharSequence code, String message) {
+        this(code, message, code + " " + message);
+    }
+
+    /**
+     * Constructs a new {@link DefaultErrorMessage} instance with the specified code
+     * , message and text.
+     * 
+     * @param code    the error code
+     * @param message the error message
+     * @param text    the full text string
+     */
+    public DefaultErrorMessage(CharSequence code, String message, String text) {
         this.code = code;
         this.message = message;
-        this.charset = charset;
         this.text = text;
     }
 
@@ -113,14 +77,7 @@ public class DefaultErrorMessage extends AbstractContentRespMessage<DefaultError
     }
 
     @Override
-    public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
-        out.add(type().content());
-        out.add(content().retain());
-        out.add(EOL_BUF.duplicate());
-    }
-
-    @Override
-    public AsciiString code() {
+    public CharSequence code() {
         return code;
     }
 
@@ -130,18 +87,13 @@ public class DefaultErrorMessage extends AbstractContentRespMessage<DefaultError
     }
 
     @Override
-    public Charset charset() {
-        return charset;
-    }
-
-    @Override
     public String text() {
         return text;
     }
 
     @Override
-    public DefaultErrorMessage replace(ByteBuf content) {
-        return new DefaultErrorMessage(content, code, message, charset, text);
+    protected byte[] encodedValue() throws Exception {
+        return text.getBytes(CharsetUtil.UTF_8);
     }
 
     @Override

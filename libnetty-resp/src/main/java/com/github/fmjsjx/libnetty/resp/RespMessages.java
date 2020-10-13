@@ -4,9 +4,6 @@ import static com.github.fmjsjx.libnetty.resp.CachedRespMessages.*;
 
 import java.util.Optional;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-
 /**
  * Provides static factory method for {@link RespMessage}s.
  * 
@@ -64,32 +61,30 @@ public class RespMessages {
     /**
      * Returns the {@link RespIntegerMessage} with the specified {@code value}.
      * 
-     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
      * @param value the value
      * @return a {@code RespIntegerMessage}
      */
-    public static final RespIntegerMessage integer(ByteBufAllocator alloc, int value) {
+    public static final RespIntegerMessage integer(int value) {
         Optional<CachedIntegerMessage> optionalInteger = cachedIntegerMessage(value);
         if (optionalInteger.isPresent()) {
             return optionalInteger.get();
         } else {
-            return DefaultIntegerMessage.create(alloc, value);
+            return new DefaultIntegerMessage(value);
         }
     }
 
     /**
      * Returns the {@link RespIntegerMessage} with the specified {@code value}.
      * 
-     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
      * @param value the value
      * @return a {@code RespIntegerMessage}
      */
-    public static final RespIntegerMessage integer(ByteBufAllocator alloc, long value) {
+    public static final RespIntegerMessage integer(long value) {
         Optional<CachedIntegerMessage> optionalInteger = cachedIntegerMessage(value);
         if (optionalInteger.isPresent()) {
             return optionalInteger.get();
         } else {
-            return DefaultIntegerMessage.create(alloc, value);
+            return new DefaultIntegerMessage(value);
         }
     }
 

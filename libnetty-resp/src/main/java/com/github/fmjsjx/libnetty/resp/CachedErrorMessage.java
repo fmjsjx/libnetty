@@ -127,11 +127,6 @@ public class CachedErrorMessage extends AbstractCachedRespMessage<CachedErrorMes
     }
 
     @Override
-    public Charset charset() {
-        return charset;
-    }
-
-    @Override
     public String text() {
         return text;
     }

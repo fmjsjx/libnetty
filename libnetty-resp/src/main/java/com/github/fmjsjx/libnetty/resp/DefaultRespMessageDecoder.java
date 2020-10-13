@@ -10,8 +10,6 @@ import java.util.function.BiConsumer;
 import com.github.fmjsjx.libnetty.resp.RespCodecUtil.ToPositiveLongProcessor;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
 /**
@@ -115,7 +113,7 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
     }
 
     private void decodeSimpleString(ByteBuf inlineBytes, List<Object> out) {
-        RespMessage msg = new DefaultSimpleStringMessage(inlineBytes.retain(), CharsetUtil.UTF_8);
+        RespMessage msg = new DefaultSimpleStringMessage(inlineBytes.toString(CharsetUtil.UTF_8));
         appendMessage(msg, out);
     }
 
@@ -142,13 +140,16 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
     }
 
     private void decodeError(ByteBuf inlineBytes, List<Object> out) {
-        int codeLength = inlineBytes.bytesBefore(RespConstants.SPACE);
-        byte[] codeValue = ByteBufUtil.getBytes(inlineBytes, inlineBytes.readerIndex(), codeLength);
-        AsciiString code = new AsciiString(codeValue, false);
         String text = inlineBytes.toString(CharsetUtil.UTF_8);
-        String message = text.substring(codeLength + 1);
-        RespMessage msg = new DefaultErrorMessage(inlineBytes.retain(), code, message, CharsetUtil.UTF_8, text);
-        appendMessage(msg, out);
+        int codeLength = inlineBytes.bytesBefore(RespConstants.SPACE);
+        if (codeLength == -1) {
+            // no space char found
+            appendMessage(new DefaultErrorMessage(text, "", text), out);
+        } else {
+            String code = text.substring(0, codeLength);
+            String message = text.substring(codeLength + 1);
+            appendMessage(new DefaultErrorMessage(code, message, text), out);
+        }
     }
 
     private void decodeInteger(ByteBuf inlineBytes, List<Object> out) {
@@ -156,7 +157,7 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
         ToPositiveLongProcessor numberProcessor = currentPositiveLongProcessor.get();
         numberProcessor.reset();
         long value = RespCodecUtil.decodeLong(inlineBytes, numberProcessor);
-        RespMessage msg = new DefaultIntegerMessage(inlineBytes.retain(), value);
+        RespMessage msg = new DefaultIntegerMessage(value);
         appendMessage(msg, out);
     }
 

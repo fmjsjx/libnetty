@@ -95,8 +95,7 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
         BiConsumer<ChannelHandlerContext, RedisRequest> procedure = commandProcedures.get(msg.command().content());
         if (procedure == null) {
             String cmd = msg.command().toText();
-            ctx.writeAndFlush(DefaultErrorMessage.createErrAscii(ctx.alloc(), "unknown command `" + cmd + "`"))
-                    .addListener(CLOSE);
+            ctx.writeAndFlush(DefaultErrorMessage.createErr("unknown command `" + cmd + "`")).addListener(CLOSE);
         } else {
             procedure.accept(ctx, msg);
         }
@@ -129,8 +128,7 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
         try (HttpClient client = SimpleHttpClient.builder().build(channel.eventLoop(), channel.getClass())) {
             client.request(URI.create(path)).get().sendAsync(HttpContentHandlers.ofByteArray()).thenAccept(r -> {
                 if (r.statusCode() >= 400) {
-                    channel.writeAndFlush(DefaultErrorMessage.createErrUtf8(channel.alloc(), r.status().toString()))
-                            .addListener(READ_NEXT);
+                    channel.writeAndFlush(DefaultErrorMessage.createErr(r.status().toString())).addListener(READ_NEXT);
                 } else {
                     ByteBuf content = channel.alloc().buffer(r.content().length).writeBytes(r.content());
                     channel.writeAndFlush(new DefaultBulkStringMessage(content)).addListener(READ_NEXT);
@@ -140,8 +138,7 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
                     if (e instanceof CompletionException) {
                         e = e.getCause();
                     }
-                    channel.writeAndFlush(DefaultErrorMessage.createErrUtf8(channel.alloc(), e.toString()))
-                            .addListener(READ_NEXT);
+                    channel.writeAndFlush(DefaultErrorMessage.createErr(e.toString())).addListener(READ_NEXT);
                 }
             });
         }
