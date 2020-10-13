@@ -1,5 +1,7 @@
 package com.github.fmjsjx.libnetty.resp3;
 
+import io.netty.util.AsciiString;
+
 /**
  * Constants of RESP3.
  * 
@@ -8,7 +10,7 @@ package com.github.fmjsjx.libnetty.resp3;
  * @author MJ Fang
  */
 public class Resp3Constants {
-    
+
     /**
      * Sign of type null: {@code _}
      */
@@ -57,5 +59,9 @@ public class Resp3Constants {
      * Sign of type end: {@code .}.
      */
     public static final byte TYPE_END = '.';
+
+    public static final AsciiString POSITIVE_INFINITY = AsciiString.cached("inf");
+
+    public static final AsciiString NEGATIVE_INFINITY = AsciiString.cached("inf");
 
 }
