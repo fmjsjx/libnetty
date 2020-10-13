@@ -24,7 +24,7 @@ public class CachedIntegerMessage extends CachedRespMessage implements RespInteg
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
         int length = bytes.length;
         ByteBuf fullContent = RespCodecUtil.buffer(TYPE_LENGTH + length + EOL_LENGTH)
-                .writeBytes(RespMessageType.INTEGER.content()).writeBytes(bytes).writeShort(EOL_SHORT).asReadOnly();
+                .writeByte(RespMessageType.INTEGER.value()).writeBytes(bytes).writeShort(EOL_SHORT).asReadOnly();
         return new CachedIntegerMessage(fullContent, value);
     }
 

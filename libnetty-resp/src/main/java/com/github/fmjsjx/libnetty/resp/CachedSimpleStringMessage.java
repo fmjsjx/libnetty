@@ -42,8 +42,7 @@ public class CachedSimpleStringMessage extends CachedRespMessage implements Resp
         String value = message.toString();
         byte[] bytes = value.getBytes(charset);
         ByteBuf fullContent = RespCodecUtil.buffer(TYPE_LENGTH + bytes.length + EOL_LENGTH)
-                .writeBytes(RespMessageType.SIMPLE_STRING.content()).writeBytes(bytes).writeShort(EOL_SHORT)
-                .asReadOnly();
+                .writeByte(RespMessageType.SIMPLE_STRING.value()).writeBytes(bytes).writeShort(EOL_SHORT).asReadOnly();
         return new CachedSimpleStringMessage(fullContent, value);
     }
 

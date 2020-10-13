@@ -87,7 +87,7 @@ public class CachedBulkStringMessage extends CachedRespMessage implements RespBu
         int length = bytes.length;
         byte[] lengthBytes = RespCodecUtil.longToAsciiBytes(length);
         ByteBuf fullContent = RespCodecUtil.buffer(TYPE_LENGTH + lengthBytes.length + EOL_LENGTH + length + EOL_LENGTH)
-                .writeBytes(RespMessageType.BULK_STRING.content()).writeBytes(lengthBytes).writeShort(EOL_SHORT)
+                .writeByte(RespMessageType.BULK_STRING.value()).writeBytes(lengthBytes).writeShort(EOL_SHORT)
                 .writeBytes(bytes).writeShort(EOL_SHORT);
         ByteBuf content = length == 0 ? Unpooled.EMPTY_BUFFER
                 : fullContent.slice(fullContent.readerIndex() + TYPE_LENGTH + lengthBytes.length + EOL_LENGTH, length);

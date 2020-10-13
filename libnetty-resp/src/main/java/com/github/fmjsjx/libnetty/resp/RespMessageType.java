@@ -2,10 +2,6 @@ package com.github.fmjsjx.libnetty.resp;
 
 import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
-
 /**
  * The message type of RESP.
  * 
@@ -66,18 +62,14 @@ public class RespMessageType {
     private final byte value;
     private final boolean inline;
     private final String text;
-    private final ByteBuf content;
 
     protected RespMessageType(byte value, boolean inline, String name) {
         this.value = value;
         this.inline = inline;
         if (value == 0) {
-            this.content = Unpooled.EMPTY_BUFFER;
             this.text = "(" + name + ")";
         } else {
             this.text = ((char) value) + "(" + name + ")";
-            this.content = Unpooled
-                    .unreleasableBuffer(UnpooledByteBufAllocator.DEFAULT.buffer(1, 1).writeByte(value).asReadOnly());
         }
     }
 
@@ -110,15 +102,6 @@ public class RespMessageType {
      */
     public String text() {
         return text;
-    }
-
-    /**
-     * Returns a cached {@link ByteBuf} content of this type.
-     * 
-     * @return a {@code ByteBuf}
-     */
-    ByteBuf content() {
-        return content.duplicate();
     }
 
     @Override

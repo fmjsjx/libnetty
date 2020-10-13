@@ -79,7 +79,7 @@ public class CachedErrorMessage extends CachedRespMessage implements RespErrorMe
         byte[] bytes = text.getBytes(charset);
         int length = bytes.length;
         ByteBuf fullContent = RespCodecUtil.buffer(TYPE_LENGTH + length + EOL_LENGTH)
-                .writeBytes(RespMessageType.ERROR.content()).writeBytes(bytes).writeShort(EOL_SHORT).asReadOnly();
+                .writeByte(RespMessageType.ERROR.value()).writeBytes(bytes).writeShort(EOL_SHORT).asReadOnly();
         return new CachedErrorMessage(fullContent, code, message, text);
     }
 

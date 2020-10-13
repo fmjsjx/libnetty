@@ -151,9 +151,9 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
     public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
         ByteBuf content = content();
         byte[] length = RespCodecUtil.longToAsciiBytes(content.readableBytes());
-        ByteBuf lengthBuf = alloc.buffer(length.length + EOL_LENGTH).writeBytes(length).writeShort(EOL_SHORT);
-        out.add(type().content()); // sign
-        out.add(lengthBuf);// length
+        ByteBuf header = alloc.buffer(TYPE_LENGTH + length.length + EOL_LENGTH).writeByte(type().value())
+                .writeBytes(length).writeShort(EOL_SHORT);
+        out.add(header); // header
         out.add(content.retain()); // content
         out.add(EOL_BUF.duplicate());
     }

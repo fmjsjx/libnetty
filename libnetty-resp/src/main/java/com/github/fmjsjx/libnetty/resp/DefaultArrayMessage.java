@@ -1,7 +1,6 @@
 package com.github.fmjsjx.libnetty.resp;
 
-import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_LENGTH;
-import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_SHORT;
+import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -15,7 +14,6 @@ import java.util.stream.Collectors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCountUtil;
 
@@ -231,9 +229,9 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
     @Override
     public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
         byte[] sizeBytes = RespCodecUtil.longToAsciiBytes(size());
-        ByteBuf sizeBuf = alloc.buffer(sizeBytes.length + EOL_LENGTH).writeBytes(sizeBytes).writeShort(EOL_SHORT);
-        out.add(type().content());
-        out.add(sizeBuf); // size
+        ByteBuf header = alloc.buffer(TYPE_LENGTH + sizeBytes.length + EOL_LENGTH).writeByte(type().value())
+                .writeBytes(sizeBytes).writeShort(EOL_SHORT);
+        out.add(header); // array header
         for (RespMessage value : values) {
             value.encode(alloc, out);
         }
@@ -271,8 +269,8 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
 
     private static final class EmptyArrayMessage extends DefaultArrayMessage {
 
-        private static final ByteBuf sizeBuf = Unpooled
-                .unreleasableBuffer(UnpooledByteBufAllocator.DEFAULT.buffer(1 + EOL_LENGTH, 1 + EOL_LENGTH)
+        private static final ByteBuf sizeBuf = Unpooled.unreleasableBuffer(
+                RespCodecUtil.buffer(TYPE_LENGTH + 1 + EOL_LENGTH).writeByte(RespMessageType.ARRAY.value())
                         .writeBytes(RespCodecUtil.longToAsciiBytes(0)).writeShort(EOL_SHORT).asReadOnly());
 
         private EmptyArrayMessage() {
@@ -281,7 +279,6 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
 
         @Override
         public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
-            out.add(type().content());
             out.add(sizeBuf.duplicate());
         }
 

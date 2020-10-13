@@ -36,7 +36,7 @@ public class CachedNullMessage extends CachedRespMessage implements RespBulkStri
 
     private CachedNullMessage() {
         super(RespCodecUtil.buffer(TYPE_LENGTH + NULL_LENGTH + EOL_LENGTH)
-                .writeBytes(RespMessageType.BULK_STRING.content()).writeShort(NULL_SHORT).writeShort(EOL_SHORT));
+                .writeByte(RespMessageType.BULK_STRING.value()).writeShort(NULL_SHORT).writeShort(EOL_SHORT));
     }
 
     @Override
