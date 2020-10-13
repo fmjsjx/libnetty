@@ -40,11 +40,6 @@ public class CachedNullMessage extends CachedRespMessage implements RespBulkStri
     }
 
     @Override
-    public RespMessageType type() {
-        return RespMessageType.BULK_STRING;
-    }
-
-    @Override
     public boolean isNull() {
         return true;
     }

@@ -1,14 +1,18 @@
 package com.github.fmjsjx.libnetty.resp;
 
 /**
- * An interface defines a RESP Error message. Combines the {@link RespMessage}
- * and {@link RespContent}.
+ * An interface defines a RESP Error message.
  * 
  * @since 1.0
  *
  * @author MJ Fang
  */
 public interface RespErrorMessage extends RespMessage {
+
+    @Override
+    default RespMessageType type() {
+        return RespMessageType.ERROR;
+    }
 
     /**
      * Returns the error code string.

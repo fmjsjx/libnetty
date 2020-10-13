@@ -18,6 +18,11 @@ import io.netty.util.CharsetUtil;
  */
 public interface RespBulkStringMessage extends RespMessage, RespContent {
 
+    @Override
+    default RespMessageType type() {
+        return RespMessageType.BULK_STRING;
+    }
+
     /**
      * Returns {@code true} if and only if this is {@code nil}.
      * 

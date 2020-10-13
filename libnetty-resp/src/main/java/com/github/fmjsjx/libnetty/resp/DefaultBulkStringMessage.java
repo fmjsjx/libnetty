@@ -138,11 +138,6 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
     }
 
     @Override
-    public RespMessageType type() {
-        return RespMessageType.BULK_STRING;
-    }
-
-    @Override
     public boolean isNull() {
         return false;
     }

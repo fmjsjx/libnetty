@@ -36,11 +36,6 @@ public class CachedIntegerMessage extends CachedRespMessage implements RespInteg
     }
 
     @Override
-    public RespMessageType type() {
-        return RespMessageType.INTEGER;
-    }
-
-    @Override
     public long value() {
         return value;
     }

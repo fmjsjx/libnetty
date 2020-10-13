@@ -72,11 +72,6 @@ public class DefaultErrorMessage extends AbstractSimpleRespMessage implements Re
     }
 
     @Override
-    public RespMessageType type() {
-        return RespMessageType.ERROR;
-    }
-
-    @Override
     public CharSequence code() {
         return code;
     }

@@ -24,11 +24,6 @@ public class DefaultSimpleStringMessage extends AbstractSimpleRespMessage implem
     }
 
     @Override
-    public RespMessageType type() {
-        return RespMessageType.SIMPLE_STRING;
-    }
-
-    @Override
     public String value() {
         return value;
     }

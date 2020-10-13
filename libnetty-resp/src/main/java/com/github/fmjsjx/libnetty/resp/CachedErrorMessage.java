@@ -95,11 +95,6 @@ public class CachedErrorMessage extends CachedRespMessage implements RespErrorMe
     }
 
     @Override
-    public RespMessageType type() {
-        return RespMessageType.ERROR;
-    }
-
-    @Override
     public CharSequence code() {
         return code;
     }

@@ -23,11 +23,6 @@ public class DefaultIntegerMessage extends AbstractSimpleRespMessage implements 
     }
 
     @Override
-    public RespMessageType type() {
-        return RespMessageType.INTEGER;
-    }
-
-    @Override
     public long value() {
         return value;
     }

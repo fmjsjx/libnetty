@@ -14,6 +14,11 @@ import io.netty.util.ReferenceCounted;
  */
 public interface RespArrayMessage extends RespMessage, ReferenceCounted {
 
+    @Override
+    default RespMessageType type() {
+        return RespMessageType.ARRAY;
+    }
+
     /**
      * Returns the size of this {@link RespArrayMessage}.
      * 

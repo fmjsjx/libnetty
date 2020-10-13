@@ -54,11 +54,6 @@ public class CachedSimpleStringMessage extends CachedRespMessage implements Resp
     }
 
     @Override
-    public RespMessageType type() {
-        return RespMessageType.SIMPLE_STRING;
-    }
-
-    @Override
     public String value() {
         return value;
     }

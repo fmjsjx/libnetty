@@ -222,11 +222,6 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
     }
 
     @Override
-    public RespMessageType type() {
-        return RespMessageType.ARRAY;
-    }
-
-    @Override
     public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
         byte[] sizeBytes = RespCodecUtil.longToAsciiBytes(size());
         ByteBuf header = alloc.buffer(TYPE_LENGTH + sizeBytes.length + EOL_LENGTH).writeByte(type().value())

@@ -147,16 +147,6 @@ public class CachedBulkStringMessage extends CachedRespMessage implements RespBu
     }
 
     @Override
-    public String toText(Charset charset) {
-        return data.toString(charset);
-    }
-
-    @Override
-    public RespMessageType type() {
-        return RespMessageType.BULK_STRING;
-    }
-
-    @Override
     public AsciiString asciiValue() {
         return asciiValue;
     }
