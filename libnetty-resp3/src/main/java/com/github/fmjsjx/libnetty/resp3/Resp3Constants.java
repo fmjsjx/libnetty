@@ -20,48 +20,62 @@ public class Resp3Constants {
      */
     public static final byte TYPE_DOUBLE = ',';
     /**
-     * Sign of type boolean: {@code #}.
+     * Sign of type boolean: {@code #}
      */
     public static final byte TYPE_BOOLEAN = '#';
     /**
-     * Sign of type blob error: {@code !}.
+     * Sign of type blob error: {@code !}
      */
     public static final byte TYPE_BLOB_ERROR = '!';
     /**
-     * Sign of type verbatim string: {@code =}.
+     * Sign of type verbatim string: {@code =}
      */
     public static final byte TYPE_VERBATIM_STRING = '=';
     /**
-     * Sign of type big number: {@code (}.
+     * Sign of type big number: {@code (}
      */
     public static final byte TYPE_BIG_NUMBER = '(';
     /**
-     * Sign of type map: {@code %}.
+     * Sign of type map: {@code %}
      */
     public static final byte TYPE_MAP = '%';
     /**
-     * Sign of type set: {@code ~}.
+     * Sign of type set: {@code ~}
      */
     public static final byte TYPE_SET = '~';
     /**
-     * Sign of type attribute: {@code |}.
+     * Sign of type attribute: {@code |}
      */
     public static final byte TYPE_ATTRIBUTE = '|';
     /**
-     * Sign of type push: {@code >}.
+     * Sign of type push: {@code >}
      */
     public static final byte TYPE_PUSH = '>';
     /**
-     * Sign of type streamed string: {@code ;}.
+     * Sign of type streamed string: {@code ;}
      */
     public static final byte TYPE_STREAMED_STRING = ';';
     /**
-     * Sign of type end: {@code .}.
+     * Sign of type end: {@code .}
      */
     public static final byte TYPE_END = '.';
 
+    /**
+     * Positive infinity: {@code "inf"}
+     */
     public static final AsciiString POSITIVE_INFINITY = AsciiString.cached("inf");
-
+    /**
+     * Negative infinity: {@code "-inf"}
+     */
     public static final AsciiString NEGATIVE_INFINITY = AsciiString.cached("inf");
+
+    /**
+     * True value: {@code t}
+     */
+    public static final byte TRUE_VALUE = 't';
+    /**
+     * False value: {@code f}
+     */
+    public static final byte FALSE_VALUE = 'f';
 
 }

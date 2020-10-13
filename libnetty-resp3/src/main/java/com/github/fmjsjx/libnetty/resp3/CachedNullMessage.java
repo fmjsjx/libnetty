@@ -32,4 +32,9 @@ public class CachedNullMessage extends CachedRespMessage implements Resp3NullMes
                 .writeShort(EOL_SHORT));
     }
 
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "[" + type() + "null]";
+    }
+
 }

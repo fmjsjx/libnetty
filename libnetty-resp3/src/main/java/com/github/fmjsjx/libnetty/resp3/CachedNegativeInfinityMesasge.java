@@ -45,4 +45,9 @@ public class CachedNegativeInfinityMesasge extends CachedRespMessage implements 
         return Double.NEGATIVE_INFINITY;
     }
 
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "[" + type() + value() + "]";
+    }
+
 }

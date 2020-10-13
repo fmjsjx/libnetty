@@ -45,4 +45,9 @@ public class CachedPositiveInfinityMessage extends CachedRespMessage implements 
         return Double.POSITIVE_INFINITY;
     }
 
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "[" + type() + value() + "]";
+    }
+
 }
