@@ -2,14 +2,17 @@ package com.github.fmjsjx.libnetty.resp;
 
 import java.util.List;
 
+import io.netty.util.ReferenceCounted;
+
 /**
- * An interface defines a RESP Array message.
+ * An interface defines a RESP Array message. Combines the {@link RespMessage}
+ * and the {@link ReferenceCounted}.
  *
  * @since 1.0
  * 
  * @author MJ Fang
  */
-public interface RespArrayMessage extends RespMessage {
+public interface RespArrayMessage extends RespMessage, ReferenceCounted {
 
     /**
      * Returns the size of this {@link RespArrayMessage}.

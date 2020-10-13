@@ -17,6 +17,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.AbstractReferenceCounted;
+import io.netty.util.ReferenceCountUtil;
 
 /**
  * The default implementation of {@link RespArrayMessage}.
@@ -240,13 +241,17 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
 
     @Override
     public DefaultArrayMessage touch(Object hint) {
-        values.forEach(RespMessage::touch);
+        for (RespMessage value : values) {
+            ReferenceCountUtil.touch(value, hint);
+        }
         return this;
     }
 
     @Override
     protected void deallocate() {
-        values.forEach(RespMessage::release);
+        for (RespMessage value : values) {
+            ReferenceCountUtil.release(value);
+        }
     }
 
     @Override

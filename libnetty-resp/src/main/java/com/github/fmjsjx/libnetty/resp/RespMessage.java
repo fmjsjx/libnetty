@@ -4,7 +4,6 @@ import java.util.List;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.util.ReferenceCounted;
 
 /**
  * An interface that defines an RESP message, providing common properties and
@@ -14,7 +13,7 @@ import io.netty.util.ReferenceCounted;
  * 
  * @author MJ Fang
  */
-public interface RespMessage extends RespObject, ReferenceCounted {
+public interface RespMessage extends RespObject {
 
     /**
      * Returns the type of this {@link RespMessage}.
