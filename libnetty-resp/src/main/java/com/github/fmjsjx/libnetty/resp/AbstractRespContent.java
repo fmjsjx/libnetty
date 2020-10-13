@@ -1,14 +1,10 @@
 package com.github.fmjsjx.libnetty.resp;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.nio.charset.Charset;
 import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import io.netty.util.AsciiString;
-import io.netty.util.CharsetUtil;
 
 /**
  * The abstract implementation of the {@link RespContent}.
@@ -21,84 +17,49 @@ import io.netty.util.CharsetUtil;
  */
 public abstract class AbstractRespContent<Self extends RespContent> implements RespContent {
 
-    protected final ByteBuf content;
+    protected final ByteBuf data;
 
     protected AbstractRespContent(ByteBuf content) {
-        this.content = Objects.requireNonNull(content, "content must not be null");
+        this.data = Objects.requireNonNull(content, "content must not be null");
     }
 
     protected AbstractRespContent() {
-        this.content = Unpooled.EMPTY_BUFFER;
-    }
-
-    @Override
-    public Integer toInteger() {
-        return RespCodecUtil.decodeInt(content);
-    }
-
-    @Override
-    public Long toLong() {
-        return RespCodecUtil.decodeLong(content);
-    }
-
-    @Override
-    public Double toDouble() {
-        return Double.valueOf(toText(CharsetUtil.US_ASCII));
-    }
-
-    @Override
-    public BigInteger toBigInteger() {
-        return new BigInteger(toText(CharsetUtil.US_ASCII));
-    }
-
-    @Override
-    public BigDecimal toBigDecimal() {
-        return new BigDecimal(toText(CharsetUtil.US_ASCII));
-    }
-
-    @Override
-    public String toText(Charset charset) {
-        return content.toString(charset);
-    }
-
-    @Override
-    public AsciiString toAscii() {
-        return new AsciiString(content.nioBuffer());
+        this.data = Unpooled.EMPTY_BUFFER;
     }
 
     @Override
     public ByteBuf content() {
-        return content;
+        return ByteBufUtil.ensureAccessible(data);
     }
 
     @Override
     public int refCnt() {
-        return content.refCnt();
+        return data.refCnt();
     }
 
     @Override
     public boolean release() {
-        return content.release();
+        return data.release();
     }
 
     @Override
     public boolean release(int decrement) {
-        return content.release(decrement);
+        return data.release(decrement);
     }
 
     @Override
     public Self copy() {
-        return replace(content.copy());
+        return replace(data.copy());
     }
 
     @Override
     public Self duplicate() {
-        return replace(content.duplicate());
+        return replace(data.duplicate());
     }
 
     @Override
     public Self retainedDuplicate() {
-        return replace(content.retainedDuplicate());
+        return replace(data.retainedDuplicate());
     }
 
     @Override
@@ -107,28 +68,28 @@ public abstract class AbstractRespContent<Self extends RespContent> implements R
     @Override
     @SuppressWarnings("unchecked")
     public Self retain() {
-        content.retain();
+        data.retain();
         return (Self) this;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Self retain(int increment) {
-        content.retain(increment);
+        data.retain(increment);
         return (Self) this;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Self touch() {
-        content.touch();
+        data.touch();
         return (Self) this;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Self touch(Object hint) {
-        content.touch(hint);
+        data.touch(hint);
         return (Self) this;
     }
 

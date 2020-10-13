@@ -115,7 +115,7 @@ public class DefaultErrorMessage extends AbstractContentRespMessage<DefaultError
     @Override
     public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
         out.add(type().content());
-        out.add(content.retain());
+        out.add(content().retain());
         out.add(EOL_BUF.duplicate());
     }
 

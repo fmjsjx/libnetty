@@ -36,7 +36,7 @@ public abstract class AbstractCachedRespMessage<Self extends CachedRespMessage> 
 
     @Override
     public ByteBuf content() {
-        return content.duplicate();
+        return data.duplicate();
     }
 
     protected ByteBuf fullContent() {

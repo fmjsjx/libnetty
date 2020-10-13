@@ -25,7 +25,7 @@ public abstract class AbstractContentRespMessage<Self extends RespContent> exten
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "[" + type() + RespCodecUtil.toString(content) + "]";
+        return getClass().getSimpleName() + "[" + type() + RespCodecUtil.toString(data) + "]";
     }
 
 }

@@ -6,6 +6,7 @@ import java.nio.charset.Charset;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
@@ -20,39 +21,55 @@ import io.netty.util.CharsetUtil;
 public interface RespContent extends RespObject, ByteBufHolder {
 
     /**
+     * Exception: {@code "Can't convert to ASCII string."}
+     */
+    static IllegalArgumentException CANT_CONVERT_TO_ASCII = new IllegalArgumentException(
+            "Can't convert to ASCII string.");
+
+    /**
      * Returns the content value as {@link Integer} type.
      * 
      * @return an {@code Integer} value
      */
-    Integer toInteger();
+    default Integer toInteger() {
+        return RespCodecUtil.decodeInt(content());
+    }
 
     /**
      * Returns the content value as {@link Long} type.
      * 
      * @return a {@code Long} value
      */
-    Long toLong();
+    default Long toLong() {
+        return RespCodecUtil.decodeLong(content());
+    }
 
     /**
      * Returns the content value as {@link Double} type.
      * 
      * @return a {@code Double} value
      */
-    Double toDouble();
+    default Double toDouble() {
+        return Double.valueOf(toText(CharsetUtil.US_ASCII));
+    }
 
     /**
      * Returns the content value as {@link BigInteger} type.
      * 
      * @return a {@code BigInteger} value
      */
-    BigInteger toBigInteger();
+    default BigInteger toBigInteger() {
+        return new BigInteger(toText(CharsetUtil.US_ASCII));
+    }
 
     /**
      * Returns the content value as {@link BigDecimal} type.
      * 
      * @return a {@code BigDecimal} value
      */
-    BigDecimal toBigDecimal();
+    default BigDecimal toBigDecimal() {
+        return new BigDecimal(toText(CharsetUtil.US_ASCII));
+    }
 
     /**
      * Returns the content value as {@link String} type decoded with given
@@ -61,7 +78,9 @@ public interface RespContent extends RespObject, ByteBufHolder {
      * @param charset a {@link Charset}
      * @return a {@code String} value
      */
-    String toText(Charset charset);
+    default String toText(Charset charset) {
+        return content().toString(charset);
+    }
 
     /**
      * Returns the content value as {@link String} type decoded with {@code UTF-8}
@@ -78,7 +97,13 @@ public interface RespContent extends RespObject, ByteBufHolder {
      * 
      * @return a {@code AsciiString} value
      */
-    AsciiString toAscii();
+    default AsciiString toAscii() {
+        ByteBuf data = content();
+        if (ByteBufUtil.isText(data, CharsetUtil.US_ASCII)) {
+            return AsciiString.cached(toText(CharsetUtil.UTF_8));
+        }
+        throw CANT_CONVERT_TO_ASCII;
+    }
 
     @Override
     RespContent copy();

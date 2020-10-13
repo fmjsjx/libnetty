@@ -43,7 +43,7 @@ public class DefaultIntegerMessage extends AbstractContentRespMessage<DefaultInt
     @Override
     public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
         out.add(type().content());
-        out.add(content.retain());
+        out.add(content().retain());
         out.add(RespConstants.EOL_BUF.duplicate());
     }
 

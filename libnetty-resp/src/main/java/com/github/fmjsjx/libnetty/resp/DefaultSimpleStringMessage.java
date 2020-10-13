@@ -79,7 +79,7 @@ public class DefaultSimpleStringMessage extends AbstractContentRespMessage<Defau
     @Override
     public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
         out.add(type().content());
-        out.add(content.retain());
+        out.add(content().retain());
         out.add(RespConstants.EOL_BUF.duplicate());
     }
 
