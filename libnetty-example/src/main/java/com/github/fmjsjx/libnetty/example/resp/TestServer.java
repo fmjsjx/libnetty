@@ -6,8 +6,9 @@ import java.net.URI;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 
+import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
+import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.client.HttpClient;
-import com.github.fmjsjx.libnetty.http.client.HttpContentHandlers;
 import com.github.fmjsjx.libnetty.http.client.SimpleHttpClient;
 import com.github.fmjsjx.libnetty.resp.DefaultBulkStringMessage;
 import com.github.fmjsjx.libnetty.resp.DefaultErrorMessage;
@@ -57,6 +58,8 @@ public class TestServer {
 }
 
 class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
+
+    private static final SslContextProvider INSECURE_FOR_CLIENT = SslContextProviders.insecureForClient();
 
     private static final ChannelFutureListener READ_NEXT = f -> f.channel().read();
 
@@ -125,13 +128,13 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
     private void get(ChannelHandlerContext ctx, RedisRequest msg) {
         Channel channel = ctx.channel();
         String path = msg.argument(1).textValue(CharsetUtil.UTF_8);
-        try (HttpClient client = SimpleHttpClient.builder().build(channel.eventLoop(), channel.getClass())) {
-            client.request(URI.create(path)).get().sendAsync(HttpContentHandlers.ofByteArray()).thenAccept(r -> {
+        try (HttpClient client = SimpleHttpClient.builder().sslContextProvider(INSECURE_FOR_CLIENT)
+                .build(channel.eventLoop(), channel.getClass())) {
+            client.request(URI.create(path)).get().sendAsync(ByteBuf::retainedDuplicate).thenAccept(r -> {
                 if (r.statusCode() >= 400) {
                     channel.writeAndFlush(DefaultErrorMessage.createErr(r.status().toString())).addListener(READ_NEXT);
                 } else {
-                    ByteBuf content = channel.alloc().buffer(r.content().length).writeBytes(r.content());
-                    channel.writeAndFlush(new DefaultBulkStringMessage(content)).addListener(READ_NEXT);
+                    channel.writeAndFlush(new DefaultBulkStringMessage(r.content())).addListener(READ_NEXT);
                 }
             }).whenComplete((v, e) -> {
                 if (e != null) {

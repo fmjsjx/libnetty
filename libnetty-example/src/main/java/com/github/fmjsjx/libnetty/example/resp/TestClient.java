@@ -9,6 +9,7 @@ import com.github.fmjsjx.libnetty.resp.RespMessages;
 import com.github.fmjsjx.libnetty.resp.RespSimpleStringMessage;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
@@ -61,15 +62,16 @@ class TestClientHandler extends SimpleChannelInboundHandler<RespMessage> {
             System.out.println(((RespBulkStringMessage) msg).textValue(CharsetUtil.UTF_8));
             switch (count++) {
             case 0:
-                ctx.writeAndFlush(
-                        DefaultArrayMessage.bulkStringArrayUtf8(ctx.alloc(), "GET", "https://www.baidu.com/"));
+                ctx.writeAndFlush(command(ctx.alloc(), "PING", "PING may same with ECHO"));
                 break;
             case 1:
-                ctx.writeAndFlush(
-                        DefaultArrayMessage.bulkStringArrayUtf8(ctx.alloc(), "PING", "Response PONG"));
+                ctx.writeAndFlush(command(ctx.alloc(), "GET", "https://www.baidu.com/"));
+                break;
+            case 2:
+                ctx.writeAndFlush(command(ctx.alloc(), "GET", "https://www.sogou.com/"));
                 break;
             default:
-                ctx.writeAndFlush(DefaultArrayMessage.bulkStringArrayAscii(ctx.alloc(), "QUIT"));
+                ctx.writeAndFlush(command(ctx.alloc(), "QUIT"));
                 break;
             }
         } else if (msg instanceof RespSimpleStringMessage) {
@@ -78,6 +80,10 @@ class TestClientHandler extends SimpleChannelInboundHandler<RespMessage> {
                 ctx.close();
             }
         }
+    }
+
+    private static RespMessage command(ByteBufAllocator alloc, String... commands) {
+        return DefaultArrayMessage.bulkStringArrayUtf8(alloc, commands);
     }
 
 }
