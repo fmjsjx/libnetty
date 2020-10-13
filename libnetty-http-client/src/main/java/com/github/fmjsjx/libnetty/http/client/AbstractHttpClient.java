@@ -175,9 +175,10 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         @Override
-        public Builder sslContextProvider(SslContextProvider sslContextProvider) {
+        @SuppressWarnings("unchecked")
+        public Self sslContextProvider(SslContextProvider sslContextProvider) {
             this.sslContextProvider = sslContextProvider;
-            return this;
+            return (Self) this;
         }
 
         protected void ensureSslContext() {
