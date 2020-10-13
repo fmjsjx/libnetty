@@ -4,10 +4,13 @@ import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
 
 import java.util.List;
 
+import com.github.fmjsjx.libnetty.resp.DefaultErrorMessage;
 import com.github.fmjsjx.libnetty.resp.RespCodecUtil;
+import com.github.fmjsjx.libnetty.resp.RespErrorMessage;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
 /**
@@ -18,6 +21,45 @@ import io.netty.util.CharsetUtil;
  * @author MJ Fang
  */
 public class DefaultBlobErrorMessage implements Resp3BlobErrorMessage {
+
+    /**
+     * Create a new {@link DefaultBlobErrorMessage} from given
+     * {@link RespErrorMessage}.
+     * 
+     * @param error an {@code RespErrorMessage}
+     * @return a {@code DefaultBlobErrorMessage}
+     */
+    public static final DefaultBlobErrorMessage fromError(RespErrorMessage error) {
+        return new DefaultBlobErrorMessage(error.code(), error.message(), error.text());
+    }
+
+    /**
+     * Create a new {@link DefaultBlobErrorMessage} with the code {@code "ERR"} and
+     * the specified message.
+     * 
+     * @param message the error message
+     * @return a {@code DefaultBlobErrorMessage}
+     */
+    public static final DefaultBlobErrorMessage createErr(String message) {
+        return create(ERR, message);
+    }
+
+    /**
+     * Create a new {@link DefaultBlobErrorMessage} with the specified code and
+     * message.
+     * 
+     * @param code    the error code
+     * @param message the error message
+     * @return a {@code DefaultBlobErrorMessage}
+     */
+    public static final DefaultBlobErrorMessage create(CharSequence code, String message) {
+        if (code instanceof AsciiString) {
+            AsciiString ascii = ((AsciiString) code).toUpperCase();
+            return new DefaultBlobErrorMessage(ascii, message);
+        } else {
+            return new DefaultBlobErrorMessage(code.toString().toUpperCase(), message);
+        }
+    }
 
     private final CharSequence code;
     private final String message;
@@ -72,6 +114,11 @@ public class DefaultBlobErrorMessage implements Resp3BlobErrorMessage {
     @Override
     public String text() {
         return text;
+    }
+
+    @Override
+    public RespErrorMessage toError() {
+        return new DefaultErrorMessage(code, message, text);
     }
 
     @Override

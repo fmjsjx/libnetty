@@ -1,6 +1,7 @@
 package com.github.fmjsjx.libnetty.resp3;
 
 import com.github.fmjsjx.libnetty.resp.RespContent;
+import com.github.fmjsjx.libnetty.resp.RespErrorMessage;
 
 /**
  * An interface defines a RESP3 Blob Error message. Combines the
@@ -37,5 +38,12 @@ public interface Resp3BlobErrorMessage extends Resp3Message {
      * @return the full text string of this error
      */
     String text();
+
+    /**
+     * Convert to {@link RespErrorMessage}.
+     * 
+     * @return a {@code RespErrorMessage}
+     */
+    RespErrorMessage toError();
 
 }
