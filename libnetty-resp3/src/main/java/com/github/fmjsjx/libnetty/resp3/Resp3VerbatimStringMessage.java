@@ -4,6 +4,7 @@ import java.nio.charset.Charset;
 
 import com.github.fmjsjx.libnetty.resp.RespContent;
 
+import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
 /**
@@ -25,7 +26,7 @@ public interface Resp3VerbatimStringMessage extends Resp3Message, RespContent {
      * 
      * @return the format part of this verbatim string
      */
-    String formatPart();
+    AsciiString formatPart();
 
     /**
      * Returns the {@link Format} of this verbatim string.
@@ -80,8 +81,8 @@ public interface Resp3VerbatimStringMessage extends Resp3Message, RespContent {
          * @param abbr the abbreviation of the format string
          * @return a {@code Format}
          */
-        public static final Format fromAbbr(String abbr) {
-            switch (abbr) {
+        public static final Format fromAbbr(CharSequence abbr) {
+            switch (abbr.toString()) {
             case "txt":
                 return PLAIN_TEXT;
             case "mkd":
@@ -91,10 +92,19 @@ public interface Resp3VerbatimStringMessage extends Resp3Message, RespContent {
             }
         }
 
-        private final String abbr;
+        private final AsciiString abbr;
 
         private Format(String abbr) {
-            this.abbr = abbr;
+            this.abbr = AsciiString.cached(abbr.intern());
+        }
+
+        /**
+         * Returns the abbreviation of the format string.
+         * 
+         * @return the abbreviation of the format string
+         */
+        public AsciiString abbr() {
+            return abbr;
         }
 
         @Override
