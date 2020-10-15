@@ -1,7 +1,5 @@
 package com.github.fmjsjx.libnetty.resp;
 
-import java.util.List;
-
 /**
  * An interface defines a RESP Array message.
  *
@@ -17,20 +15,6 @@ public interface RespArrayMessage<E extends RespMessage> extends RespAggregateMe
     default RespMessageType type() {
         return RespMessageType.ARRAY;
     }
-
-    /**
-     * Returns the size of this {@link RespArrayMessage}.
-     * 
-     * @return the size
-     */
-    int size();
-
-    /**
-     * Returns the values of this {@link RespArrayMessage}.
-     * 
-     * @return a {@link List}
-     */
-    List<E> values();
 
     /**
      * Returns the value at the specified position in this {@link RespArrayMessage}.

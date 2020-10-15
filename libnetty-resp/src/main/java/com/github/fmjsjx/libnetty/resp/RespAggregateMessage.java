@@ -22,7 +22,9 @@ public interface RespAggregateMessage<E extends RespObject> extends RespMessage,
      * 
      * @return the size
      */
-    int size();
+    default int size() {
+        return values().size();
+    }
 
     /**
      * Returns the values of this message.

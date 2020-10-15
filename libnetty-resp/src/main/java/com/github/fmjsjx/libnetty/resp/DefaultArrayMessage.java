@@ -210,9 +210,11 @@ public class DefaultArrayMessage<E extends RespMessage> extends AbstractRespAggr
         ByteBuf header = alloc.buffer(TYPE_LENGTH + sizeBytes.length + EOL_LENGTH).writeByte(type().value())
                 .writeBytes(sizeBytes).writeShort(EOL_SHORT);
         out.add(header); // array header
-        for (RespMessage value : values) {
-            value.encode(alloc, out);
-        }
+    }
+
+    @Override
+    protected void encodeValue(ByteBufAllocator alloc, E value, List<Object> out) throws Exception {
+        value.encode(alloc, out);
     }
 
     @Override
@@ -231,13 +233,18 @@ public class DefaultArrayMessage<E extends RespMessage> extends AbstractRespAggr
     }
 
     @Override
-    public int size() {
-        return values.size();
-    }
-
-    @Override
     public List<E> values() {
         return values;
+    }
+
+    /**
+     * Appends the specified value to the end of this array.
+     * 
+     * @param value the value
+     * @return {@code true}
+     */
+    public boolean add(E value) {
+        return values.add(value);
     }
 
     @Override

@@ -1,5 +1,13 @@
 package com.github.fmjsjx.libnetty.resp;
 
+import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_LENGTH;
+import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_SHORT;
+import static com.github.fmjsjx.libnetty.resp.RespConstants.TYPE_LENGTH;
+
+import java.util.List;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.AbstractReferenceCounted;
 
 /**
@@ -36,5 +44,23 @@ public abstract class AbstractRespAggregateMessage<E extends RespObject, Self ex
 
     @Override
     public abstract Self touch(Object hint);
+
+    @Override
+    public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
+        encodeHeader(alloc, out);
+        // encode values
+        for (E e : values()) {
+            encodeValue(alloc, e, out);
+        }
+    }
+
+    protected void encodeHeader(ByteBufAllocator alloc, List<Object> out) throws Exception {
+        byte[] sizeBytes = RespCodecUtil.longToAsciiBytes(size());
+        ByteBuf header = alloc.buffer(TYPE_LENGTH + sizeBytes.length + EOL_LENGTH).writeByte(type().value())
+                .writeBytes(sizeBytes).writeShort(EOL_SHORT);
+        out.add(header);
+    }
+
+    protected abstract void encodeValue(ByteBufAllocator alloc, E value, List<Object> out) throws Exception;
 
 }
