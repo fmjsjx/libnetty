@@ -47,6 +47,12 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
     private LinkedList<ArrayBuilder> nests;
     private int currentBulkStringLength;
 
+    private final BiConsumer<ByteBuf, List<Object>> arrayHeaderDecoder = this::decodeArrayHeader;
+    private final BiConsumer<ByteBuf, List<Object>> bulkStringLengthDecoder = this::decodeBulkStringLength;
+    private final BiConsumer<ByteBuf, List<Object>> simpleStringDecoder = this::decodeSimpleString;
+    private final BiConsumer<ByteBuf, List<Object>> errorDecoder = this::decodeError;
+    private final BiConsumer<ByteBuf, List<Object>> integerDecoder = this::decodeInteger;
+    
     /**
      * Constructs a new {@link DefaultRespMessageDecoder} using default
      * {@code maxInlineMessageLength} ({@code 65536}).
@@ -78,19 +84,19 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
         BiConsumer<ByteBuf, List<Object>> decoder;
         switch (typeValue) {
         case TYPE_ARRAY:
-            decoder = this::decodeArrayHeader;
+            decoder = arrayHeaderDecoder;
             break;
         case TYPE_BULK_STRING:
-            decoder = this::decodeBulkStringLength;
+            decoder = bulkStringLengthDecoder;
             break;
         case TYPE_SIMPLE_STRING:
-            decoder = this::decodeSimpleString;
+            decoder = simpleStringDecoder;
             break;
         case TYPE_ERROR:
-            decoder = this::decodeError;
+            decoder = errorDecoder;
             break;
         case TYPE_INTEGER:
-            decoder = this::decodeInteger;
+            decoder = integerDecoder;
             break;
         default: // INLINE COMMAND
             throw DECODING_OF_INLINE_COMMANDS_DISABLED;
@@ -157,10 +163,10 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
         if (length == -1) {
             appendMessage(RespMessages.nil(), out);
         } else {
-            currentBulkStringLength = length;
-            if (currentBulkStringLength > RESP_MESSAGE_MAX_LENGTH) {
+            if (length > RESP_MESSAGE_MAX_LENGTH) {
                 throw TOO_LONG_BULK_STRING_MESSAGE;
             }
+            currentBulkStringLength = length;
             setState(State.DECODE_BULK_STRING_CONTENT);
         }
     }
