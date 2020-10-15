@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
-import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCountUtil;
 
 /**
@@ -25,7 +24,7 @@ import io.netty.util.ReferenceCountUtil;
  *
  * @author MJ Fang
  */
-public class DefaultArrayMessage<E extends RespMessage> extends AbstractReferenceCounted
+public class DefaultArrayMessage<E extends RespMessage> extends AbstractRespAggregateMessage<E, DefaultArrayMessage<E>>
         implements RespArrayMessage<E> {
 
     /**
