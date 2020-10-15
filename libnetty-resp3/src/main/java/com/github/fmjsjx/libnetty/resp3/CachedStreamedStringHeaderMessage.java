@@ -15,7 +15,7 @@ import com.github.fmjsjx.libnetty.resp.RespCodecUtil;
  */
 public class CachedStreamedStringHeaderMessage extends CachedRespMessage implements Resp3StreamedStringHeaderMessage {
 
-    private static final CachedStreamedStringHeaderMessage INSTANCE = new CachedStreamedStringHeaderMessage();
+    static final CachedStreamedStringHeaderMessage INSTANCE = new CachedStreamedStringHeaderMessage();
 
     /**
      * Returns the singleton {@link CachedStreamedStringHeaderMessage} instance.

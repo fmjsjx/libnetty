@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.resp3;
 
+import static com.github.fmjsjx.libnetty.resp.RespConstants.TYPE_BULK_STRING;
 import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_ATTRIBUTE;
 import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_BIG_NUMBER;
 import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_BLOB_ERROR;
@@ -15,7 +16,6 @@ import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_VERBATIM_STRI
 
 import java.util.NoSuchElementException;
 
-import com.github.fmjsjx.libnetty.resp.RespConstants;
 import com.github.fmjsjx.libnetty.resp.RespMessageType;
 
 /**
@@ -71,8 +71,8 @@ public class Resp3MessageType extends RespMessageType {
     /**
      * RESP3 {@code StreamedStringHeader}.
      */
-    public static final Resp3MessageType STREAMED_STRING_HEADER = new Resp3MessageType(RespConstants.TYPE_BULK_STRING,
-            false, "StreamedStringHeader");
+    public static final Resp3MessageType STREAMED_STRING_HEADER = new Resp3MessageType(TYPE_BULK_STRING, false,
+            "StreamedStringHeader");
     /**
      * RESP3 {@code StreamedString}.
      */
