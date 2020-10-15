@@ -2,7 +2,6 @@ package com.github.fmjsjx.libnetty.resp;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.AsciiString;
 
 /**
@@ -81,8 +80,8 @@ public class RespConstants {
      * <p>
      * The {@link ByteBuf} is unreleasable and read-only.
      */
-    public static final ByteBuf EOL_BUF = Unpooled.unreleasableBuffer(
-            UnpooledByteBufAllocator.DEFAULT.buffer(EOL_LENGTH, EOL_LENGTH).writeShort(EOL_SHORT).asReadOnly());
+    public static final ByteBuf EOL_BUF = Unpooled
+            .unreleasableBuffer(RespCodecUtil.buffer(EOL_LENGTH).writeShort(EOL_SHORT).asReadOnly());
 
     /**
      * Sign of type array: {@code *}

@@ -15,6 +15,7 @@ import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_VERBATIM_STRI
 
 import java.util.NoSuchElementException;
 
+import com.github.fmjsjx.libnetty.resp.RespConstants;
 import com.github.fmjsjx.libnetty.resp.RespMessageType;
 
 /**
@@ -67,6 +68,11 @@ public class Resp3MessageType extends RespMessageType {
      * RESP3 {@code Push}.
      */
     public static final Resp3MessageType PUSH = new Resp3MessageType(TYPE_PUSH, false, "Push");
+    /**
+     * RESP3 {@code StreamedStringsHeader}.
+     */
+    public static final Resp3MessageType STREAMED_STRINGS_HEADER = new Resp3MessageType(RespConstants.TYPE_BULK_STRING,
+            false, "StreamedStringsHeader");
     /**
      * RESP3 {@code StreamedString}.
      */
