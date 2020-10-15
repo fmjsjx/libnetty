@@ -10,7 +10,7 @@ import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_MAP;
 import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_NULL;
 import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_PUSH;
 import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_SET;
-import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_STREAMED_STRING;
+import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_STREAMED_STRING_PART;
 import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.TYPE_VERBATIM_STRING;
 
 import java.util.NoSuchElementException;
@@ -69,15 +69,15 @@ public class Resp3MessageType extends RespMessageType {
      */
     public static final Resp3MessageType PUSH = new Resp3MessageType(TYPE_PUSH, false, "Push");
     /**
-     * RESP3 {@code StreamedStringsHeader}.
+     * RESP3 {@code StreamedStringHeader}.
      */
-    public static final Resp3MessageType STREAMED_STRINGS_HEADER = new Resp3MessageType(RespConstants.TYPE_BULK_STRING,
-            false, "StreamedStringsHeader");
+    public static final Resp3MessageType STREAMED_STRING_HEADER = new Resp3MessageType(RespConstants.TYPE_BULK_STRING,
+            false, "StreamedStringHeader");
     /**
      * RESP3 {@code StreamedString}.
      */
-    public static final Resp3MessageType STREAMED_STRING = new Resp3MessageType(TYPE_STREAMED_STRING, false,
-            "StreamedString");
+    public static final Resp3MessageType STREAMED_STRING_PART = new Resp3MessageType(TYPE_STREAMED_STRING_PART, false,
+            "StreamedStringPart");
     /**
      * RESP3 {@code End}.
      */
@@ -121,8 +121,8 @@ public class Resp3MessageType extends RespMessageType {
             return ATTRIBUTE;
         case TYPE_PUSH:
             return PUSH;
-        case TYPE_STREAMED_STRING:
-            return STREAMED_STRING;
+        case TYPE_STREAMED_STRING_PART:
+            return STREAMED_STRING_PART;
         case TYPE_END:
             return END;
         default:

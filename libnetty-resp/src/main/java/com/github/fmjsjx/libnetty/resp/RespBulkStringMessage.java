@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
@@ -90,29 +89,5 @@ public interface RespBulkStringMessage extends RespMessage, RespContent {
      * @return a {@code AsciiString} value
      */
     AsciiString asciiValue();
-
-    @Override
-    RespBulkStringMessage copy();
-
-    @Override
-    RespBulkStringMessage duplicate();
-
-    @Override
-    RespBulkStringMessage retainedDuplicate();
-
-    @Override
-    RespBulkStringMessage replace(ByteBuf content);
-
-    @Override
-    RespBulkStringMessage retain();
-
-    @Override
-    RespBulkStringMessage retain(int increment);
-
-    @Override
-    RespBulkStringMessage touch();
-
-    @Override
-    RespBulkStringMessage touch(Object hint);
 
 }

@@ -73,7 +73,7 @@ public class DefaultVerbatimStringMessage extends AbstractRespContent<DefaultVer
         header.writeByte(type().value()).writeBytes(lengthValue).writeShort(EOL_SHORT).writeBytes(formatPart.array())
                 .writeByte(':');
         out.add(header);
-        out.add(content);
+        out.add(content.retain());
         out.add(EOL_BUF.duplicate());
     }
 

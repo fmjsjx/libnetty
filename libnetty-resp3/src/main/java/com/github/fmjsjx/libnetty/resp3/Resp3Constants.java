@@ -52,9 +52,9 @@ public class Resp3Constants {
      */
     public static final byte TYPE_PUSH = '>';
     /**
-     * Sign of type streamed string: {@code ;}
+     * Sign of type streamed string part: {@code ;}
      */
-    public static final byte TYPE_STREAMED_STRING = ';';
+    public static final byte TYPE_STREAMED_STRING_PART = ';';
     /**
      * Sign of type end: {@code .}
      */
