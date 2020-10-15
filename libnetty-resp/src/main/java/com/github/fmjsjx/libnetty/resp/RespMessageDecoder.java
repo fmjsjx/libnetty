@@ -38,6 +38,10 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
         }
     }
 
+    protected static final <E extends RespMessage> RespArrayMessage<E> wrappedArray(List<E> values) {
+        return new DefaultArrayMessage<>(values);
+    }
+
     protected static final ByteBuf readLine(ByteBuf in) {
         if (!in.isReadable(TYPE_LENGTH + EOL_LENGTH)) {
             return null;

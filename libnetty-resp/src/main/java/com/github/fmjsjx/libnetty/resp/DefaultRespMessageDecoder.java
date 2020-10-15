@@ -38,8 +38,8 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
             return isReachedEnd();
         }
 
-        DefaultArrayMessage<RespMessage> build() {
-            return new DefaultArrayMessage<>(values);
+        RespArrayMessage<RespMessage> build() {
+            return wrappedArray(values);
         }
 
     }
