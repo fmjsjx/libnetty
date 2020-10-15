@@ -15,8 +15,8 @@ import io.netty.util.ReferenceCountUtil;
 /**
  * The default implementation of {@link Resp3MapMessage}.
  * 
- * @param <F> the type of fields in this map message
- * @param <V> the type of values in this map message
+ * @param <F> the type of fields in the message
+ * @param <V> the type of values in the message
  * 
  * @since 1.1
  *
@@ -102,7 +102,7 @@ public class DefaultMapMessage<F extends RespMessage, V extends RespMessage> ext
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "[" + type() + "(0){"
+        return getClass().getSimpleName() + "[" + type() + "(" + size() + "){"
                 + values().stream().map(Object::toString).collect(Collectors.joining(",")) + "}]";
     }
 

@@ -85,7 +85,7 @@ public class DefaultSetMessage<E extends RespMessage> extends AbstractRespAggreg
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "[" + type() + "(0)" + values + "]";
+        return getClass().getSimpleName() + "[" + type() + "(" + size() + ")" + values + "]";
     }
 
     /**

@@ -15,8 +15,8 @@ import com.github.fmjsjx.libnetty.resp.RespMessage;
 /**
  * The cached implementation of {@link Resp3MapMessage} for empty map.
  * 
- * @param <F> the type of fields in this map message
- * @param <V> the type of values in this map message
+ * @param <F> the type of fields in the message
+ * @param <V> the type of values in the message
  * 
  * @since 1.1
  *
