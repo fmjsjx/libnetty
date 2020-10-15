@@ -18,7 +18,7 @@ import io.netty.buffer.ByteBufAllocator;
  *
  * @author MJ Fang
  */
-public class FieldValuePair<F extends RespMessage, V extends RespMessage> {
+public class FieldValuePair<F extends RespMessage, V extends RespMessage> implements Resp3Object {
 
     private final F field;
     private final V value;

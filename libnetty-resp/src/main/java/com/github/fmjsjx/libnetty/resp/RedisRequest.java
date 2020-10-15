@@ -24,16 +24,16 @@ import io.netty.buffer.ByteBufAllocator;
  * @see RespArrayMessage
  * @see DefaultArrayMessage
  */
-public class RedisRequest implements RespArrayMessage {
+public class RedisRequest implements RespArrayMessage<RespBulkStringMessage> {
 
-    private final RespArrayMessage array;
+    private final RespArrayMessage<RespBulkStringMessage> array;
 
     /**
      * Constructs a new {@link RedisRequest} with the specified RESP array.
      * 
      * @param array a {@code RespArrayMessage}
      */
-    public RedisRequest(RespArrayMessage array) {
+    public RedisRequest(RespArrayMessage<RespBulkStringMessage> array) {
         this.array = array;
     }
 
@@ -92,7 +92,7 @@ public class RedisRequest implements RespArrayMessage {
     }
 
     @Override
-    public List<? extends RespMessage> values() {
+    public List<RespBulkStringMessage> values() {
         return array.values();
     }
 

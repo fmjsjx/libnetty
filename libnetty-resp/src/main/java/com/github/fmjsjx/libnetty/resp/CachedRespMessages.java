@@ -48,11 +48,6 @@ public class CachedRespMessages {
     public static final CachedBulkStringMessage EMPTY_BULK = CachedBulkStringMessage.createAscii("");
 
     /**
-     * Empty array.
-     */
-    public static final DefaultArrayMessage EMPTY_ARRAY = DefaultArrayMessage.EMPTY;
-
-    /**
      * {@code +OK}
      */
     public static final CachedSimpleStringMessage OK = CachedSimpleStringMessage.createAscii("OK");

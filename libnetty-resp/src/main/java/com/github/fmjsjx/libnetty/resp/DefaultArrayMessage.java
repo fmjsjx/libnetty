@@ -2,7 +2,6 @@ package com.github.fmjsjx.libnetty.resp;
 
 import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -20,16 +19,32 @@ import io.netty.util.ReferenceCountUtil;
 /**
  * The default implementation of {@link RespArrayMessage}.
  * 
+ * @param <E> the type of elements in this array.
+ * 
  * @since 1.0
  *
  * @author MJ Fang
  */
-public class DefaultArrayMessage extends AbstractReferenceCounted implements RespArrayMessage {
+public class DefaultArrayMessage<E extends RespMessage> extends AbstractReferenceCounted
+        implements RespArrayMessage<E> {
 
     /**
      * The empty array instance (immutable).
      */
-    public static final DefaultArrayMessage EMPTY = new EmptyArrayMessage();
+    public static final DefaultArrayMessage<? extends RespMessage> EMPTY = new EmptyArrayMessage();
+
+    /**
+     * Returns the empty array instance.
+     * 
+     * @param <E> the type of elements in the array
+     * @return the empty array
+     * 
+     * @since 1.1
+     */
+    @SuppressWarnings("unchecked")
+    public static final <E extends RespMessage> DefaultArrayMessage<E> empty() {
+        return (DefaultArrayMessage<E>) EMPTY;
+    }
 
     /**
      * Returns a new {@link DefaultArrayMessage} with the given values.
@@ -38,14 +53,14 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
      * @param values the number values
      * @return a {@code DefaultArrayMessage}
      */
-    public static final DefaultArrayMessage bulkStringArrayLong(ByteBufAllocator alloc,
+    public static final DefaultArrayMessage<RespBulkStringMessage> bulkStringArrayLong(ByteBufAllocator alloc,
             Collection<? extends Number> values) {
         if (values.isEmpty()) {
-            return EMPTY;
+            return empty();
         }
-        List<RespMessage> list = values.stream().map(v -> DefaultBulkStringMessage.create(alloc, v.longValue()))
-                .collect(Collectors.toList());
-        return new DefaultArrayMessage(list);
+        List<RespBulkStringMessage> list = values.stream()
+                .map(v -> DefaultBulkStringMessage.create(alloc, v.longValue())).collect(Collectors.toList());
+        return new DefaultArrayMessage<>(list);
     }
 
     /**
@@ -55,13 +70,14 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
      * @param values the number values
      * @return a {@code DefaultArrayMessage}
      */
-    public static final DefaultArrayMessage bulkStringArray(ByteBufAllocator alloc, long... values) {
+    public static final DefaultArrayMessage<RespBulkStringMessage> bulkStringArray(ByteBufAllocator alloc,
+            long... values) {
         if (values.length == 0) {
-            return EMPTY;
+            return empty();
         }
-        List<RespMessage> list = Arrays.stream(values).mapToObj(v -> DefaultBulkStringMessage.create(alloc, v))
-                .collect(Collectors.toList());
-        return new DefaultArrayMessage(list);
+        List<RespBulkStringMessage> list = Arrays.stream(values)
+                .mapToObj(v -> DefaultBulkStringMessage.create(alloc, v)).collect(Collectors.toList());
+        return new DefaultArrayMessage<>(list);
     }
 
     /**
@@ -71,13 +87,14 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
      * @param values the number values
      * @return a {@code DefaultArrayMessage}
      */
-    public static final DefaultArrayMessage bulkStringArray(ByteBufAllocator alloc, int... values) {
+    public static final DefaultArrayMessage<RespBulkStringMessage> bulkStringArray(ByteBufAllocator alloc,
+            int... values) {
         if (values.length == 0) {
-            return EMPTY;
+            return empty();
         }
-        List<RespMessage> list = Arrays.stream(values).mapToObj(v -> DefaultBulkStringMessage.create(alloc, v))
-                .collect(Collectors.toList());
-        return new DefaultArrayMessage(list);
+        List<RespBulkStringMessage> list = Arrays.stream(values)
+                .mapToObj(v -> DefaultBulkStringMessage.create(alloc, v)).collect(Collectors.toList());
+        return new DefaultArrayMessage<>(list);
     }
 
     /**
@@ -87,14 +104,14 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
      * @param values the string values with {@code US-ASCII} character set
      * @return a {@code DefaultArrayMessage}
      */
-    public static final DefaultArrayMessage bulkStringArrayAscii(ByteBufAllocator alloc,
+    public static final DefaultArrayMessage<RespBulkStringMessage> bulkStringArrayAscii(ByteBufAllocator alloc,
             Collection<? extends CharSequence> values) {
         if (values.isEmpty()) {
-            return EMPTY;
+            return empty();
         }
-        List<RespMessage> list = values.stream().map(v -> DefaultBulkStringMessage.createAscii(alloc, v))
+        List<RespBulkStringMessage> list = values.stream().map(v -> DefaultBulkStringMessage.createAscii(alloc, v))
                 .collect(Collectors.toList());
-        return new DefaultArrayMessage(list);
+        return new DefaultArrayMessage<>(list);
     }
 
     /**
@@ -104,85 +121,51 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
      * @param values the string values with {@code US-ASCII} character set
      * @return a {@code DefaultArrayMessage}
      */
-    public static final DefaultArrayMessage bulkStringArrayAscii(ByteBufAllocator alloc, CharSequence... values) {
-        if (values.length == 0) {
-            return EMPTY;
-        }
-        List<RespMessage> list = Arrays.stream(values).map(v -> DefaultBulkStringMessage.createAscii(alloc, v))
-                .collect(Collectors.toList());
-        return new DefaultArrayMessage(list);
-    }
-
-    /**
-     * Returns a new {@link DefaultArrayMessage} with the given values.
-     * 
-     * @param alloc  the allocator to allocate {@link ByteBuf}s
-     * @param values the string values with {@code UTF-8} character set
-     * @return a {@code DefaultArrayMessage}
-     */
-    public static final DefaultArrayMessage bulkStringArrayUtf8(ByteBufAllocator alloc,
-            Collection<? extends CharSequence> values) {
-        if (values.isEmpty()) {
-            return EMPTY;
-        }
-        List<RespMessage> list = values.stream().map(v -> DefaultBulkStringMessage.createUtf8(alloc, v))
-                .collect(Collectors.toList());
-        return new DefaultArrayMessage(list);
-    }
-
-    /**
-     * Returns a new {@link DefaultArrayMessage} with the given values.
-     * 
-     * @param alloc  the allocator to allocate {@link ByteBuf}s
-     * @param values the string values with {@code UTF-8} character set
-     * @return a {@code DefaultArrayMessage}
-     */
-    public static final DefaultArrayMessage bulkStringArrayUtf8(ByteBufAllocator alloc, CharSequence... values) {
-        if (values.length == 0) {
-            return EMPTY;
-        }
-        List<RespMessage> list = Arrays.stream(values).map(v -> DefaultBulkStringMessage.createUtf8(alloc, v))
-                .collect(Collectors.toList());
-        return new DefaultArrayMessage(list);
-    }
-
-    /**
-     * Returns a new {@link DefaultArrayMessage} with the given values.
-     * 
-     * @param alloc   the allocator to allocate {@link ByteBuf}s
-     * @param charset the {@link Charset} of the string values
-     * @param values  the string values
-     * @return a {@code DefaultArrayMessage}
-     */
-    public static final DefaultArrayMessage bulkStringArray(ByteBufAllocator alloc, Charset charset,
+    public static final DefaultArrayMessage<RespBulkStringMessage> bulkStringArrayAscii(ByteBufAllocator alloc,
             CharSequence... values) {
         if (values.length == 0) {
-            return EMPTY;
+            return empty();
         }
-        List<RespMessage> list = Arrays.stream(values).map(v -> DefaultBulkStringMessage.create(alloc, v, charset))
-                .collect(Collectors.toList());
-        return new DefaultArrayMessage(list);
+        List<RespBulkStringMessage> list = Arrays.stream(values)
+                .map(v -> DefaultBulkStringMessage.createAscii(alloc, v)).collect(Collectors.toList());
+        return new DefaultArrayMessage<>(list);
     }
 
     /**
      * Returns a new {@link DefaultArrayMessage} with the given values.
      * 
-     * @param alloc   the allocator to allocate {@link ByteBuf}s
-     * @param charset the {@link Charset} of the string values
-     * @param values  the string values
+     * @param alloc  the allocator to allocate {@link ByteBuf}s
+     * @param values the string values with {@code UTF-8} character set
      * @return a {@code DefaultArrayMessage}
      */
-    public static final DefaultArrayMessage bulkStringArray(ByteBufAllocator alloc, Charset charset,
+    public static final DefaultArrayMessage<RespBulkStringMessage> bulkStringArrayUtf8(ByteBufAllocator alloc,
             Collection<? extends CharSequence> values) {
         if (values.isEmpty()) {
-            return EMPTY;
+            return empty();
         }
-        List<RespMessage> list = values.stream().map(v -> DefaultBulkStringMessage.create(alloc, v, charset))
+        List<RespBulkStringMessage> list = values.stream().map(v -> DefaultBulkStringMessage.createUtf8(alloc, v))
                 .collect(Collectors.toList());
-        return new DefaultArrayMessage(list);
+        return new DefaultArrayMessage<>(list);
     }
 
-    private final List<? extends RespMessage> values;
+    /**
+     * Returns a new {@link DefaultArrayMessage} with the given values.
+     * 
+     * @param alloc  the allocator to allocate {@link ByteBuf}s
+     * @param values the string values with {@code UTF-8} character set
+     * @return a {@code DefaultArrayMessage}
+     */
+    public static final DefaultArrayMessage<RespBulkStringMessage> bulkStringArrayUtf8(ByteBufAllocator alloc,
+            CharSequence... values) {
+        if (values.length == 0) {
+            return empty();
+        }
+        List<RespBulkStringMessage> list = Arrays.stream(values).map(v -> DefaultBulkStringMessage.createUtf8(alloc, v))
+                .collect(Collectors.toList());
+        return new DefaultArrayMessage<>(list);
+    }
+
+    private final List<E> values;
 
     /**
      * Constructs a {@link DefaultArrayMessage} containing the values of the
@@ -190,7 +173,8 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
      * 
      * @param values a {@link RespMessage} array
      */
-    public DefaultArrayMessage(RespMessage... values) {
+    @SafeVarargs
+    public DefaultArrayMessage(E... values) {
         this(Arrays.stream(values).collect(Collectors.toList()));
     }
 
@@ -200,7 +184,7 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
      * 
      * @param values a {@link RespMessage} list
      */
-    DefaultArrayMessage(List<? extends RespMessage> values) {
+    DefaultArrayMessage(List<E> values) {
         this.values = Objects.requireNonNull(values, "values must not be null");
     }
 
@@ -210,7 +194,7 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
      * 
      * @param values a {@link RespMessage} collection
      */
-    public DefaultArrayMessage(Collection<? extends RespMessage> values) {
+    public DefaultArrayMessage(Collection<E> values) {
         this(new ArrayList<>(values));
     }
 
@@ -233,7 +217,7 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
     }
 
     @Override
-    public DefaultArrayMessage touch(Object hint) {
+    public DefaultArrayMessage<E> touch(Object hint) {
         for (RespMessage value : values) {
             ReferenceCountUtil.touch(value, hint);
         }
@@ -253,7 +237,7 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
     }
 
     @Override
-    public List<? extends RespMessage> values() {
+    public List<E> values() {
         return values;
     }
 
@@ -262,7 +246,7 @@ public class DefaultArrayMessage extends AbstractReferenceCounted implements Res
         return getClass().getSimpleName() + "[" + type() + "(" + size() + ")" + values() + "]";
     }
 
-    private static final class EmptyArrayMessage extends DefaultArrayMessage {
+    private static final class EmptyArrayMessage extends DefaultArrayMessage<RespMessage> {
 
         private static final ByteBuf sizeBuf = Unpooled.unreleasableBuffer(
                 RespCodecUtil.buffer(TYPE_LENGTH + 1 + EOL_LENGTH).writeByte(RespMessageType.ARRAY.value())

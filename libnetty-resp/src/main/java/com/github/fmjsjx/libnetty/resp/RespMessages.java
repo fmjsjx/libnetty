@@ -153,10 +153,11 @@ public class RespMessages {
     /**
      * Returns the empty {@link RespArrayMessage}.
      * 
+     * @param <E> the type of elements in the array
      * @return an empty {@code RespArrayMessage}
      */
-    public static final RespArrayMessage emptyArray() {
-        return EMPTY_ARRAY;
+    public static final <E extends RespMessage> RespArrayMessage<E> emptyArray() {
+        return DefaultArrayMessage.empty();
     }
 
     /**

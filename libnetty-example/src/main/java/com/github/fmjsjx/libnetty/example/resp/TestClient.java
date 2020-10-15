@@ -38,9 +38,8 @@ public class TestClient {
             ChannelFuture future = b.connect("127.0.0.1", 6379).sync();
             if (future.isSuccess()) {
                 Channel channel = future.channel();
-                DefaultArrayMessage cmd = DefaultArrayMessage.bulkStringArrayAscii(channel.alloc(), "ECHO",
-                        "Hello World!");
-                channel.writeAndFlush(cmd);
+                channel.writeAndFlush(DefaultArrayMessage.bulkStringArrayAscii(channel.alloc(), "ECHO",
+                        "Hello World!"));
                 channel.closeFuture().sync();
             }
         } finally {

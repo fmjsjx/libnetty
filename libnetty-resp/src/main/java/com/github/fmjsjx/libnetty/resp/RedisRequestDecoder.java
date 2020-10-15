@@ -154,13 +154,13 @@ public class RedisRequestDecoder extends RespMessageDecoder {
         if (commands.isEmpty()) {
             out.add(new RedisRequest(RespMessages.emptyArray()));
         } else {
-            out.add(new RedisRequest(new DefaultArrayMessage(commands)));
+            out.add(new RedisRequest(new DefaultArrayMessage<>(commands)));
         }
         resetDecoder();
     }
 
     private void outputRequest(List<Object> out) {
-        out.add(new RedisRequest(new DefaultArrayMessage(bulkStrings)));
+        out.add(new RedisRequest(new DefaultArrayMessage<>(bulkStrings)));
         resetDecoder();
     }
 

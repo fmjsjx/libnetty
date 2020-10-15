@@ -2,17 +2,16 @@ package com.github.fmjsjx.libnetty.resp;
 
 import java.util.List;
 
-import io.netty.util.ReferenceCounted;
-
 /**
- * An interface defines a RESP Array message. Combines the {@link RespMessage}
- * and the {@link ReferenceCounted}.
+ * An interface defines a RESP Array message.
+ *
+ * @param <E> the type the elements in this array
  *
  * @since 1.0
  * 
  * @author MJ Fang
  */
-public interface RespArrayMessage extends RespMessage, ReferenceCounted {
+public interface RespArrayMessage<E extends RespMessage> extends RespAggregateMessage<E> {
 
     @Override
     default RespMessageType type() {
@@ -31,7 +30,7 @@ public interface RespArrayMessage extends RespMessage, ReferenceCounted {
      * 
      * @return a {@link List}
      */
-    List<? extends RespMessage> values();
+    List<E> values();
 
     /**
      * Returns the value at the specified position in this {@link RespArrayMessage}.
@@ -40,9 +39,8 @@ public interface RespArrayMessage extends RespMessage, ReferenceCounted {
      * @param index index of the value to return
      * @return the value at the specified position
      */
-    @SuppressWarnings("unchecked")
-    default <M extends RespMessage> M value(int index) {
-        return (M) values().get(index);
+    default E value(int index) {
+        return values().get(index);
     }
 
     /**
@@ -53,7 +51,7 @@ public interface RespArrayMessage extends RespMessage, ReferenceCounted {
      * @return a {@code RespBulkStringMessage}
      */
     default RespBulkStringMessage bulkString(int index) {
-        return value(index);
+        return RespBulkStringMessage.class.cast(value(index));
     }
 
 }
