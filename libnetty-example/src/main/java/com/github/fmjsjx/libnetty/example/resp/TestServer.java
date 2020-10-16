@@ -1,20 +1,26 @@
 package com.github.fmjsjx.libnetty.example.resp;
 
-import static io.netty.channel.ChannelFutureListener.*;
+import static io.netty.channel.ChannelFutureListener.CLOSE;
 
 import java.net.URI;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.client.HttpClient;
 import com.github.fmjsjx.libnetty.http.client.SimpleHttpClient;
+import com.github.fmjsjx.libnetty.resp.CachedBulkStringMessage;
+import com.github.fmjsjx.libnetty.resp.DefaultArrayMessage;
 import com.github.fmjsjx.libnetty.resp.DefaultBulkStringMessage;
 import com.github.fmjsjx.libnetty.resp.DefaultErrorMessage;
 import com.github.fmjsjx.libnetty.resp.RedisRequest;
 import com.github.fmjsjx.libnetty.resp.RedisRequestDecoder;
 import com.github.fmjsjx.libnetty.resp.RespBulkStringMessage;
+import com.github.fmjsjx.libnetty.resp.RespMessage;
 import com.github.fmjsjx.libnetty.resp.RespMessageEncoder;
 import com.github.fmjsjx.libnetty.resp.RespMessages;
 import com.github.fmjsjx.libnetty.resp.util.IgnoredCaseAsciiKeyMap;
@@ -29,7 +35,6 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 
 public class TestServer {
@@ -42,8 +47,8 @@ public class TestServer {
                     .option(ChannelOption.SO_BACKLOG, 512).childOption(ChannelOption.TCP_NODELAY, true)
                     .childOption(ChannelOption.AUTO_READ, false).childHandler(new ChannelInitializer<Channel>() {
                         protected void initChannel(Channel ch) throws Exception {
-                            ch.pipeline().addLast(new ReadTimeoutHandler(900)).addLast(respMessageEncoder)
-                                    .addLast(new RedisRequestDecoder()).addLast(new TestServerHandler());
+                            ch.pipeline().addLast(respMessageEncoder).addLast(new RedisRequestDecoder())
+                                    .addLast(new TestServerHandler());
                         }
                     });
             b.bind(6379).sync();
@@ -69,6 +74,7 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
         commandProcedures = new IgnoredCaseAsciiKeyMap<>();
         commandProcedures.put("GET", this::get);
         commandProcedures.put("ECHO", this::echo);
+        commandProcedures.put("SMEMBERS", this::smembers);
         commandProcedures.put("PING", this::ping);
         commandProcedures.put("SELECT", this::justOk);
         commandProcedures.put("QUIT", this::quit);
@@ -111,6 +117,23 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
         } else {
             RespBulkStringMessage message = msg.argument(1);
             ctx.writeAndFlush(message.retainedDuplicate()).addListener(READ_NEXT);
+        }
+    }
+
+    private final List<RespBulkStringMessage> smembers = Arrays.stream(new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 })
+            .mapToObj(CachedBulkStringMessage::create).collect(Collectors.toList());
+
+    private void smembers(ChannelHandlerContext ctx, RedisRequest msg) {
+        if (msg.size() < 2) {
+            ctx.writeAndFlush(RespMessages.wrongNumberOfArgumentsForCommand("smembers")).addListener(READ_NEXT);
+        } else {
+            try {
+                int size = Math.max(0, Math.min(msg.argument(1).intValue(), 9));
+                ctx.writeAndFlush(new DefaultArrayMessage<>(smembers.stream().limit(size).toArray(RespMessage[]::new)))
+                        .addListener(READ_NEXT);
+            } catch (Exception e) {
+                ctx.writeAndFlush(RespMessages.emptyArray()).addListener(READ_NEXT);
+            }
         }
     }
 

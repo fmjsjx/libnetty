@@ -1,7 +1,5 @@
 package com.github.fmjsjx.libnetty.resp;
 
-import static com.github.fmjsjx.libnetty.resp.RespConstants.*;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -12,7 +10,6 @@ import java.util.stream.Collectors;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 
 /**
@@ -28,11 +25,6 @@ public class DefaultArrayMessage<E extends RespMessage> extends AbstractRespAggr
         implements RespArrayMessage<E> {
 
     /**
-     * The empty array instance (immutable).
-     */
-    public static final DefaultArrayMessage<? extends RespMessage> EMPTY = new EmptyArrayMessage();
-
-    /**
      * Returns the empty array instance.
      * 
      * @param <E> the type of elements in the array
@@ -40,9 +32,8 @@ public class DefaultArrayMessage<E extends RespMessage> extends AbstractRespAggr
      * 
      * @since 1.1
      */
-    @SuppressWarnings("unchecked")
     public static final <E extends RespMessage> DefaultArrayMessage<E> empty() {
-        return (DefaultArrayMessage<E>) EMPTY;
+        return new DefaultArrayMessage<>(Collections.emptyList());
     }
 
     /**
@@ -205,14 +196,6 @@ public class DefaultArrayMessage<E extends RespMessage> extends AbstractRespAggr
     }
 
     @Override
-    public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
-        byte[] sizeBytes = RespCodecUtil.longToAsciiBytes(size());
-        ByteBuf header = alloc.buffer(TYPE_LENGTH + sizeBytes.length + EOL_LENGTH).writeByte(type().value())
-                .writeBytes(sizeBytes).writeShort(EOL_SHORT);
-        out.add(header); // array header
-    }
-
-    @Override
     protected void encodeValue(ByteBufAllocator alloc, E value, List<Object> out) throws Exception {
         value.encode(alloc, out);
     }
@@ -250,28 +233,6 @@ public class DefaultArrayMessage<E extends RespMessage> extends AbstractRespAggr
     @Override
     public String toString() {
         return getClass().getSimpleName() + "[" + type() + "(" + size() + ")" + values() + "]";
-    }
-
-    private static final class EmptyArrayMessage extends DefaultArrayMessage<RespMessage> {
-
-        private static final ByteBuf sizeBuf = Unpooled.unreleasableBuffer(
-                RespCodecUtil.buffer(TYPE_LENGTH + 1 + EOL_LENGTH).writeByte(RespMessageType.ARRAY.value())
-                        .writeBytes(RespCodecUtil.longToAsciiBytes(0)).writeShort(EOL_SHORT).asReadOnly());
-
-        private EmptyArrayMessage() {
-            super(Collections.emptyList());
-        }
-
-        @Override
-        public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
-            out.add(sizeBuf.duplicate());
-        }
-
-        @Override
-        public int size() {
-            return 0;
-        }
-
     }
 
 }

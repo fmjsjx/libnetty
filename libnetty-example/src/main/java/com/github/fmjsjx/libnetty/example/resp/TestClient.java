@@ -2,6 +2,7 @@ package com.github.fmjsjx.libnetty.example.resp;
 
 import com.github.fmjsjx.libnetty.resp.DefaultArrayMessage;
 import com.github.fmjsjx.libnetty.resp.DefaultRespMessageDecoder;
+import com.github.fmjsjx.libnetty.resp.RespArrayMessage;
 import com.github.fmjsjx.libnetty.resp.RespBulkStringMessage;
 import com.github.fmjsjx.libnetty.resp.RespMessage;
 import com.github.fmjsjx.libnetty.resp.RespMessageEncoder;
@@ -19,7 +20,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.util.CharsetUtil;
 
 public class TestClient {
 
@@ -57,16 +57,24 @@ class TestClientHandler extends SimpleChannelInboundHandler<RespMessage> {
     protected void channelRead0(ChannelHandlerContext ctx, RespMessage msg) throws Exception {
         System.out.println("-- RESP message received --");
         System.out.println(msg);
-        if (msg instanceof RespBulkStringMessage) {
-            System.out.println(((RespBulkStringMessage) msg).textValue(CharsetUtil.UTF_8));
+        if (msg instanceof RespBulkStringMessage || msg instanceof RespArrayMessage) {
             switch (count++) {
             case 0:
-                ctx.writeAndFlush(command(ctx.alloc(), "PING", "PING may same with ECHO"));
+                ctx.writeAndFlush(command(ctx.alloc(), "SMEMBERS", "any key for test"));
                 break;
             case 1:
-                ctx.writeAndFlush(command(ctx.alloc(), "GET", "https://www.baidu.com/"));
+                ctx.writeAndFlush(command(ctx.alloc(), "SMEMBERS", "3"));
                 break;
             case 2:
+                ctx.writeAndFlush(command(ctx.alloc(), "SMEMBERS", "12"));
+                break;
+            case 3:
+                ctx.writeAndFlush(command(ctx.alloc(), "PING", "PING may same with ECHO"));
+                break;
+            case 4:
+                ctx.writeAndFlush(command(ctx.alloc(), "GET", "https://www.baidu.com/"));
+                break;
+            case 5:
                 ctx.writeAndFlush(command(ctx.alloc(), "GET", "https://www.sogou.com/"));
                 break;
             default:

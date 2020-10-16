@@ -157,7 +157,7 @@ public class RespMessages {
      * @return an empty {@code RespArrayMessage}
      */
     public static final <E extends RespMessage> RespArrayMessage<E> emptyArray() {
-        return DefaultArrayMessage.empty();
+        return CachedEmptyArrayMessage.getInstance();
     }
 
     /**

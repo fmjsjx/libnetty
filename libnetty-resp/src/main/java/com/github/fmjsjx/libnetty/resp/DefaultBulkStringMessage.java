@@ -79,7 +79,8 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
      */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, int value) {
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
-        ByteBuf content = alloc.buffer(bytes.length);
+        System.err.println("-- number length " + bytes.length + " --");
+        ByteBuf content = RespCodecUtil.buffer(alloc, bytes.length).writeBytes(bytes);
         AsciiString ascii = new AsciiString(bytes, false);
         return new DefaultBulkStringMessage(content, Integer.valueOf(value), null, null, ascii);
     }
@@ -93,7 +94,7 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
      */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, long value) {
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
-        ByteBuf content = alloc.buffer(bytes.length);
+        ByteBuf content = RespCodecUtil.buffer(alloc, bytes.length).writeBytes(bytes);
         AsciiString ascii = new AsciiString(bytes, false);
         return new DefaultBulkStringMessage(content, Long.valueOf(value), null, null, ascii);
     }
@@ -108,7 +109,7 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
      */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, double value) {
         byte[] bytes = RespCodecUtil.doubleToAsciiBytes(value);
-        ByteBuf content = alloc.buffer(bytes.length);
+        ByteBuf content = RespCodecUtil.buffer(alloc, bytes.length).writeBytes(bytes);
         AsciiString ascii = new AsciiString(bytes, false);
         return new DefaultBulkStringMessage(content, Double.valueOf(value), null, null, ascii);
     }
