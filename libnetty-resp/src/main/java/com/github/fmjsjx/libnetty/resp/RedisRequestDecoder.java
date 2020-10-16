@@ -165,14 +165,16 @@ public class RedisRequestDecoder extends RespMessageDecoder {
     }
 
     protected boolean decodeBulkStringContent(ByteBuf in, List<Object> out) {
-        if (!in.isReadable(currentBulkStringLength + EOL_LENGTH)) {
+        int length = currentBulkStringLength;
+        if (!in.isReadable(length + EOL_LENGTH)) {
             return false;
         }
-        if (currentBulkStringLength == 0) {
+        ArrayList<RespBulkStringMessage> bulkStrings = this.bulkStrings;
+        if (length == 0) {
             readEndOfLine(in);
             bulkStrings.add(RespMessages.emptyBulk());
         } else {
-            ByteBuf content = in.readRetainedSlice(currentBulkStringLength);
+            ByteBuf content = in.readRetainedSlice(length);
             readEndOfLine(in);
             bulkStrings.add(new DefaultBulkStringMessage(content));
         }

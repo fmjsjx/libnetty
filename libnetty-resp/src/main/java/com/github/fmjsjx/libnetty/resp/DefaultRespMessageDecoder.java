@@ -52,7 +52,7 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
     private final BiConsumer<ByteBuf, List<Object>> simpleStringDecoder = this::decodeSimpleString;
     private final BiConsumer<ByteBuf, List<Object>> errorDecoder = this::decodeError;
     private final BiConsumer<ByteBuf, List<Object>> integerDecoder = this::decodeInteger;
-    
+
     /**
      * Constructs a new {@link DefaultRespMessageDecoder} using default
      * {@code maxInlineMessageLength} ({@code 65536}).
@@ -116,6 +116,7 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
     }
 
     private void appendMessage(RespMessage msg, List<Object> out) {
+        LinkedList<ArrayBuilder> nests = this.nests;
         if (nests == null) {
             out.add(msg);
             resetDecoder();
@@ -176,28 +177,34 @@ public class DefaultRespMessageDecoder extends RespMessageDecoder {
         if (size == 0) {
             appendMessage(RespMessages.emptyArray(), out);
         } else {
-            if (nests == null) {
-                nests = new LinkedList<>();
-            }
-            nests.addLast(new ArrayBuilder(size));
+            ensureNests().addLast(new ArrayBuilder(size));
         }
+    }
+
+    private LinkedList<ArrayBuilder> ensureNests() {
+        LinkedList<ArrayBuilder> nests = this.nests;
+        if (nests == null) {
+            this.nests = nests = new LinkedList<>();
+        }
+        return nests;
     }
 
     @Override
     protected boolean decodeBulkStringContent(ByteBuf in, List<Object> out) {
-        if (!in.isReadable(currentBulkStringLength + EOL_LENGTH)) {
+        int length = currentBulkStringLength;
+        if (!in.isReadable(length + EOL_LENGTH)) {
             return false;
         }
         RespMessage msg;
-        if (currentBulkStringLength == 0) {
+        if (length == 0) {
             readEndOfLine(in);
             msg = RespMessages.emptyBulk();
         } else {
-            ByteBuf content = in.readRetainedSlice(currentBulkStringLength);
+            ByteBuf content = in.readRetainedSlice(length);
             readEndOfLine(in);
             msg = new DefaultBulkStringMessage(content);
-            setState(State.DECODE_INLINE);
         }
+        setState(State.DECODE_INLINE);
         appendMessage(msg, out);
         return true;
     }

@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.BiConsumer;
 
+import com.github.fmjsjx.libnetty.resp.DefaultBulkStringMessage;
 import com.github.fmjsjx.libnetty.resp.DefaultErrorMessage;
 import com.github.fmjsjx.libnetty.resp.DefaultIntegerMessage;
 import com.github.fmjsjx.libnetty.resp.DefaultSimpleStringMessage;
@@ -16,6 +17,8 @@ import com.github.fmjsjx.libnetty.resp.RespMessages;
 import com.github.fmjsjx.libnetty.resp.exception.RespDecoderException;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.AsciiString;
+import io.netty.util.ByteProcessor;
 import io.netty.util.CharsetUtil;
 
 /**
@@ -35,6 +38,8 @@ public class Resp3MessageDecoder extends RespMessageDecoder {
 
     protected static final RespDecoderException TOO_LONG_CONTENT_MESSAGE = new RespDecoderException(
             "too long content message");
+
+    private static final ByteProcessor FIND_NON_NUMBER = v -> v >= '0' && v <= '9';
 
     static final class AggregateBuilder {
 
@@ -81,6 +86,8 @@ public class Resp3MessageDecoder extends RespMessageDecoder {
                     return Resp3AttributeMessage.of(values.get(0), values.get(1));
                 }
                 return new DefaultAttributeMessage<>(toPairs());
+            case Resp3Constants.TYPE_PUSH:
+                return new DefaultPushMessage<>(values);
             }
         }
 
@@ -110,6 +117,15 @@ public class Resp3MessageDecoder extends RespMessageDecoder {
     private final BiConsumer<ByteBuf, List<Object>> nullDecoder = this::decodeNull;
     private final BiConsumer<ByteBuf, List<Object>> doubleDecoder = this::decodeDouble;
     private final BiConsumer<ByteBuf, List<Object>> booleanDecoder = this::decodeBoolean;
+    private final BiConsumer<ByteBuf, List<Object>> blobErrorLengthDecoder = this::decodeBlobErrorLength;
+    private final BiConsumer<ByteBuf, List<Object>> verbatimStringLengthDecoder = this::decodeVerbatimStringLength;
+    private final BiConsumer<ByteBuf, List<Object>> bigNumberDecoder = this::decodeBigNumber;
+    private final BiConsumer<ByteBuf, List<Object>> mapHeaderDecoder = this::decodeMapHeader;
+    private final BiConsumer<ByteBuf, List<Object>> setHeaderDecoder = this::decodeSetHeader;
+    private final BiConsumer<ByteBuf, List<Object>> attributeHeaderDecoder = this::decodeAttributeHeader;
+    private final BiConsumer<ByteBuf, List<Object>> pushHeaderDecoder = this::decodePushHeader;
+    private final BiConsumer<ByteBuf, List<Object>> streamedStringPartLengthDecoder = this::decodeStreamedStringPartLength;
+    private final BiConsumer<ByteBuf, List<Object>> endDecoder = this::decodeEnd;
 
     /**
      * Constructs a new {@link Resp3MessageDecoder} using default
@@ -165,7 +181,33 @@ public class Resp3MessageDecoder extends RespMessageDecoder {
         case Resp3Constants.TYPE_BOOLEAN:
             decoder = booleanDecoder;
             break;
-        // TODO
+        case Resp3Constants.TYPE_BLOB_ERROR:
+            decoder = blobErrorLengthDecoder;
+            break;
+        case Resp3Constants.TYPE_VERBATIM_STRING:
+            decoder = verbatimStringLengthDecoder;
+            break;
+        case Resp3Constants.TYPE_BIG_NUMBER:
+            decoder = bigNumberDecoder;
+            break;
+        case Resp3Constants.TYPE_MAP:
+            decoder = mapHeaderDecoder;
+            break;
+        case Resp3Constants.TYPE_SET:
+            decoder = setHeaderDecoder;
+            break;
+        case Resp3Constants.TYPE_ATTRIBUTE:
+            decoder = attributeHeaderDecoder;
+            break;
+        case Resp3Constants.TYPE_PUSH:
+            decoder = pushHeaderDecoder;
+            break;
+        case Resp3Constants.TYPE_STREAMED_STRING_PART:
+            decoder = streamedStringPartLengthDecoder;
+            break;
+        case Resp3Constants.TYPE_END:
+            decoder = endDecoder;
+            break;
         default: // INLINE COMMAND
             throw DECODING_OF_INLINE_COMMANDS_DISABLED;
         }
@@ -191,11 +233,16 @@ public class Resp3MessageDecoder extends RespMessageDecoder {
         if (size == 0) {
             appendMessage(RespMessages.emptyArray(), out);
         } else {
-            if (nests == null) {
-                nests = new LinkedList<>();
-            }
-            nests.addLast(new AggregateBuilder(RespConstants.TYPE_ARRAY, size));
+            ensureNests().addLast(new AggregateBuilder(RespConstants.TYPE_ARRAY, size));
         }
+    }
+
+    private LinkedList<AggregateBuilder> ensureNests() {
+        LinkedList<AggregateBuilder> nests = this.nests;
+        if (nests == null) {
+            this.nests = nests = new LinkedList<>();
+        }
+        return nests;
     }
 
     boolean isUnbound(ByteBuf inlineBytes) {
@@ -203,6 +250,7 @@ public class Resp3MessageDecoder extends RespMessageDecoder {
     }
 
     private void appendMessage(RespMessage msg, List<Object> out) {
+        LinkedList<AggregateBuilder> nests = this.nests;
         if (nests == null) {
             out.add(msg);
             resetDecoder();
@@ -272,7 +320,7 @@ public class Resp3MessageDecoder extends RespMessageDecoder {
     }
 
     private void decodeNull(ByteBuf inlineBytes, List<Object> out) {
-        appendMessage(RespMessages.nil(), out);
+        appendMessage(Resp3Messages.nil(), out);
     }
 
     private void decodeDouble(ByteBuf inlineBytes, List<Object> out) {
@@ -306,11 +354,163 @@ public class Resp3MessageDecoder extends RespMessageDecoder {
         }
     }
 
+    private void decodeBlobErrorLength(ByteBuf inlineBytes, List<Object> out) {
+        requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
+        int length = parsePostiveInt(inlineBytes);
+        if (length > RespConstants.RESP_MESSAGE_MAX_LENGTH) {
+            throw TOO_LONG_BULK_STRING_MESSAGE;
+        }
+        currentContentType = Resp3Constants.TYPE_BLOB_ERROR;
+        currentContentLength = length;
+        setState(State.DECODE_BULK_STRING_CONTENT);
+    }
+
+    private void decodeVerbatimStringLength(ByteBuf inlineBytes, List<Object> out) {
+        requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
+        int length = parsePostiveInt(inlineBytes);
+        if (length > RespConstants.RESP_MESSAGE_MAX_LENGTH) {
+            throw TOO_LONG_BULK_STRING_MESSAGE;
+        }
+        currentContentType = Resp3Constants.TYPE_VERBATIM_STRING;
+        currentContentLength = length;
+        setState(State.DECODE_BULK_STRING_CONTENT);
+    }
+
+    private void decodeBigNumber(ByteBuf inlineBytes, List<Object> out) {
+        requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
+        if (inlineBytes.forEachByte(FIND_NON_NUMBER) != -1) {
+            throw RespCodecUtil.NaN;
+        }
+        RespMessage msg = DefaultBigNumberMessage.create(inlineBytes.toString(CharsetUtil.US_ASCII));
+        appendMessage(msg, out);
+    }
+
+    private void decodeMapHeader(ByteBuf inlineBytes, List<Object> out) {
+        requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
+        if (isUnbound(inlineBytes)) {
+            if (nests != null) {
+                throw UNBOUND_MUST_AT_TOP_LEVEL;
+            }
+            out.add(Resp3Messages.unboundMapHeader());
+            return;
+        }
+        int size = parsePostiveInt(inlineBytes);
+        if (size == 0) {
+            appendMessage(Resp3Messages.emptyMap(), out);
+        } else {
+            LinkedList<AggregateBuilder> nests = ensureNests();
+            nests.addLast(new AggregateBuilder(Resp3Constants.TYPE_MAP, size));
+        }
+    }
+
+    private void decodeSetHeader(ByteBuf inlineBytes, List<Object> out) {
+        requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
+        if (isUnbound(inlineBytes)) {
+            if (nests != null) {
+                throw UNBOUND_MUST_AT_TOP_LEVEL;
+            }
+            out.add(Resp3Messages.unboundSetHeader());
+            return;
+        }
+        int size = parsePostiveInt(inlineBytes);
+        if (size == 0) {
+            appendMessage(Resp3Messages.emptySet(), out);
+        } else {
+            ensureNests().addLast(new AggregateBuilder(Resp3Constants.TYPE_SET, size));
+        }
+    }
+
+    private void decodeAttributeHeader(ByteBuf inlineBytes, List<Object> out) {
+        requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
+        int size = parsePostiveInt(inlineBytes);
+        if (size == 0) {
+            appendMessage(new DefaultAttributeMessage<>(), out);
+        } else {
+            ensureNests().addLast(new AggregateBuilder(Resp3Constants.TYPE_ATTRIBUTE, size));
+        }
+    }
+
+    private void decodePushHeader(ByteBuf inlineBytes, List<Object> out) {
+        requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
+        if (isUnbound(inlineBytes)) {
+            if (nests != null) {
+                throw UNBOUND_MUST_AT_TOP_LEVEL;
+            }
+            out.add(Resp3Messages.unboundPushHeader());
+            return;
+        }
+        int size = parsePostiveInt(inlineBytes);
+        if (size == 0) {
+            appendMessage(new DefaultPushMessage<>(), out);
+        } else {
+            ensureNests().addLast(new AggregateBuilder(Resp3Constants.TYPE_PUSH, size));
+        }
+    }
+
+    private void decodeStreamedStringPartLength(ByteBuf inlineBytes, List<Object> out) {
+        requireReadable(inlineBytes, NO_NUMBER_TO_PARSE);
+        int length = parsePostiveInt(inlineBytes);
+        if (length > RespConstants.RESP_MESSAGE_MAX_LENGTH) {
+            throw TOO_LONG_BULK_STRING_MESSAGE;
+        }
+        currentContentType = Resp3Constants.TYPE_STREAMED_STRING_PART;
+        currentContentLength = length;
+        setState(State.DECODE_BULK_STRING_CONTENT);
+    }
+
+    private void decodeEnd(ByteBuf inlineBytes, List<Object> out) {
+        appendMessage(Resp3Messages.end(), out);
+    }
+
     @Override
     protected boolean decodeBulkStringContent(ByteBuf in, List<Object> out) {
         // For RESP3, all content decode logic should write at this method
-        // TODO Auto-generated method stub
-        return false;
+        // BulkString, BlobError, VerbatimString
+        int length = currentContentLength;
+        if (!in.isReadable(length + RespConstants.EOL_LENGTH)) {
+            return false;
+        }
+        RespMessage msg;
+        switch (currentContentType) {
+        default:
+        case RespConstants.TYPE_BULK_STRING:
+            if (length == 0) {
+                msg = RespMessages.emptyBulk();
+            } else {
+                msg = new DefaultBulkStringMessage(in.readRetainedSlice(length));
+            }
+            readEndOfLine(in);
+            break;
+        case Resp3Constants.TYPE_BLOB_ERROR:
+            msg = decodeBlobError(in.readSlice(length));
+            readEndOfLine(in);
+            break;
+        case Resp3Constants.TYPE_VERBATIM_STRING:
+            if (length < 4) {
+                throw new RespDecoderException("length of verbatim string must >= 4");
+            }
+            String formatPart = in.toString(in.readerIndex(), 3, CharsetUtil.US_ASCII);
+            in.skipBytes(4);
+            msg = new DefaultVerbatimStringMessage(formatPart, in.readRetainedSlice(length - 4));
+            readEndOfLine(in);
+            break;
+        }
+        setState(State.DECODE_INLINE);
+        appendMessage(msg, out);
+        return true;
+    }
+
+    private Resp3BlobErrorMessage decodeBlobError(ByteBuf in) {
+        String text = in.toString(CharsetUtil.UTF_8);
+        int codeLength = in.bytesBefore(RespConstants.SPACE);
+        if (codeLength == -1) {
+            // no space char found
+            return new DefaultBlobErrorMessage(text, "", text);
+        } else {
+            String code = text.substring(0, codeLength);
+            String message = text.substring(codeLength + 1);
+            return new DefaultBlobErrorMessage(AsciiString.cached(code), message, text);
+        }
     }
 
 }

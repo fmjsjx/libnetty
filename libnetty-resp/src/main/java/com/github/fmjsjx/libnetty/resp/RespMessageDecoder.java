@@ -7,6 +7,7 @@ import static com.github.fmjsjx.libnetty.resp.RespConstants.TYPE_LENGTH;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.github.fmjsjx.libnetty.resp.RespCodecUtil.ToPositiveIntProcessor;
 import com.github.fmjsjx.libnetty.resp.exception.RespDecoderException;
 
 import io.netty.buffer.ByteBuf;
@@ -137,7 +138,9 @@ public abstract class RespMessageDecoder extends ByteToMessageDecoder {
     }
 
     protected int parsePostiveInt(ByteBuf byteBuf) {
-        return RespCodecUtil.decodeInt(byteBuf);
+        ToPositiveIntProcessor numberProcessor = RespCodecUtil.toPositiveIntProcessor();
+        byteBuf.forEachByte(numberProcessor);
+        return numberProcessor.value();
     }
 
     protected int parseLength(ByteBuf byteBuf) {

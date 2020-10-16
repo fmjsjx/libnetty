@@ -132,18 +132,43 @@ public class RespCodecUtil {
      * Decode an int value from the specified {@link ByteBuf}.
      * 
      * @param content the content
-     * @return decoded int value
+     * @return the decoded int value
      */
     public static final int decodeInt(ByteBuf content) {
         int begin = content.readerIndex();
         int end = content.writerIndex();
+        if (end == begin) {
+            throw NaN;
+        }
         boolean negative = content.getByte(begin) == '-' ? true : false;
         if (negative) {
             begin++;
         }
+        int length = end - begin;
+        if (length == 0) {
+            throw NaN;
+        }
         ToPositiveIntProcessor numberProcessor = ThreadLocalToPositiveIntProcessor.INSTANCE.get();
         numberProcessor.reset();
-        content.forEachByte(begin, end - begin, numberProcessor);
+        content.forEachByte(begin, length, numberProcessor);
+        return numberProcessor.value;
+    }
+
+    /**
+     * Decode an unsigned int value from the specified {@link ByteBuf}.
+     * 
+     * @param content the content
+     * @return the decoded unsigned int value
+     * 
+     * @since 1.1
+     */
+    public static final int decodeUnsignedInt(ByteBuf content) {
+        if (!content.isReadable()) {
+            throw NaN;
+        }
+        ToPositiveIntProcessor numberProcessor = ThreadLocalToPositiveIntProcessor.INSTANCE.get();
+        numberProcessor.reset();
+        content.forEachByte(numberProcessor);
         return numberProcessor.value;
     }
 
@@ -151,19 +176,19 @@ public class RespCodecUtil {
      * Decode a long value from the specified {@link ByteBuf}.
      * 
      * @param content the content
-     * @return decoded long value
+     * @return the decoded long value
      */
     public static final long decodeLong(ByteBuf content) {
         int begin = content.readerIndex();
-        int length = content.readableBytes();
-        if (length == 0) {
+        int end = content.writerIndex();
+        if (begin == end) {
             throw NaN;
         }
         boolean negative = content.getByte(begin) == '-' ? true : false;
         if (negative) {
             begin++;
-            length--;
         }
+        int length = end - begin;
         if (length == 0) {
             throw NaN;
         }
@@ -171,6 +196,51 @@ public class RespCodecUtil {
         numberProcessor.reset();
         content.forEachByte(begin, length, numberProcessor);
         return numberProcessor.value;
+    }
+
+    /**
+     * Decode an unsigned long value from the specified {@link ByteBuf}.
+     * 
+     * @param content the content
+     * @return the decoded unsigned long value
+     * 
+     * @since 1.1
+     */
+    public static final long decodeUnsignedLong(ByteBuf content) {
+        if (!content.isReadable()) {
+            throw NaN;
+        }
+        ToPositiveLongProcessor numberProcessor = toPositiveLongProcessor();
+        content.forEachByte(numberProcessor);
+        return numberProcessor.value;
+    }
+
+    /**
+     * Returns a {@code thread-local} {@link ToPositiveIntProcessor} instance that
+     * already be reset.
+     * 
+     * @return a {@code thread-local} {@link ToPositiveIntProcessor} instance
+     * 
+     * @since 1.1
+     */
+    public static final ToPositiveIntProcessor toPositiveIntProcessor() {
+        ToPositiveIntProcessor numberProcessor = ThreadLocalToPositiveIntProcessor.INSTANCE.get();
+        numberProcessor.reset();
+        return numberProcessor;
+    }
+
+    /**
+     * Returns a {@code thread-local} {@link ToPositiveLongProcessor} instance that
+     * already be reset.
+     * 
+     * @return a {@code thread-local} {@link ToPositiveLongProcessor} instance
+     * 
+     * @since 1.1
+     */
+    public static final ToPositiveLongProcessor toPositiveLongProcessor() {
+        ToPositiveLongProcessor numberProcessor = ThreadLocalToPositiveLongProcessor.INSTANCE.get();
+        numberProcessor.reset();
+        return numberProcessor;
     }
 
     /**
@@ -238,10 +308,10 @@ public class RespCodecUtil {
 
         @Override
         public boolean process(byte value) throws Exception {
-            int old = this.value;
+            int num = this.value;
             if (value >= '0' && value <= '9') {
-                this.value = old * 10 + (value - '0');
-                if (this.value < 0) {
+                this.value = num = num * 10 + (value - '0');
+                if (num < 0) {
                     throw int32Overflow;
                 }
                 return true;
@@ -294,10 +364,10 @@ public class RespCodecUtil {
 
         @Override
         public boolean process(byte value) throws Exception {
-            long old = this.value;
+            long num = this.value;
             if (value >= '0' && value <= '9') {
-                this.value = old * 10 + (value - '0');
-                if (this.value < 0) {
+                this.value = num = num * 10 + (value - '0');
+                if (num < 0) {
                     throw int64Overflow;
                 }
                 return true;
