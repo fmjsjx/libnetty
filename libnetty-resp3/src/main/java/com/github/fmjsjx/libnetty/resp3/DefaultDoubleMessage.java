@@ -15,9 +15,8 @@ import io.netty.util.AsciiString;
  */
 public class DefaultDoubleMessage extends AbstractSimpleRespMessage implements Resp3DoubleMessage {
 
-    private final double value;
-    private final AsciiString cachedString;
-    private BigDecimal cachedBigDecimal;
+    private final BigDecimal value;
+    private AsciiString cachedString;
 
     /**
      * Constructs a new {@link DefaultDoubleMessage} instance holding the specified
@@ -25,12 +24,8 @@ public class DefaultDoubleMessage extends AbstractSimpleRespMessage implements R
      * 
      * @param value the double value
      */
-    public DefaultDoubleMessage(double value) {
-        if (Double.isInfinite(value)) {
-            throw new IllegalArgumentException("value can't be infinity");
-        }
+    public DefaultDoubleMessage(BigDecimal value) {
         this.value = value;
-        this.cachedString = AsciiString.cached(Double.toString(value));
     }
 
     /**
@@ -40,7 +35,7 @@ public class DefaultDoubleMessage extends AbstractSimpleRespMessage implements R
      * @param s the string to be parsed
      */
     public DefaultDoubleMessage(String s) {
-        this.value = Double.parseDouble(s);
+        this.value = new BigDecimal(s);
         this.cachedString = AsciiString.cached(s);
     }
 
@@ -50,28 +45,36 @@ public class DefaultDoubleMessage extends AbstractSimpleRespMessage implements R
     }
 
     @Override
-    public double value() {
+    public boolean isPostivieInfinity() {
+        return false;
+    }
+
+    @Override
+    public boolean isNegativeInfinity() {
+        return false;
+    }
+
+    @Override
+    public BigDecimal value() {
         return value;
     }
 
     @Override
     protected byte[] encodedValue() throws Exception {
-        return cachedString.array();
+        return cachedString().array();
     }
-    
-    @Override
-    public BigDecimal bigDecimalValue() {
-        BigDecimal decimal = this.cachedBigDecimal;
-        if (decimal == null) {
-            this.cachedBigDecimal = decimal = new BigDecimal(cachedString.toString());
+
+    private AsciiString cachedString() {
+        AsciiString cachedString = this.cachedString;
+        if (cachedString == null) {
+            this.cachedString = cachedString = AsciiString.cached(value.toString());
         }
-        return decimal;
-        
+        return cachedString;
     }
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "[" + type() + cachedString + "]";
+        return getClass().getSimpleName() + "[" + type() + cachedString() + "]";
     }
 
 }

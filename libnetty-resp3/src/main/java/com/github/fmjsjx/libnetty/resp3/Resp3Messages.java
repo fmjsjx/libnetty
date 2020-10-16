@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.resp3;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Objects;
 
@@ -30,8 +31,7 @@ public class Resp3Messages {
     }
 
     /**
-     * Returns an {@link Resp3BooleanMessage} instance with the specified boolean
-     * value.
+     * Returns an {@link Resp3BooleanMessage} instance with the specified value.
      * 
      * @param value the boolean value
      * @return a {@code Resp3BooleanMessage}
@@ -41,8 +41,7 @@ public class Resp3Messages {
     }
 
     /**
-     * Returns an {@link Resp3DoubleMessage} instance with the specified boolean
-     * value.
+     * Returns an {@link Resp3DoubleMessage} instance with the specified value.
      * 
      * @param value the double value
      * @return an {@code Resp3DoubleMessage}
@@ -55,8 +54,36 @@ public class Resp3Messages {
         } else if (Double.NEGATIVE_INFINITY == value) {
             return CachedNegativeInfinityMesasge.INSTANCE;
         } else {
-            return new DefaultDoubleMessage(value);
+            return new DefaultDoubleMessage(new BigDecimal(value));
         }
+    }
+
+    /**
+     * Returns positive infinity.
+     * 
+     * @return an {@code Resp3DoubleMessage}
+     */
+    public static final Resp3DoubleMessage positiveInfinity() {
+        return CachedPositiveInfinityMessage.INSTANCE;
+    }
+
+    /**
+     * Returns negative infinity.
+     * 
+     * @return an {@code Resp3DoubleMessage}
+     */
+    public static final Resp3DoubleMessage negativeInfinity() {
+        return CachedNegativeInfinityMesasge.INSTANCE;
+    }
+
+    /**
+     * Returns an {@link Resp3DoubleMessage} instance with the specified value.
+     * 
+     * @param value the double value
+     * @return an {@code Resp3DoubleMessage}
+     */
+    public static final Resp3DoubleMessage valueOf(BigDecimal value) {
+        return new DefaultDoubleMessage(value);
     }
 
     /**

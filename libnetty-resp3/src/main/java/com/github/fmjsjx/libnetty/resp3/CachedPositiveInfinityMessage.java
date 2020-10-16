@@ -5,6 +5,8 @@ import static com.github.fmjsjx.libnetty.resp.RespConstants.EOL_SHORT;
 import static com.github.fmjsjx.libnetty.resp.RespConstants.TYPE_LENGTH;
 import static com.github.fmjsjx.libnetty.resp3.Resp3Constants.POSITIVE_INFINITY;
 
+import java.math.BigDecimal;
+
 import com.github.fmjsjx.libnetty.resp.CachedRespMessage;
 import com.github.fmjsjx.libnetty.resp.RespCodecUtil;
 
@@ -41,8 +43,18 @@ public class CachedPositiveInfinityMessage extends CachedRespMessage implements 
     }
 
     @Override
-    public double value() {
-        return Double.POSITIVE_INFINITY;
+    public boolean isNegativeInfinity() {
+        return false;
+    }
+
+    @Override
+    public boolean isPostivieInfinity() {
+        return true;
+    }
+
+    @Override
+    public BigDecimal value() {
+        return null;
     }
 
     @Override

@@ -26,19 +26,28 @@ public interface Resp3DoubleMessage extends Resp3Message {
     boolean isInfinity();
 
     /**
-     * Returns the double value.
+     * Returns {@code true} if this double message is positive infinity,
+     * {@code false} otherwise.
      * 
-     * @return the double value
+     * @return {@code true} if this double message is positive infinity,
+     *         {@code false} otherwise
      */
-    double value();
+    boolean isPostivieInfinity();
 
     /**
-     * Returns the value as {@link BigDecimal} type.
+     * Returns {@code true} if this double message is negative infinity,
+     * {@code false} otherwise.
      * 
-     * @return the value as {@link BigDecimal} type
+     * @return {@code true} if this double message is negative infinity,
+     *         {@code false} otherwise
      */
-    default BigDecimal bigDecimalValue() {
-        return BigDecimal.valueOf(value());
-    }
+    boolean isNegativeInfinity();
+
+    /**
+     * Returns the {@link BigDecimal} value.
+     * 
+     * @return the {@link BigDecimal} value
+     */
+    BigDecimal value();
 
 }
