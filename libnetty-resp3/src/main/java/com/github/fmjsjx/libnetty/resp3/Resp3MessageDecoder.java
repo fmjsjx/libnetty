@@ -96,8 +96,9 @@ public class Resp3MessageDecoder extends RespMessageDecoder {
             ArrayList<RespMessage> values = this.values;
             List<FieldValuePair<RespMessage, RespMessage>> pairs = new ArrayList<>(len);
             for (int i = 0; i < len; i++) {
-                RespMessage field = values.get(i);
-                RespMessage value = values.get(i + 1);
+                int index = i << 1;
+                RespMessage field = values.get(index);
+                RespMessage value = values.get(index + 1);
                 pairs.add(new FieldValuePair<>(field, value));
             }
             return pairs;
