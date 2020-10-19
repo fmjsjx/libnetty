@@ -79,9 +79,9 @@ import io.netty.util.internal.StringUtil;
  *
  * @author MJ Fang
  */
-public class ControllerBeanUtil {
+public class RouterUtil {
 
-    private static final Logger logger = LoggerFactory.getLogger(ControllerBeanUtil.class);
+    private static final Logger logger = LoggerFactory.getLogger(RouterUtil.class);
 
     /**
      * Register the given controller to the specified router.
@@ -97,7 +97,7 @@ public class ControllerBeanUtil {
 
     private static int register0(Router router, Object controller, Class<?> clazz) {
         String pathPrefix = getPathPrefix(clazz);
-        Method[] methods = clazz.getMethods();
+        Method[] methods = clazz.getDeclaredMethods();
         int num = 0;
         METHODS_LOOP: for (Method method : methods) {
             HttpRoute route = method.getAnnotation(HttpRoute.class);
@@ -255,7 +255,7 @@ public class ControllerBeanUtil {
     @SuppressWarnings("unchecked")
     private static final Function<HttpRequestContext, Object[]> toParametersMapper(Parameter[] params) {
         Function<HttpRequestContext, Object>[] parameterMappers = Arrays.stream(params)
-                .map(ControllerBeanUtil::toParameterMapper).toArray(Function[]::new);
+                .map(RouterUtil::toParameterMapper).toArray(Function[]::new);
         return toParametersMapper(parameterMappers);
     }
 

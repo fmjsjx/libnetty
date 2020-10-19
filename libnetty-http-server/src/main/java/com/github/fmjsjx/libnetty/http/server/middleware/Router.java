@@ -220,10 +220,10 @@ public class Router implements Middleware {
      * @param controller the controller object
      * @return this {@code Router}
      * 
-     * @see ControllerBeanUtil#register(Router, Object)
+     * @see RouterUtil#register(Router, Object)
      */
     public Router register(Object controller) {
-        ControllerBeanUtil.register(this, controller);
+        RouterUtil.register(this, controller);
         return this;
     }
 
@@ -241,10 +241,10 @@ public class Router implements Middleware {
      * @param clazz      the class of the type
      * @return this {@code Router}
      * 
-     * @see ControllerBeanUtil#register(Router, Object, Class)
+     * @see RouterUtil#register(Router, Object, Class)
      */
     public <T> Router register(T controller, Class<T> clazz) {
-        ControllerBeanUtil.register(this, controller, clazz);
+        RouterUtil.register(this, controller, clazz);
         return this;
     }
 

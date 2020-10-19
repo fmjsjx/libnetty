@@ -103,7 +103,7 @@ public class TestDefaultServer {
 class TestController {
 
     @HttpGet("/test")
-    public CompletionStage<HttpResult> getTest(HttpRequestContext ctx) {
+    CompletionStage<HttpResult> getTest(HttpRequestContext ctx) {
         // GET /test
         System.out.println("-- test --");
         // always returns 200 OK
