@@ -8,12 +8,12 @@
   <packaging>pom</packaging>
   <name>libnetty</name>
   <description>A set of some useful libraries based on netty4.1.x.</description>
-  
+
   <licenses>
     <license>
-	  <name>MIT License</name>
-	  <url>https://opensource.org/licenses/MIT</url>
-	</license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
   </licenses>
 
   <scm>
@@ -25,13 +25,13 @@
 
   <developers>
     <developer>
-	  <id>fmjsjx</id>
-	  <name>MJ Fang</name>
-	  <email>fmjsjx@163.com</email>
-	  <url>https://github.com/fmjsjx</url>
-	  <organization>fmjsjx</organization>
-	  <organizationUrl>https://github.com/fmjsjx</organizationUrl>
-	</developer>
+      <id>fmjsjx</id>
+      <name>MJ Fang</name>
+      <email>fmjsjx@163.com</email>
+      <url>https://github.com/fmjsjx</url>
+      <organization>fmjsjx</organization>
+      <organizationUrl>https://github.com/fmjsjx</organizationUrl>
+    </developer>
   </developers>
 
   <modules>
