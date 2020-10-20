@@ -1,4 +1,4 @@
-# LibNetty Fast-CGI Project
+# LibNetty RESP Project
 
 Provides codec components for [`RESP(REdis Serialization Protocol)`](https://redis.io/topics/protocol).
 
