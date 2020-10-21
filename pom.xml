@@ -34,6 +34,17 @@
     </developer>
   </developers>
 
+  <distributionManagement>
+    <repository>
+      <id>sonatype-nexus-snapshots</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </repository>
+    <snapshotRepository>
+      <id>sonatype-nexus-staging</id>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+    </snapshotRepository>
+  </distributionManagement>
+
   <modules>
     <module>libnetty-bom</module>
     <module>libnetty-example</module>
