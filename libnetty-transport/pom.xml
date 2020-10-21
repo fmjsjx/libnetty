@@ -11,6 +11,7 @@
   <artifactId>libnetty-transport</artifactId>
   <packaging>jar</packaging>
   <name>libnetty/Transport</name>
+  <url>https://github.com/fmjsjx/libnetty</url>
 
   <licenses>
     <license>

@@ -11,6 +11,7 @@
   <artifactId>libnetty-bom</artifactId>
   <packaging>pom</packaging>
   <name>libnetty/BOM</name>
+  <url>https://github.com/fmjsjx/libnetty</url>
 
   <licenses>
     <license>

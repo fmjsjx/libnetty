@@ -11,6 +11,7 @@
   <artifactId>libnetty-fastcgi</artifactId>
   <packaging>jar</packaging>
   <name>libnetty/Fast-CGI</name>
+  <url>https://github.com/fmjsjx/libnetty</url>
 
   <licenses>
     <license>

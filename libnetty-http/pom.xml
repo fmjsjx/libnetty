@@ -11,6 +11,7 @@
   <artifactId>libnetty-http</artifactId>
   <packaging>jar</packaging>
   <name>libnetty/HTTP</name>
+  <url>https://github.com/fmjsjx/libnetty</url>
 
   <licenses>
     <license>
