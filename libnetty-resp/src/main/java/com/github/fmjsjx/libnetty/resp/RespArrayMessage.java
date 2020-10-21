@@ -19,7 +19,6 @@ public interface RespArrayMessage<E extends RespMessage> extends RespAggregateMe
     /**
      * Returns the value at the specified position in this {@link RespArrayMessage}.
      * 
-     * @param <M>   the type of the returned value
      * @param index index of the value to return
      * @return the value at the specified position
      */

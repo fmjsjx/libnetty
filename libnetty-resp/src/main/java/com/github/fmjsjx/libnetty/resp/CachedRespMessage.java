@@ -9,8 +9,6 @@ import io.netty.buffer.Unpooled;
 /**
  * The abstract implementation of the cached {@link RespMessage}.
  *
- * @param <Self> the type of the Super Class
- * 
  * @since 1.1
  * 
  * @author MJ Fang
