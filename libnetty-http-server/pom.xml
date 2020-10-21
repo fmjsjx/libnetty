@@ -11,6 +11,32 @@
   <artifactId>libnetty-http-server</artifactId>
   <packaging>jar</packaging>
   <name>libnetty/HTTP-Server</name>
+  <url>https://github.com/fmjsjx/libnetty</url>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+
+  <scm>
+    <url>https://github.com/fmjsjx/libnetty</url>
+    <connection>scm:git:https://github.com/fmjsjx/libnetty.git</connection>
+    <developerConnection>scm:git:https://github.com/fmjsjx/libnetty.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
+
+  <developers>
+    <developer>
+      <id>fmjsjx</id>
+      <name>MJ Fang</name>
+      <email>fmjsjx@163.com</email>
+      <url>https://github.com/fmjsjx</url>
+      <organization>fmjsjx</organization>
+      <organizationUrl>https://github.com/fmjsjx</organizationUrl>
+    </developer>
+  </developers>
 
   <dependencies>
     <dependency>
