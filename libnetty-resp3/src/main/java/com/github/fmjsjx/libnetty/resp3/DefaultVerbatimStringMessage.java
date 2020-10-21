@@ -29,8 +29,8 @@ public class DefaultVerbatimStringMessage extends AbstractRespContent<DefaultVer
      * Constructs a new {@link DefaultVerbatimStringMessage} with the specified
      * formatPart and content.
      * 
-     * @param formatPart the format part string
-     * @param content    the content
+     * @param format  the format
+     * @param content the content
      */
     public DefaultVerbatimStringMessage(Format format, ByteBuf content) {
         this(format.abbr(), format, content);

@@ -50,10 +50,7 @@ public class DefaultAttributeMessage<F extends RespMessage, V extends RespMessag
     }
 
     /**
-     * Constructs a new {@link DefaultAttributeMessage} instance with the specified
-     * values.
-     * 
-     * @param values the values
+     * Constructs a new {@link DefaultAttributeMessage} instance.
      */
     public DefaultAttributeMessage() {
         this(new ArrayList<>());

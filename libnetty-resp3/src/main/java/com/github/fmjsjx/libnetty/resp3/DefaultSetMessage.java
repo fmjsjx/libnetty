@@ -47,8 +47,6 @@ public class DefaultSetMessage<E extends RespMessage> extends AbstractRespAggreg
 
     /**
      * Constructs a new {@link DefaultSetMessage} with the specified values.
-     * 
-     * @param values the values
      */
     public DefaultSetMessage() {
         this(new ArrayList<>());

@@ -47,8 +47,6 @@ public class DefaultPushMessage<E extends RespMessage> extends AbstractRespAggre
 
     /**
      * Constructs a new {@link DefaultPushMessage} with the specified values.
-     * 
-     * @param values the values
      */
     public DefaultPushMessage() {
         this(new ArrayList<>());

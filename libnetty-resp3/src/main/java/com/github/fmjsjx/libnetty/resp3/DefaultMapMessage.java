@@ -51,8 +51,6 @@ public class DefaultMapMessage<F extends RespMessage, V extends RespMessage> ext
     /**
      * Constructs a new {@link DefaultMapMessage} instance with the specified
      * values.
-     * 
-     * @param values the values
      */
     public DefaultMapMessage() {
         this(new ArrayList<>());
