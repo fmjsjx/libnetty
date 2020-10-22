@@ -137,9 +137,7 @@ public class RouterUtil {
         }
         JsonBody jsonResposne = method.getAnnotation(JsonBody.class);
         if (jsonResposne != null) {
-            if (!method.isAccessible()) {
-                method.setAccessible(true);
-            }
+            method.setAccessible(true);
             Parameter[] params = method.getParameters();
             switch (params.length) {
             case 0:
@@ -154,9 +152,7 @@ public class RouterUtil {
         checkReturnType(method);
         Parameter[] params = method.getParameters();
         requireContext(params);
-        if (!method.isAccessible()) {
-            method.setAccessible(true);
-        }
+        method.setAccessible(true);
         switch (params.length) {
         case 1:
             router.add(toSimpleInvoker(controller, method), path, httpMethods);
