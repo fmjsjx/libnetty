@@ -4,11 +4,10 @@ import static io.netty.channel.ChannelOption.*;
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static java.util.Objects.*;
 
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -56,6 +55,7 @@ public class DefaultHttpServer implements HttpServer {
 
     private String name;
     private String host;
+    private InetAddress address;
     private int port;
     private int ioThreads;
 
@@ -73,10 +73,7 @@ public class DefaultHttpServer implements HttpServer {
 
     private SslContextProvider sslContextProvider;
 
-    @SuppressWarnings("rawtypes")
-    private Map<ChannelOption, Object> options = new LinkedHashMap<>();
-    @SuppressWarnings("rawtypes")
-    private Map<ChannelOption, Object> childOptions = new LinkedHashMap<>();
+    private ServerBootstrap bootstrap = new ServerBootstrap();
 
     private List<Consumer<HttpContentCompressorFactory.Builder>> compressionSettingsListeners = new ArrayList<>();
     private HttpContentCompressorFactory httpContentCompressorFactory;
@@ -233,6 +230,31 @@ public class DefaultHttpServer implements HttpServer {
     public DefaultHttpServer host(String host) {
         ensureNotStarted();
         this.host = host;
+        this.address = null;
+        return this;
+    }
+
+    /**
+     * Returns the network address to which the server should bind.
+     * 
+     * @return the network address to which the server should bind
+     */
+    public InetAddress address() {
+        return address;
+    }
+
+    /**
+     * Set the network address to which the server should bind
+     * <p>
+     * The default value, {@code null}, means any address.
+     * 
+     * @param address the network address
+     * @return this server
+     */
+    public DefaultHttpServer address(InetAddress address) {
+        ensureNotStarted();
+        this.address = address;
+        this.host = null;
         return this;
     }
 
@@ -414,11 +436,7 @@ public class DefaultHttpServer implements HttpServer {
     public <T> DefaultHttpServer option(ChannelOption<T> option, T value) {
         ensureNotStarted();
         requireNonNull(option, "option must not be null");
-        if (value == null) {
-            options.remove(option);
-        } else {
-            options.put(option, value);
-        }
+        bootstrap.option(option, value);
         return this;
     }
 
@@ -451,11 +469,7 @@ public class DefaultHttpServer implements HttpServer {
     public <T> DefaultHttpServer childOption(ChannelOption<T> childOption, T value) {
         ensureNotStarted();
         requireNonNull(childOption, "childOption must not be null");
-        if (value == null) {
-            childOptions.remove(childOption);
-        } else {
-            childOptions.put(childOption, value);
-        }
+        bootstrap.childOption(childOption, value);
         return this;
     }
 
@@ -603,6 +617,7 @@ public class DefaultHttpServer implements HttpServer {
         ensureNotStarted();
         name = DEFAULT_NAME;
         host = null;
+        address = null;
         port = DEFAULT_PORT_HTTP;
 
         ioThreads = 0;
@@ -617,8 +632,7 @@ public class DefaultHttpServer implements HttpServer {
 
         sslContextProvider = null;
 
-        options.clear();
-        childOptions.clear();
+        bootstrap = new ServerBootstrap();
 
         compressionSettingsListeners.clear();
 
@@ -640,9 +654,8 @@ public class DefaultHttpServer implements HttpServer {
         }
         try {
             initSettings();
-            ServerBootstrap bootstrap = new ServerBootstrap().group(parentGroup, childGroup).channel(channelClass);
-            options.forEach(bootstrap::option);
-            childOptions.forEach(bootstrap::childOption);
+            ServerBootstrap bootstrap = this.bootstrap;
+            bootstrap.group(parentGroup, childGroup).channel(channelClass);
             DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
                     maxContentLength, corsConfig, sslContextProvider, httpContentCompressorFactory, handlerProvider,
                     addHeaders);
@@ -687,7 +700,7 @@ public class DefaultHttpServer implements HttpServer {
         }
         // always set AUTO_READ to false
         // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
-        childOptions.put(AUTO_READ, false);
+        childOption(AUTO_READ, false);
 
         if (compressionSettingsListeners.size() > 0) {
             HttpContentCompressorFactory.Builder builder = HttpContentCompressorFactory.builder();
@@ -697,10 +710,13 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     private ChannelFuture bind(ServerBootstrap bootstrap) {
-        if (host == null) {
-            return bootstrap.bind(port);
+        if (address != null) {
+            return bootstrap.bind(address, port);
         }
-        return bootstrap.bind(host, port);
+        if (host != null) {
+            return bootstrap.bind(host, port);
+        }
+        return bootstrap.bind(port);
     }
 
     @Override
