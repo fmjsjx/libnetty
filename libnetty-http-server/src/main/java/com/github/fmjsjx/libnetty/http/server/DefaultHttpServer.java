@@ -744,12 +744,21 @@ public class DefaultHttpServer implements HttpServer {
 
     @Override
     public String toString() {
-        return "DefaultHttpServer(name=" + nameToString() + ", host=" + host + ", port=" + port + ")";
-
+        return "DefaultHttpServer(name=" + nameToString() + ", binding=" + bindingToString() + ")";
     }
 
     private String nameToString() {
         return name + (isSslEnabled() ? "[SSL]" : "");
+    }
+
+    private String bindingToString() {
+        if (address != null) {
+            return address + ":" + port;
+        } else if (host != null) {
+            return host + ":" + port;
+        } else {
+            return "*:" + port;
+        }
     }
 
 }
