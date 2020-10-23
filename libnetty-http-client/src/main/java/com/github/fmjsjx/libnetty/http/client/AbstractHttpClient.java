@@ -13,6 +13,7 @@ import com.github.fmjsjx.libnetty.http.client.exception.ClientClosedException;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.NettyRuntime;
 
 /**
  * Abstract implementation of {@link HttpClient}.
@@ -127,11 +128,28 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected abstract static class AbstractBuilder<C extends HttpClient, Self extends AbstractBuilder<C, ?>>
             implements HttpClient.Builder {
 
+        protected int ioThreads = NettyRuntime.availableProcessors();
         protected Duration timeout = DEFAULT_TIMEOUT;
         protected int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
         protected SslContextProvider sslContextProvider;
         protected boolean compressionEnabled;
         protected boolean brotliEnabled;
+
+        /**
+         * Returns the number of IO threads for this client.
+         * 
+         * @return the number of IO threads for this client
+         */
+        public int ioThreads() {
+            return ioThreads;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Self ioThreads(int ioThreads) {
+            this.ioThreads = Math.max(0, ioThreads);
+            return (Self) this;
+        }
 
         /**
          * Returns the timeout duration for this client.

@@ -79,13 +79,16 @@ public class SimpleHttpClient extends AbstractHttpClient {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(SimpleHttpClient.class, true);
-            return new SimpleHttpClient(transportLibrary.createGroup(0, threadFactory), transportLibrary.channelClass(),
-                    sslContextProvider, compressionEnabled, brotliEnabled, true, timeoutSeconds(), maxContentLength);
+            return new SimpleHttpClient(transportLibrary.createGroup(ioThreads, threadFactory),
+                    transportLibrary.channelClass(), sslContextProvider, compressionEnabled, brotliEnabled, true,
+                    timeoutSeconds(), maxContentLength);
         }
 
         /**
          * Returns a new {@link SimpleHttpClient} built from the current state of this
          * builder with given {@link EventLoopGroup}.
+         * <p>
+         * In this solution, the builder option {@code ioThreads} will be ignored
          * 
          * @param group the {@link EventLoopGroup}
          * @return a new {@code SimpleHttpClient}
@@ -98,6 +101,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
         /**
          * Returns a new {@link SimpleHttpClient} built from the current state of this
          * builder with given {@link EventLoopGroup}.
+         * <p>
+         * In this solution, the builder option {@code ioThreads} will be ignored
          * 
          * @param group        the {@link EventLoopGroup}
          * @param channelClass the {@link Class} of {@link Channel}

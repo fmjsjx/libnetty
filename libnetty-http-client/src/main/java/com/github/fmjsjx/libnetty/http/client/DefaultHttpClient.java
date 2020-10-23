@@ -362,7 +362,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
-            return new DefaultHttpClient(transportLibrary.createGroup(0, threadFactory),
+            return new DefaultHttpClient(transportLibrary.createGroup(ioThreads, threadFactory),
                     transportLibrary.channelClass(), sslContextProvider, compressionEnabled, brotliEnabled, true,
                     timeoutSeconds(), maxContentLength);
         }
@@ -370,6 +370,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
         /**
          * Returns a new {@link DefaultHttpClient} built from the current state of this
          * builder with given {@link EventLoopGroup}.
+         * <p>
+         * In this solution, the builder option {@code ioThreads} will be ignored
          * 
          * @param group the {@link EventLoopGroup}
          * @return a new {@code ConnectionCachedHttpClient}
@@ -382,6 +384,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
         /**
          * Returns a new {@link DefaultHttpClient} built from the current state of this
          * builder with given {@link EventLoopGroup}.
+         * <p>
+         * In this solution, the builder option {@code ioThreads} will be ignored
          * 
          * @param group        the {@link EventLoopGroup}
          * @param channelClass the {@link Class} of {@link Channel}

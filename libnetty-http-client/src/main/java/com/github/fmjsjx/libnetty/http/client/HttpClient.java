@@ -782,6 +782,16 @@ public interface HttpClient extends AutoCloseable {
         HttpClient build();
 
         /**
+         * Sets the number of the IO threads for this client.
+         * <p>
+         * The default value is the configured number of available processors for Netty.
+         * 
+         * @param ioThreads the number of the IO threads for this client
+         * @return this {@code Builder}
+         */
+        Builder ioThreads(int ioThreads);
+
+        /**
          * Sets the timeout duration for this client.
          * 
          * @param duration the timeout {@link Duration}
