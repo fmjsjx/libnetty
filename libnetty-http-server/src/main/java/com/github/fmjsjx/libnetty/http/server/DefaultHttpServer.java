@@ -700,7 +700,7 @@ public class DefaultHttpServer implements HttpServer {
         }
         // always set AUTO_READ to false
         // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
-        childOption(AUTO_READ, false);
+        bootstrap.childOption(AUTO_READ, false);
 
         if (compressionSettingsListeners.size() > 0) {
             HttpContentCompressorFactory.Builder builder = HttpContentCompressorFactory.builder();
