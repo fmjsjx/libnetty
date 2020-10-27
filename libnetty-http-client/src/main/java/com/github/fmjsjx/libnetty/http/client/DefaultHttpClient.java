@@ -309,7 +309,6 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         } else {
                             headers.remove(ACCEPT_ENCODING);
                         }
-                        System.err.println(req);
                         HttpUtil.setKeepAlive(req, true);
                         channel.writeAndFlush(req);
                     } else {
