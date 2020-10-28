@@ -64,7 +64,8 @@ import lombok.RequiredArgsConstructor;
  * A common implementation of {@link HttpClient} which will cache {@code TCP}
  * connections.
  * 
- * @deprecated please use {@link DefaultHttpClient} instead
+ * @deprecated please use {@link DefaultHttpClient} instead, this class will be
+ *             deleted in version 2.x
  * 
  * @since 1.0
  *
@@ -88,7 +89,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
     ConnectionCachedHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
             SslContextProvider sslContextProvider, boolean compressionEnabled, boolean shutdownGroupOnClose,
             int timeoutSeconds, int maxContentLength) {
-        super(group, channelClass, sslContextProvider, compressionEnabled, false);
+        super(group, channelClass, sslContextProvider, compressionEnabled, false, null);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;

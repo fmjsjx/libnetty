@@ -25,6 +25,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.AsciiString;
 
@@ -858,6 +859,16 @@ public interface HttpClient extends AutoCloseable {
          * @return this {@code Builder}
          */
         Builder brotli(boolean enabled);
+
+        /**
+         * Sets the factory of {@link ProxyHandler}.
+         * 
+         * @param factory the factory
+         * @return this {@code Builder}
+         * 
+         * @since 1.2
+         */
+        Builder proxyHandlerFactory(ProxyHandlerFactory<? extends ProxyHandler> factory);
 
     }
 

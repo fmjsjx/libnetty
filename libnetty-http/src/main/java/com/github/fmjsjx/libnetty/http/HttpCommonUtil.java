@@ -11,6 +11,8 @@ import java.util.concurrent.ConcurrentMap;
 
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
@@ -90,6 +92,36 @@ public final class HttpCommonUtil {
             throw new RuntimeException(e);
         }
 
+    }
+
+    /**
+     * Returns {@code true} if the status code is success, {@code false} otherwise.
+     * 
+     * @param statusCode the status code
+     * @return {@code true} if the status code is success, {@code false} otherwise
+     */
+    public static final boolean isSuccessStatus(int statusCode) {
+        return statusCode >= 200 && statusCode < 300;
+    }
+
+    /**
+     * Returns {@code true} if the status is success, {@code false} otherwise.
+     * 
+     * @param status the status
+     * @return {@code true} if the status is success, {@code false} otherwise
+     */
+    public static final boolean isSuccess(HttpResponseStatus status) {
+        return isSuccessStatus(status.code());
+    }
+
+    /**
+     * Returns {@code true} if the status is success, {@code false} otherwise.
+     * 
+     * @param response the response
+     * @return {@code true} if the status is success, {@code false} otherwise
+     */
+    public static final boolean isSuccess(HttpResponse response) {
+        return isSuccess(response.status());
     }
 
     private HttpCommonUtil() {
