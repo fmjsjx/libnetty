@@ -82,8 +82,6 @@ public abstract class RequestValidator implements Middleware {
      * 
      * @param ctx the HTTP request context
      * @return {@code true} if the context is valid, {@code false} otherwise
-     * 
-     * @throws Exception if any error occurs
      */
     protected abstract boolean validate(HttpRequestContext ctx);
 
