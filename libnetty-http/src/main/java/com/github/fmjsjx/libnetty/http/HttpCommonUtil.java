@@ -12,16 +12,13 @@ import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
 /**
- * Utility class for HTTP.
+ * Common utility class for HTTP.
  * 
- * @since 1.0
+ * @since 1.2
  *
  * @author MJ Fang
- * 
- * @deprecated please always use {@link HttpCommonUtil}
  */
-@Deprecated
-public final class HttpUtil {
+public final class HttpCommonUtil {
 
     /**
      * Returns remote address from specified {@code channel} and {@code headers} on
@@ -69,7 +66,7 @@ public final class HttpUtil {
         private static final ConcurrentMap<AsciiString, ConcurrentMap<Charset, AsciiString>> cachedContentTypes = new ConcurrentHashMap<>();
     }
 
-    private HttpUtil() {
+    private HttpCommonUtil() {
     }
 
 }

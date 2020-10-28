@@ -1,18 +1,19 @@
 package com.github.fmjsjx.libnetty.http.server;
 
-import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
-import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 import java.util.List;
 import java.util.function.Consumer;
 
-import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.MessageToMessageDecoder;

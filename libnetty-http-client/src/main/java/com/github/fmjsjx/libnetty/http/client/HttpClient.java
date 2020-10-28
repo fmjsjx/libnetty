@@ -17,7 +17,7 @@ import javax.net.ssl.SSLContext;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
-import com.github.fmjsjx.libnetty.http.HttpUtil;
+import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
 import io.netty.handler.codec.http.DefaultHttpHeaders;
@@ -460,7 +460,7 @@ public interface HttpClient extends AutoCloseable {
          * @return this builder
          */
         public Self contentType(CharSequence contentType, Charset charset) {
-            return contentType(HttpUtil.contentType(AsciiString.of(contentType), charset));
+            return contentType(HttpCommonUtil.contentType(AsciiString.of(contentType), charset));
         }
 
         /**

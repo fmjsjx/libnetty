@@ -13,7 +13,7 @@ import java.io.File;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
-import com.github.fmjsjx.libnetty.http.HttpUtil;
+import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpServer;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContextHandler;
@@ -84,7 +84,7 @@ class TestHandler extends HttpRequestContextHandler {
         boolean keepAlive = isKeepAlive(msg.request());
         setKeepAlive(res, keepAlive);
         res.headers().set(HttpHeaderNames.CONTENT_TYPE,
-                HttpUtil.contentType(HttpHeaderValues.TEXT_PLAIN, CharsetUtil.UTF_8));
+                HttpCommonUtil.contentType(HttpHeaderValues.TEXT_PLAIN, CharsetUtil.UTF_8));
         ChannelFuture future = ctx.writeAndFlush(res);
         if (!keepAlive) {
             future.addListener(ChannelFutureListener.CLOSE);

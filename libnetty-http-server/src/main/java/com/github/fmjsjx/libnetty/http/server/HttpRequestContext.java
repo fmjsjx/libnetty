@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpServer.User;
 import com.github.fmjsjx.libnetty.http.server.exception.HttpFailureException;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
@@ -50,7 +51,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     /**
      * {@code "text/plain; charset=UTF-8"}
      */
-    AsciiString TEXT_PLAIN_UTF8 = com.github.fmjsjx.libnetty.http.HttpUtil.contentType(TEXT_PLAIN, CharsetUtil.UTF_8);
+    AsciiString TEXT_PLAIN_UTF8 = HttpCommonUtil.contentType(TEXT_PLAIN, CharsetUtil.UTF_8);
 
     /**
      * Returns the value of the running Java Virtual Machine'shigh-resolution time

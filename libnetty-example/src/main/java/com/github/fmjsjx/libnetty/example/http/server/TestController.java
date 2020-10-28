@@ -1,6 +1,6 @@
 package com.github.fmjsjx.libnetty.example.http.server;
 
-import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
+import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
 import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;

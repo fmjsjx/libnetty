@@ -1,9 +1,9 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
-import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
+import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
+import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_JSON;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpHeaderValues.*;
-import static io.netty.util.CharsetUtil.*;
+import static io.netty.util.CharsetUtil.UTF_8;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;

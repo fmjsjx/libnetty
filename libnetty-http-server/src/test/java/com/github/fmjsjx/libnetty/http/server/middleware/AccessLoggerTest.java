@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
+import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.HttpHeaderXNames;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResponder;
@@ -96,7 +97,7 @@ public class AccessLoggerTest {
 
             @Override
             public String remoteAddress() {
-                return com.github.fmjsjx.libnetty.http.HttpUtil.remoteAddress(channel(), request.headers());
+                return HttpCommonUtil.remoteAddress(channel(), request.headers());
             }
 
             @Override

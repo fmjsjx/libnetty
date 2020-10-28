@@ -12,6 +12,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -88,7 +90,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     public String remoteAddress() {
         String addr = remoteAddress;
         if (addr == null) {
-            remoteAddress = addr = com.github.fmjsjx.libnetty.http.HttpUtil.remoteAddress(channel(), headers());
+            remoteAddress = addr = HttpCommonUtil.remoteAddress(channel(), headers());
         }
         return addr;
     }
@@ -245,7 +247,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
         public FullHttpResponse createFullText(HttpResponseStatus status, Charset charset) {
             byte[] b = status.toString().getBytes();
             ByteBuf content = alloc().buffer(b.length, b.length).writeBytes(b);
-            CharSequence contentType = com.github.fmjsjx.libnetty.http.HttpUtil.contentType(TEXT_PLAIN, charset);
+            CharSequence contentType = HttpCommonUtil.contentType(TEXT_PLAIN, charset);
             return createFull(status, content, b.length, contentType);
         }
 
