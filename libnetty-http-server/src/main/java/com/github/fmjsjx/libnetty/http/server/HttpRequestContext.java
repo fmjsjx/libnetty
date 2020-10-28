@@ -1,7 +1,9 @@
 package com.github.fmjsjx.libnetty.http.server;
 
 import static io.netty.channel.ChannelFutureListener.CLOSE;
+import static io.netty.handler.codec.http.HttpHeaderNames.LOCATION;
 import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpResponseStatus.FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 import java.nio.charset.Charset;
@@ -38,6 +40,7 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCounted;
+import io.netty.util.internal.StringUtil;
 
 /**
  * A context that runs through each HTTP requests.
@@ -496,6 +499,39 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     @Override
     default CompletableFuture<HttpResult> sendResponse(FullHttpResponse response) {
         return sendResponse(response, response.content().readableBytes());
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> sendRedirect(CharSequence location) {
+        return sendRedirect(location, null);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> sendRedirect(CharSequence location, Consumer<HttpHeaders> addHeaders) {
+        FullHttpResponse response = responseFactory().createFull(FOUND);
+        String rawQuery = rawQuery();
+        if (StringUtil.isNullOrEmpty(rawQuery)) {
+            response.headers().set(LOCATION, location);
+        } else {
+            if (location instanceof AsciiString) {
+                if (((AsciiString) location).indexOf('?', 0) == -1) {
+                    response.headers().set(LOCATION, location + "?" + rawQuery);
+                } else {
+                    response.headers().set(LOCATION, location);
+                }
+            } else {
+                String base = location.toString();
+                if (base.indexOf('?') == -1) {
+                    response.headers().set(LOCATION, base + "?" + rawQuery);
+                } else {
+                    response.headers().set(LOCATION, base);
+                }
+            }
+        }
+        if (addHeaders != null) {
+            addHeaders.accept(response.headers());
+        }
+        return sendResponse(response, 0);
     }
 
     /**

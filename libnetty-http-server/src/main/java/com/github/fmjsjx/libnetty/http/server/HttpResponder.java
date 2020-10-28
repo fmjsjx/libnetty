@@ -107,4 +107,27 @@ public interface HttpResponder {
      */
     CompletableFuture<HttpResult> sendResponse(FullHttpResponse response);
 
+    /**
+     * Send HTTP response with {@code "302 Found"} to client and returns the
+     * {@link HttpResult} asynchronously.
+     * 
+     * @param location the location
+     * @return a {@code CompletableFuture<HttpResult>}
+     * 
+     * @since 1.2
+     */
+    CompletableFuture<HttpResult> sendRedirect(CharSequence location);
+
+    /**
+     * Send HTTP response with {@code "302 Found"} to client and returns the
+     * {@link HttpResult} asynchronously.
+     * 
+     * @param location   the location
+     * @param addHeaders a function to add headers
+     * @return a {@code CompletableFuture<HttpResult>}
+     * 
+     * @since 1.2
+     */
+    CompletableFuture<HttpResult> sendRedirect(CharSequence location, Consumer<HttpHeaders> addHeaders);
+
 }
