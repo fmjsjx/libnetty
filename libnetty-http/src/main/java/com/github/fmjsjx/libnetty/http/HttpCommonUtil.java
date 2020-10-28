@@ -1,7 +1,10 @@
 package com.github.fmjsjx.libnetty.http;
 
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -64,6 +67,29 @@ public final class HttpCommonUtil {
 
     private static final class CachedContentTypeHolder {
         private static final ConcurrentMap<AsciiString, ConcurrentMap<Charset, AsciiString>> cachedContentTypes = new ConcurrentHashMap<>();
+    }
+
+    private static final byte[] BASIC_ = "Basic ".getBytes();
+
+    /**
+     * Returns the encoded basic authentication string.
+     * 
+     * @param user     the user name
+     * @param password the password
+     * @return the encoded basic authentication
+     */
+    public static final CharSequence basicAuthentication(String user, String password) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream(256)) {
+            out.write(BASIC_);
+            try (OutputStream bout = Base64.getEncoder().wrap(out)) {
+                bout.write((user + ":" + password).getBytes(CharsetUtil.UTF_8));
+            }
+            return new AsciiString(out.toByteArray(), false);
+        } catch (Exception e) {
+            // can't reach this line
+            throw new RuntimeException(e);
+        }
+
     }
 
     private HttpCommonUtil() {

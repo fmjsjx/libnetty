@@ -3,6 +3,8 @@ package com.github.fmjsjx.libnetty.http;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Base64;
+
 import org.junit.jupiter.api.Test;
 
 import io.netty.handler.codec.http.HttpHeaderValues;
@@ -22,6 +24,18 @@ public class HttpCommonUtilTest {
                 CharsetUtil.UTF_8);
         assertEquals(ct1, ct3);
         assertTrue(ct1 == ct3);
+    }
+
+    @Test
+    public void testBasicAuthentication() {
+        CharSequence auth = HttpCommonUtil.basicAuthentication("root", "123456");
+        assertEquals("Basic " + Base64.getEncoder().encodeToString("root:123456".getBytes()), auth.toString());
+        
+        auth = HttpCommonUtil.basicAuthentication("test", "abc789");
+        assertEquals("Basic " + Base64.getEncoder().encodeToString("test:abc789".getBytes()), auth.toString());
+        
+        auth = HttpCommonUtil.basicAuthentication("longpwd", "AbcdefgHijklmn1~3$5^7*9)");
+        assertEquals("Basic " + Base64.getEncoder().encodeToString("longpwd:AbcdefgHijklmn1~3$5^7*9)".getBytes()), auth.toString());
     }
 
 }
