@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.github.fmjsjx</groupId>
   <artifactId>libnetty</artifactId>
-  <version>1.1.5.Final</version>
+  <version>1.1.6.Final-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>libnetty</name>
   <description>A set of some useful libraries based on netty4.1.x.</description>
