@@ -178,7 +178,23 @@ public class Resp3Messages {
      * @return an unmodifiable empty {@link Resp3MapMessage}
      */
     public static final <F extends RespMessage, V extends RespMessage> Resp3MapMessage<F, V> emptyMap() {
-        return CachedEmptyMapMessage.getInstance();
+        return Resp3MapMessage.of();
+    }
+
+    /**
+     * Returns an unmodifiable {@link Resp3MapMessage} containing a single
+     * {@link FieldValuePair}.
+     * 
+     * @param <F>   the type of the field
+     * @param <V>   the type of the value
+     * @param field the field
+     * @param value the value
+     * @return an unmodifiable {@link Resp3MapMessage} containing a single
+     *         {@link FieldValuePair}
+     * @since 1.2
+     */
+    public static final <F extends RespMessage, V extends RespMessage> Resp3MapMessage<F, V> map(F field, V value) {
+        return Resp3MapMessage.of(field, value);
     }
 
     /**
@@ -188,7 +204,18 @@ public class Resp3Messages {
      * @return an unmodifiable empty {@link Resp3SetMessage}
      */
     public static final <E extends RespMessage> Resp3SetMessage<E> emptySet() {
-        return CachedEmptySetMessage.getInstance();
+        return Resp3SetMessage.of();
+    }
+
+    /**
+     * Returns an unmodifiable {@link Resp3SetMessage} containing a single value.
+     * 
+     * @param <E>   the type of values in the message
+     * @param value the value
+     * @return an unmodifiable {@link Resp3SetMessage} containing a single value
+     */
+    public static <E extends RespMessage> Resp3SetMessage<E> set(E value) {
+        return Resp3SetMessage.of(value);
     }
 
     /**

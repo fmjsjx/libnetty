@@ -2,7 +2,13 @@ package com.github.fmjsjx.libnetty.resp;
 
 import static com.github.fmjsjx.libnetty.resp.CachedRespMessages.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 
 /**
  * Provides static factory method for {@link RespMessage}s.
@@ -167,6 +173,115 @@ public class RespMessages {
      */
     public static final RespBulkStringMessage emptyBulk() {
         return EMPTY_BULK;
+    }
+
+    /**
+     * Creates a new {@link RespBulkStringMessage} with the specified value.
+     * 
+     * @param alloc the {@link ByteBufAllocator} to allocate {@link ByteBuf}s
+     * @param value the value
+     * @return an {@code RespBulkStringMessage}
+     * 
+     * @since 1.2
+     */
+    public static final RespBulkStringMessage bulkString(ByteBufAllocator alloc, String value) {
+        return DefaultBulkStringMessage.createUtf8(alloc, value);
+    }
+
+    /**
+     * Creates a new {@link RespBulkStringMessage} with the specified value.
+     * 
+     * @param value the value
+     * @return an {@code RespBulkStringMessage}
+     * 
+     * @since 1.2
+     */
+    public static final RespBulkStringMessage bulkString(String value) {
+        return new HeapBulkStringMessage(value);
+    }
+
+    /**
+     * Creates a new {@link RespSimpleStringMessage} with the specified value.
+     * 
+     * @param value the value
+     * @return an {@code RespSimpleStringMessage}
+     * 
+     * @since 1.2
+     */
+    public static final RespSimpleStringMessage simpleString(String value) {
+        return new DefaultSimpleStringMessage(value);
+    }
+
+    /**
+     * Creates a new unmodifiable {@link RespArrayMessage} with the specified
+     * values.
+     * 
+     * @param <E>    the type of elements in the array
+     * @param values the values
+     * @return an {@code RespArrayMessage}
+     * 
+     * @since 1.2
+     */
+    @SafeVarargs
+    public static final <E extends RespMessage> RespArrayMessage<E> array(E... values) {
+        if (values.length == 0) {
+            return emptyArray();
+        }
+        return new DefaultArrayMessage<>(Arrays.asList(values));
+    }
+
+    /**
+     * Creates a new {@link RespArrayMessage} with the specified values.
+     * 
+     * @param <E>    the type of elements in the array
+     * @param values the values
+     * @return an {@code RespArrayMessage}
+     * 
+     * @since 1.2
+     */
+    public static final <E extends RespMessage> RespArrayMessage<E> array(List<E> values) {
+        return array(values, false);
+    }
+
+    /**
+     * Creates a new {@link RespArrayMessage} with the specified values.
+     * 
+     * @param <E>    the type of elements in the array
+     * @param values the values
+     * @param copy   if {@code true} then a copy of the list will be used
+     * @return an {@code RespArrayMessage}
+     * 
+     * @since 1.2
+     */
+    public static final <E extends RespMessage> RespArrayMessage<E> array(List<E> values, boolean copy) {
+        if (copy) {
+            return new DefaultArrayMessage<>(new ArrayList<>(values));
+        }
+        return new DefaultArrayMessage<>(values);
+    }
+
+    /**
+     * Creates a new {@link RespErrorMessage} with {@code ERR} code and the
+     * specified message.
+     * 
+     * @param message the message
+     * 
+     * @return an {@code RespErrorMessage}
+     */
+    public static final RespErrorMessage error(CharSequence message) {
+        return DefaultErrorMessage.createErr(message);
+    }
+
+    /**
+     * Creates a new {@link RespErrorMessage} with the specified code and message.
+     * 
+     * @param code    the code
+     * @param message the message
+     * 
+     * @return an {@code RespErrorMessage}
+     */
+    public static final RespErrorMessage error(CharSequence code, CharSequence message) {
+        return DefaultErrorMessage.create(code, message);
     }
 
     private RespMessages() {

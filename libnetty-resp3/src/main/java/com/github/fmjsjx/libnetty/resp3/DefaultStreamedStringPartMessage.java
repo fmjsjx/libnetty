@@ -49,7 +49,7 @@ public class DefaultStreamedStringPartMessage extends AbstractRespContent<Defaul
         ByteBuf content = content();
         int length = content.readableBytes();
         byte[] lengthValue = RespCodecUtil.longToAsciiBytes(length);
-        ByteBuf header = RespCodecUtil.buffer(alloc, TYPE_LENGTH + lengthValue.length + EOL_LENGTH);
+        ByteBuf header = alloc.buffer(TYPE_LENGTH + lengthValue.length + EOL_LENGTH);
         header.writeByte(type().value()).writeBytes(lengthValue).writeShort(EOL_SHORT);
         out.add(header);
         out.add(content.retain());

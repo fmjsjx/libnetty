@@ -1,6 +1,7 @@
 package com.github.fmjsjx.libnetty.resp.util;
 
 import java.util.Arrays;
+import java.util.Optional;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -8,6 +9,18 @@ import io.netty.util.AsciiString;
 import io.netty.util.ByteProcessor;
 import io.netty.util.collection.ByteObjectHashMap;
 
+/**
+ * A simple map like object.
+ * <p>
+ * The keys stored in this map will always convert to {@link AsciiString}s. All
+ * key searching operations will always ignore case considerations.
+ * 
+ * @param <V> the type of the values
+ * 
+ * @since 1.0
+ *
+ * @author MJ Fang
+ */
 public final class IgnoredCaseAsciiKeyMap<V> {
 
     private static final byte VALUE = 0;
@@ -23,10 +36,19 @@ public final class IgnoredCaseAsciiKeyMap<V> {
 
     private int maxKeyLength;
 
+    /**
+     * Constructs a new {@link IgnoredCaseAsciiKeyMap}.
+     */
     public IgnoredCaseAsciiKeyMap() {
         this(0);
     }
 
+    /**
+     * Constructs a new {@link IgnoredCaseAsciiKeyMap} with the specified
+     * {@code minDepth}.
+     * 
+     * @param minDepth the minimum depth, the default is {@code 0}
+     */
     public IgnoredCaseAsciiKeyMap(int minDepth) {
         this(new RootNode(), minDepth, 0);
     }
@@ -58,6 +80,7 @@ public final class IgnoredCaseAsciiKeyMap<V> {
 
         @Override
         public Object put(byte key, Object value) {
+            Object[] values = this.values;
             Object old = values[key];
             values[key] = value;
             return old;
@@ -65,6 +88,7 @@ public final class IgnoredCaseAsciiKeyMap<V> {
 
         @Override
         public Object remove(byte key) {
+            Object[] values = this.values;
             Object old = values[key];
             values[key] = null;
             return old;
@@ -79,6 +103,7 @@ public final class IgnoredCaseAsciiKeyMap<V> {
             StringBuilder sb = new StringBuilder();
             sb.append('{');
             boolean first = true;
+            Object[] values = this.values;
             for (int i = 0; i < values.length; i++) {
                 Object value = values[i];
                 if (value != null) {
@@ -144,13 +169,28 @@ public final class IgnoredCaseAsciiKeyMap<V> {
 
     }
 
+    /**
+     * Put a key-value pair.
+     * 
+     * @param key   the key
+     * @param value the value
+     * @return the old value if persistent, {@code null} otherwise
+     */
     public V put(String key, V value) {
         return put(AsciiString.of(key), value);
     }
 
+    /**
+     * Put a key-value pair.
+     * 
+     * @param key   the key
+     * @param value the value
+     * @return the old value if persistent, {@code null} otherwise
+     */
     @SuppressWarnings("unchecked")
     public V put(AsciiString key, V value) {
         byte[] array = key.toUpperCase().array();
+        int minDepth = this.minDepth;
         maxKeyLength = Math.max(maxKeyLength, array.length);
         Node cur = root;
         for (int i = 0; i < array.length; i++) {
@@ -251,10 +291,34 @@ public final class IgnoredCaseAsciiKeyMap<V> {
         return true;
     }
 
+    /**
+     * Search and returns the value by the specified key.
+     * 
+     * @param key the key
+     * @return the value if persistent, {@code null} if not found
+     */
     public V get(AsciiString key) {
         return get(Unpooled.wrappedBuffer(key.array()));
     }
 
+    /**
+     * Find the value by the specified key.
+     * 
+     * @param key the key
+     * @return an {@code Optional<V>}
+     * 
+     * @since 1.2
+     */
+    public Optional<V> find(AsciiString key) {
+        return Optional.ofNullable(get(key));
+    }
+
+    /**
+     * Search and returns the value by the specified key.
+     * 
+     * @param key the key
+     * @return the value if persistent, {@code null} if not found
+     */
     @SuppressWarnings("unchecked")
     public V get(ByteBuf key) {
         int length = key.readableBytes();
@@ -277,6 +341,23 @@ public final class IgnoredCaseAsciiKeyMap<V> {
         return null;
     }
 
+    /**
+     * Find the value by the specified key.
+     * 
+     * @param key the key
+     * @return an {@code Optional<V>}
+     * 
+     * @since 1.2
+     */
+    public Optional<V> find(ByteBuf key) {
+        return Optional.ofNullable(get(key));
+    }
+
+    /**
+     * Creates and returns a copy of this {@link IgnoredCaseAsciiKeyMap}.
+     * 
+     * @return a copy of this {@code IgnoredCaseAsciiKeyMap}
+     */
     public IgnoredCaseAsciiKeyMap<V> copy() {
         return new IgnoredCaseAsciiKeyMap<>(root, minDepth, maxKeyLength);
     }

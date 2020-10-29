@@ -33,8 +33,10 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
      * @return a {@code DefaultBulkStringMessage}
      */
     public static final DefaultBulkStringMessage createUtf8(ByteBufAllocator alloc, CharSequence value) {
-        return new DefaultBulkStringMessage(ByteBufUtil.writeUtf8(alloc, value), null, value.toString(),
-                CharsetUtil.UTF_8, null);
+        String str = value.toString();
+        byte[] b = str.getBytes(CharsetUtil.UTF_8);
+        ByteBuf content = alloc.buffer(b.length).writeBytes(b);
+        return new DefaultBulkStringMessage(content, null, str, CharsetUtil.UTF_8, null);
     }
 
     /**
@@ -80,7 +82,7 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, int value) {
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
         System.err.println("-- number length " + bytes.length + " --");
-        ByteBuf content = RespCodecUtil.buffer(alloc, bytes.length).writeBytes(bytes);
+        ByteBuf content = alloc.buffer(bytes.length).writeBytes(bytes);
         AsciiString ascii = new AsciiString(bytes, false);
         return new DefaultBulkStringMessage(content, Integer.valueOf(value), null, null, ascii);
     }
@@ -94,7 +96,7 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
      */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, long value) {
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
-        ByteBuf content = RespCodecUtil.buffer(alloc, bytes.length).writeBytes(bytes);
+        ByteBuf content = alloc.buffer(bytes.length).writeBytes(bytes);
         AsciiString ascii = new AsciiString(bytes, false);
         return new DefaultBulkStringMessage(content, Long.valueOf(value), null, null, ascii);
     }
@@ -109,7 +111,7 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
      */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, double value) {
         byte[] bytes = RespCodecUtil.doubleToAsciiBytes(value);
-        ByteBuf content = RespCodecUtil.buffer(alloc, bytes.length).writeBytes(bytes);
+        ByteBuf content = alloc.buffer(bytes.length).writeBytes(bytes);
         AsciiString ascii = new AsciiString(bytes, false);
         return new DefaultBulkStringMessage(content, Double.valueOf(value), null, null, ascii);
     }

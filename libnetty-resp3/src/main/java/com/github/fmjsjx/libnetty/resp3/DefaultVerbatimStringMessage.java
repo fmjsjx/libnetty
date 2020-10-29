@@ -69,7 +69,7 @@ public class DefaultVerbatimStringMessage extends AbstractRespContent<DefaultVer
         ByteBuf content = content();
         int length = content.readableBytes() + 4;
         byte[] lengthValue = RespCodecUtil.longToAsciiBytes(length);
-        ByteBuf header = RespCodecUtil.buffer(alloc, TYPE_LENGTH + lengthValue.length + EOL_LENGTH + 4);
+        ByteBuf header = alloc.buffer(TYPE_LENGTH + lengthValue.length + EOL_LENGTH + 4);
         header.writeByte(type().value()).writeBytes(lengthValue).writeShort(EOL_SHORT).writeBytes(formatPart.array())
                 .writeByte(':');
         out.add(header);
