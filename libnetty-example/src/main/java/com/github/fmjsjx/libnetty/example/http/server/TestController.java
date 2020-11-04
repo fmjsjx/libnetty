@@ -21,8 +21,10 @@ import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPost;
 import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
 import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
+import com.github.fmjsjx.libnetty.http.server.annotation.PropertyValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
+import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson.JsonLibrary;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -60,9 +62,10 @@ public class TestController {
 
     @HttpGet("/jsons")
     @JsonBody
-    public CompletableFuture<?> getJsons(QueryStringDecoder query, EventLoop eventLoop) {
+    public CompletableFuture<?> getJsons(QueryStringDecoder query, EventLoop eventLoop, @PropertyValue JsonLibrary library) {
         // GET /jsons
         System.out.println("-- jsons --");
+        System.out.println("library: " + library);
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         query.parameters().forEach((key, values) -> {
             if (values.size() == 1) {

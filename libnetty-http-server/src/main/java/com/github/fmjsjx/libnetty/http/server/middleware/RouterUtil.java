@@ -56,6 +56,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpRoute;
 import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
 import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
+import com.github.fmjsjx.libnetty.http.server.annotation.PropertyValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
 import com.github.fmjsjx.libnetty.http.server.exception.BadRequestException;
@@ -356,6 +357,10 @@ public class RouterUtil {
             }
             return remoteAddrMapper;
         }
+        PropertyValue propertyValue = param.getAnnotation(PropertyValue.class);
+        if (propertyValue != null) {
+            return toPropertyValueMapper(param, propertyValue);
+        }
         return toZeroValueMapper(param);
     }
 
@@ -622,6 +627,53 @@ public class RouterUtil {
             return toOptionalMapper(headerValue, (ParameterizedType) type, name);
         }
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
+    }
+
+    private static final Function<HttpRequestContext, Object> toPropertyValueMapper(Parameter param,
+            PropertyValue propertyValue) {
+        Type type = param.getParameterizedType();
+        if (StringUtil.isNullOrEmpty(propertyValue.value())) {
+            if (type instanceof Class<?>) {
+                Class<?> key = param.getType();
+                if (propertyValue.required()) {
+                    Supplier<IllegalArgumentException> noSuchPropertyValue = noSuchPropertyValue(key.toString());
+                    return ctx -> ctx.property(key).orElseThrow(noSuchPropertyValue);
+                } else {
+                    return ctx -> ctx.property(key).orElse(null);
+                }
+            }
+            if (Optional.class == param.getType()) {
+                Type atype = ((ParameterizedType) type).getActualTypeArguments()[0];
+                if (atype instanceof Class<?>) {
+                    Class<?> key = (Class<?>) atype;
+                    // skip required check
+                    return ctx -> ctx.property(key);
+                }
+            }
+        } else {
+            String key = propertyValue.value();
+            if (type instanceof Class<?>) {
+                Class<?> valueType = param.getType();
+                if (propertyValue.required()) {
+                    Supplier<IllegalArgumentException> noSuchPropertyValue = noSuchPropertyValue(key.toString());
+                    return ctx -> ctx.property(key, valueType).orElseThrow(noSuchPropertyValue);
+                } else {
+                    return ctx -> ctx.property(key, valueType).orElse(null);
+                }
+            }
+            if (Optional.class == param.getType()) {
+                // skip required check
+                return ctx -> ctx.property(key);
+            }
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @PropertyValue");
+    }
+
+    private static final Supplier<IllegalArgumentException> noSuchPropertyValue(String name) {
+        String message = "missing property value " + name;
+        IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
+                IllegalArgumentException::new);
+        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
     private static Function<HttpRequestContext, Object> toSimpleMapper(HeaderValue headerValue, Type type,
