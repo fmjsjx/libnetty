@@ -51,6 +51,7 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext.HttpResponseFac
 import com.github.fmjsjx.libnetty.http.server.HttpResponder;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServiceInvoker;
+import com.github.fmjsjx.libnetty.http.server.annotation.ComponentValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpRoute;
@@ -59,6 +60,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.PropertyValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
 import com.github.fmjsjx.libnetty.http.server.exception.BadRequestException;
 
@@ -357,6 +359,10 @@ public class RouterUtil {
             }
             return remoteAddrMapper;
         }
+        ComponentValue componentValue = param.getAnnotation(ComponentValue.class);
+        if (componentValue != null) {
+            return toComponentValueMapper(param, componentValue);
+        }
         PropertyValue propertyValue = param.getAnnotation(PropertyValue.class);
         if (propertyValue != null) {
             return toPropertyValueMapper(param, propertyValue);
@@ -629,6 +635,46 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
     }
 
+    @SuppressWarnings("unchecked")
+    private static final Function<HttpRequestContext, Object> toComponentValueMapper(Parameter param,
+            ComponentValue componentValue) {
+        Type type = param.getParameterizedType();
+        if (componentValue.value() == HttpServerComponent.class) {
+            if (type instanceof Class<?>) {
+                Class<? extends HttpServerComponent> key = (Class<? extends HttpServerComponent>) param.getType();
+                if (componentValue.required()) {
+                    Supplier<IllegalArgumentException> noSuchComponentValue = noSuchComponentValue(key.toString());
+                    return ctx -> ctx.component(key).orElseThrow(noSuchComponentValue);
+                } else {
+                    return ctx -> ctx.component(key).orElse(null);
+                }
+            }
+            if (Optional.class == param.getType()) {
+                Type atype = ((ParameterizedType) type).getActualTypeArguments()[0];
+                if (atype instanceof Class<?>) {
+                    Class<? extends HttpServerComponent> key = (Class<? extends HttpServerComponent>) atype;
+                    // skip required check
+                    return ctx -> ctx.component(key);
+                }
+            }
+        } else {
+            Class<? extends HttpServerComponent> key = componentValue.value();
+            if (type instanceof Class<?>) {
+                if (componentValue.required()) {
+                    Supplier<IllegalArgumentException> noSuchComponentValue = noSuchComponentValue(key.toString());
+                    return ctx -> ctx.component(key).orElseThrow(noSuchComponentValue);
+                } else {
+                    return ctx -> ctx.component(key).orElse(null);
+                }
+            }
+            if (Optional.class == param.getType()) {
+                // skip required check
+                return ctx -> ctx.property(key);
+            }
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @PropertyValue");
+    }
+
     private static final Function<HttpRequestContext, Object> toPropertyValueMapper(Parameter param,
             PropertyValue propertyValue) {
         Type type = param.getParameterizedType();
@@ -667,6 +713,13 @@ public class RouterUtil {
             }
         }
         throw new IllegalArgumentException("unsupported type " + type + " for @PropertyValue");
+    }
+
+    private static final Supplier<IllegalArgumentException> noSuchComponentValue(String name) {
+        String message = "missing component value " + name;
+        IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
+                IllegalArgumentException::new);
+        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
     private static final Supplier<IllegalArgumentException> noSuchPropertyValue(String name) {
