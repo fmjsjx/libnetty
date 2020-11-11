@@ -59,8 +59,8 @@ import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.PropertyValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
+import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
 import com.github.fmjsjx.libnetty.http.server.exception.BadRequestException;
-import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson.JsonLibrary;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -174,7 +174,7 @@ public class RouterUtil {
                 return ctx.respondError(cause);
             }
             try {
-                ByteBuf content = ctx.property(JsonLibrary.KEY).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
+                ByteBuf content = ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
                         .write(ctx.alloc(), result);
                 return ctx.simpleRespond(OK, content, JsonConstants.APPLICATION_JSON_UTF8);
             } catch (Exception e) {
@@ -604,7 +604,7 @@ public class RouterUtil {
         } else if (type == byte[].class) {
             return contentToBytesMapper;
         } else {
-            return ctx -> ctx.property(JsonLibrary.KEY).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
+            return ctx -> ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
                     .read(ctx.request().content(), type);
         }
     }

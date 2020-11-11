@@ -9,9 +9,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 
@@ -19,7 +16,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
-import io.netty.util.internal.SystemPropertyUtil;
 
 /**
  * A {@link Middleware} provides a {@link JsonLibrary} to support JSON features.
@@ -32,9 +28,8 @@ import io.netty.util.internal.SystemPropertyUtil;
  * @see MiddlewareChain
  * @see JsonLibrary
  */
+@Deprecated
 public class SupportJson implements Middleware {
-
-    private static final Logger logger = LoggerFactory.getLogger(SupportJson.class);
 
     /**
      * Provides methods to support JSON features.
@@ -42,7 +37,12 @@ public class SupportJson implements Middleware {
      * @author MJ Fang
      * 
      * @see Jackson2JsonLibrary
+     * 
+     * @deprecated please use
+     *             {@link com.github.fmjsjx.libnetty.http.server.component.JsonLibrary}
+     *             instead
      */
+    @Deprecated
     public interface JsonLibrary {
 
         /**
@@ -80,7 +80,12 @@ public class SupportJson implements Middleware {
      * @since 1.1
      *
      * @author MJ Fang
+     * 
+     * @deprecated please use
+     *             {@link com.github.fmjsjx.libnetty.http.server.component.JsonLibrary.JsonException}
+     *             instead
      */
+    @Deprecated
     public static class JsonException extends RuntimeException {
 
         private static final long serialVersionUID = 4697052174693197902L;
@@ -110,7 +115,12 @@ public class SupportJson implements Middleware {
      * Implementation of {@link JsonLibrary} using {@code jackson2}.
      * 
      * @author MJ Fang
+     * 
+     * @deprecated please use
+     *             {@link com.github.fmjsjx.libnetty.http.server.component.Jackson2JsonLibrary}
+     *             instead
      */
+    @Deprecated
     public static class Jackson2JsonLibrary implements JsonLibrary {
 
         private static final ConcurrentMap<Type, com.fasterxml.jackson.databind.JavaType> cachedJavaTypes = new ConcurrentHashMap<>();
@@ -169,53 +179,8 @@ public class SupportJson implements Middleware {
 
     }
 
-    private static final JsonLibrary lookupLibrary() {
-        String propertyKey = "libnetty.http.server.middleware.json.library";
-        String libraryClassName = SystemPropertyUtil.get(propertyKey);
-        logger.debug("-D{}: {}", propertyKey, libraryClassName);
-        if (libraryClassName != null) {
-            try {
-                @SuppressWarnings("unchecked")
-                Class<? extends JsonLibrary> libraryClass = (Class<? extends JsonLibrary>) Class
-                        .forName(libraryClassName);
-                return libraryClass.getConstructor().newInstance();
-            } catch (Exception e) {
-                logger.warn("Create specified JSON library {} failed, use default library (jackson2) instead.",
-                        libraryClassName, e);
-            }
-        }
-        logger.debug("Lookup jackson2 in classpath.");
-        try {
-            Class.forName("com.fasterxml.jackson.databind.ObjectMapper");
-            return new Jackson2JsonLibrary();
-        } catch (ClassNotFoundException e) {
-            throw new IllegalArgumentException("Can't find any available JsonLibrary in class path.", e);
-        }
-    }
-
-    private final JsonLibrary library;
-
-    /**
-     * Constructs a new {@link SupportJson} instance with the default JSON library
-     * {@link Jackson2JsonLibrary}.
-     */
-    public SupportJson() {
-        this(lookupLibrary());
-    }
-
-    /**
-     * Constructs a new {@link SupportJson} instance with the specified JSON
-     * library.
-     * 
-     * @param library a {@link JsonLibrary}
-     */
-    public SupportJson(JsonLibrary library) {
-        this.library = Objects.requireNonNull(library, "library must not be null");
-    }
-
     @Override
     public CompletionStage<HttpResult> apply(HttpRequestContext ctx, MiddlewareChain next) {
-        ctx.property(JsonLibrary.KEY, library);
         return next.doNext(ctx);
     }
 

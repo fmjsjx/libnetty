@@ -18,7 +18,6 @@ import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLogge
 import com.github.fmjsjx.libnetty.http.server.middleware.AuthBasic;
 import com.github.fmjsjx.libnetty.http.server.middleware.Router;
 import com.github.fmjsjx.libnetty.http.server.middleware.ServeStatic;
-import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson;
 
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
@@ -41,6 +40,7 @@ public class TestDefaultServer {
                 .corsConfig(corsConfig) // CORS support
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
+                .supportJson() // Support JSON using Jackson2s
                 .soBackLog(1024).tcpNoDelay() // channel options
                 .applyCompressionSettings( // compression support
                         HttpContentCompressorFactory.defaultSettings()) // default settings
@@ -49,7 +49,6 @@ public class TestDefaultServer {
         ;
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
-                .addLast(new SupportJson()) // JSON support
                 .addLast("/static/auth", new AuthBasic(passwds(), "test")) // HTTP Basic Authentication
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/")) // static resources
                 .addLast(new Router().register(controller).init()) // router

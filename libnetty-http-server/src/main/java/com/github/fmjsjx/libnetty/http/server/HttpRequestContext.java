@@ -15,10 +15,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpServer.User;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import com.github.fmjsjx.libnetty.http.server.exception.HttpFailureException;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 
@@ -279,6 +281,15 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     HttpResponder pathVariables(PathVariables pathVariables);
 
     /**
+     * Returns the component with the specified {@code componentType}.
+     * 
+     * @param <C>           the type of the component
+     * @param componentType the type of the component
+     * @return an {@code Optional<HttpServerComponent>}
+     */
+    <C extends HttpServerComponent> Optional<C> component(Class<? extends C> componentType);
+
+    /**
      * Returns the {@link User}.
      * 
      * @return an {@code Optional<T>} may contains the user
@@ -381,8 +392,23 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * {@link HttpRequestContext}.
      * 
      * @return a {@code Stream<Object>}
+     * 
+     * @deprecated please use {@link #propertyKeyNames()} instead
      */
-    Stream<Object> propertyKeys();
+    @Deprecated
+    default Stream<Object> propertyKeys() {
+        return propertyKeyNames().map(Function.identity());
+    }
+
+    /**
+     * Returns a {@link Stream} contains the key name of each property in thie
+     * {@link HttpRequestContext}.
+     * 
+     * @return a {@code Stream<String>}
+     * 
+     * @since 1.3
+     */
+    Stream<String> propertyKeyNames();
 
     @Override
     default int refCnt() {

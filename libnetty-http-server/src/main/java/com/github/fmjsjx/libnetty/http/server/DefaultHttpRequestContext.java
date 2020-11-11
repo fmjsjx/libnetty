@@ -5,14 +5,17 @@ import static io.netty.handler.codec.http.HttpHeaderValues.*;
 
 import java.nio.charset.Charset;
 import java.time.ZonedDateTime;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -36,6 +39,8 @@ import io.netty.handler.codec.http.QueryStringDecoder;
  */
 class DefaultHttpRequestContext implements HttpRequestContext {
 
+    private static final Function<Object, String> PROPERTY_KEY_ENCODER = String::valueOf;
+
     private final long recievedNanoTime = System.nanoTime();
     private final ZonedDateTime receivedTime = ZonedDateTime.now();
 
@@ -49,25 +54,21 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     private QueryStringDecoder queryStringDecoder;
     private AtomicReference<PathVariables> pathVariablesRef = new AtomicReference<>();
 
+    private final Map<Class<?>, Object> components;
     private final ConcurrentMap<Object, Object> properties = new ConcurrentHashMap<>();
     private final HttpResponseFactoryImpl responseFactory = new HttpResponseFactoryImpl();
     private final Optional<Consumer<HttpHeaders>> addHeaders;
 
-    /**
-     * Creates a new {@link DefaultHttpRequestContext} with the specified
-     * {@link Channel} and {@link FullHttpRequest}.
-     * 
-     * @param channel the channel
-     * @param request the HTTP request
-     */
-    DefaultHttpRequestContext(Channel channel, FullHttpRequest request) {
-        this(channel, request, null);
+    DefaultHttpRequestContext(Channel channel, FullHttpRequest request, Map<Class<?>, Object> components) {
+        this(channel, request, components, null);
     }
 
-    DefaultHttpRequestContext(Channel channel, FullHttpRequest request, Consumer<HttpHeaders> addHeaders) {
+    DefaultHttpRequestContext(Channel channel, FullHttpRequest request, Map<Class<?>, Object> components,
+            Consumer<HttpHeaders> addHeaders) {
         this.channel = channel;
         this.request = request;
         this.contentLength = request.content().readableBytes();
+        this.components = components;
         this.addHeaders = Optional.ofNullable(addHeaders);
     }
 
@@ -144,6 +145,12 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public <C extends HttpServerComponent> Optional<C> component(Class<? extends C> componentType) {
+        return (Optional<C>) components.getOrDefault(componentType, Optional.empty());
+    }
+
+    @Override
     public <T> Optional<T> property(Object key) {
         Object value = getProperty(key);
         if (value == null) {
@@ -155,7 +162,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     }
 
     private Object getProperty(Object key) {
-        return properties.get(key);
+        return properties.get(PROPERTY_KEY_ENCODER.apply(key));
     }
 
     @Override
@@ -166,22 +173,23 @@ class DefaultHttpRequestContext implements HttpRequestContext {
 
     @Override
     public DefaultHttpRequestContext property(Object key, Object value) {
+        String keyName = PROPERTY_KEY_ENCODER.apply(key);
         if (value == null) {
-            properties.remove(key);
+            properties.remove(keyName);
         } else {
-            properties.put(key, value);
+            properties.put(keyName, value);
         }
         return this;
     }
 
     @Override
     public boolean hasProperty(Object key) {
-        return properties.containsKey(key);
+        return properties.containsKey(PROPERTY_KEY_ENCODER.apply(key));
     }
 
     @Override
-    public Stream<Object> propertyKeys() {
-        return properties.keySet().stream();
+    public Stream<String> propertyKeyNames() {
+        return properties.keySet().stream().map(PROPERTY_KEY_ENCODER);
     }
 
     @Override

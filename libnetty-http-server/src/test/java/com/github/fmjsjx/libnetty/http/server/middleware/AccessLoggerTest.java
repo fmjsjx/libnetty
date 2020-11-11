@@ -19,6 +19,7 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResponder;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.PathVariables;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -126,11 +127,6 @@ public class AccessLoggerTest {
             }
 
             @Override
-            public Stream<Object> propertyKeys() {
-                return Stream.empty();
-            }
-
-            @Override
             public HttpResponder property(Object key, Object value) {
                 return this;
             }
@@ -163,6 +159,16 @@ public class AccessLoggerTest {
             @Override
             public HttpResponseFactory responseFactory() {
                 return null;
+            }
+
+            @Override
+            public <C extends HttpServerComponent> Optional<C> component(Class<? extends C> componentType) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Stream<String> propertyKeyNames() {
+                return Stream.empty();
             }
         };
     }

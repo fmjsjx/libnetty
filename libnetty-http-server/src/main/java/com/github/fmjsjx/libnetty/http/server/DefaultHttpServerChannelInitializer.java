@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.http.server;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -40,12 +41,13 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final HttpContentCompressorFactory httpContentCompressorFactory;
 
     private final HttpServerHandlerProvider handlerProvider;
-    
+
     private final HttpRequestContextDecoder contextDecoder;
 
     DefaultHttpServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
             SslContextProvider sslContextProvider, HttpContentCompressorFactory httpContentCompressorFactory,
-            HttpServerHandlerProvider handlerProvider, Consumer<HttpHeaders> addHeaders) {
+            HttpServerHandlerProvider handlerProvider, Map<Class<?>, Object> components,
+            Consumer<HttpHeaders> addHeaders) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.corsConfig = Optional.ofNullable(corsConfig);
@@ -54,7 +56,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         this.autoCompressionEnabled = httpContentCompressorFactory != null;
         this.httpContentCompressorFactory = httpContentCompressorFactory;
         this.handlerProvider = handlerProvider;
-        this.contextDecoder = new HttpRequestContextDecoder(addHeaders);
+        this.contextDecoder = new HttpRequestContextDecoder(components, addHeaders);
     }
 
     @Override

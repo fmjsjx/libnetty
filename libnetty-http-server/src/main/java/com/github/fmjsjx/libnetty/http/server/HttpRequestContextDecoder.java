@@ -7,6 +7,7 @@ import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
@@ -28,9 +29,11 @@ import io.netty.util.CharsetUtil;
 @Sharable
 class HttpRequestContextDecoder extends MessageToMessageDecoder<FullHttpRequest> {
 
+    private final Map<Class<?>, Object> components;
     private final Consumer<HttpHeaders> addHeaders;
 
-    HttpRequestContextDecoder(Consumer<HttpHeaders> addHeaders) {
+    HttpRequestContextDecoder(Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders) {
+        this.components = components;
         this.addHeaders = addHeaders;
     }
 
@@ -42,6 +45,7 @@ class HttpRequestContextDecoder extends MessageToMessageDecoder<FullHttpRequest>
     @Override
     protected void decode(ChannelHandlerContext ctx, FullHttpRequest msg, List<Object> out) throws Exception {
         DecoderResult decoderResult = msg.decoderResult();
+        Consumer<HttpHeaders> addHeaders = this.addHeaders;
         if (decoderResult.isFailure()) {
             HttpVersion version = msg.protocolVersion();
             boolean keepAlive = HttpUtil.isKeepAlive(msg);
@@ -62,7 +66,7 @@ class HttpRequestContextDecoder extends MessageToMessageDecoder<FullHttpRequest>
                 cf.addListener(ChannelFutureListener.CLOSE);
             }
         } else {
-            out.add(new DefaultHttpRequestContext(ctx.channel(), msg.retain(), addHeaders));
+            out.add(new DefaultHttpRequestContext(ctx.channel(), msg.retain(), components, addHeaders));
         }
     }
 

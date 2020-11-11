@@ -7,9 +7,14 @@ import static java.util.Objects.*;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
+import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -80,6 +87,7 @@ public class DefaultHttpServer implements HttpServer {
 
     private HttpServerHandlerProvider handlerProvider;
 
+    private Map<Class<?>, HttpServerComponent> components = new LinkedHashMap<>();
     private Consumer<HttpHeaders> addHeaders = defaultAddHeaders;
 
     /**
@@ -567,6 +575,32 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
+     * Set an {@link HttpServerComponent}.
+     * 
+     * @param component the component
+     * @return this server
+     * 
+     * @since 1.3
+     */
+    public DefaultHttpServer component(HttpServerComponent component) {
+        components.put(component.componentType(), component);
+        return this;
+    }
+
+    /**
+     * Support JSON features.
+     * <p>
+     * This method is equivalent to: {@code component(JsonLibrary.getInstance())}.
+     * 
+     * @return this server
+     * 
+     * @since 1.3
+     */
+    public DefaultHttpServer supportJson() {
+        return component(JsonLibrary.getInstance());
+    }
+
+    /**
      * Set the function to add HTTP response headers. Include default headers.
      * <p>
      * The default headers:
@@ -656,9 +690,11 @@ public class DefaultHttpServer implements HttpServer {
             initSettings();
             ServerBootstrap bootstrap = this.bootstrap;
             bootstrap.group(parentGroup, childGroup).channel(channelClass);
+            Map<Class<?>, Object> components = this.components.entrySet().stream()
+                    .collect(Collectors.toMap(Entry::getKey, e -> Optional.ofNullable(e.getValue())));
             DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
                     maxContentLength, corsConfig, sslContextProvider, httpContentCompressorFactory, handlerProvider,
-                    addHeaders);
+                    components, addHeaders);
 
             bootstrap.childHandler(initializer);
 
