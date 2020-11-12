@@ -1,7 +1,9 @@
 package com.github.fmjsjx.libnetty.handler.ssl;
 
-import static java.nio.file.StandardWatchEventKinds.*;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.Path;
@@ -11,14 +13,17 @@ import java.nio.file.WatchService;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
@@ -49,7 +54,7 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
     private final AtomicReference<SslContext> sslContextRef = new AtomicReference<>();
 
     private final Path dir;
-    private final Set<String> watchingFiles;
+    private final Map<String, FileInfo> watchingFiles;
 
     /**
      * Constructs a new {@link AutoRebuildSslContextProvider} with the specified
@@ -84,7 +89,11 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
     private AutoRebuildSslContextProvider(SslContextProvider factory, Path dir, Set<String> watchingFiles)
             throws SSLRuntimeException, IOException {
         this.dir = dir;
-        this.watchingFiles = watchingFiles;
+        Map<String, FileInfo> files = new LinkedHashMap<>();
+        for (String fileName : watchingFiles) {
+            files.put(fileName, new FileInfo(dir.resolve(fileName)));
+        }
+        this.watchingFiles = files;
         SslContext first = factory.get();
         sslContextRef.set(first);
         watchService = dir.getFileSystem().newWatchService();
@@ -93,6 +102,14 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
         dir.register(watchService, ENTRY_MODIFY, ENTRY_CREATE);
         executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("watch-files", true));
         executor.execute(new WatchingTask(factory));
+    }
+
+    private void refreshFiles() {
+        Map<String, FileInfo> files = this.watchingFiles;
+        List<String> fileNames = files.keySet().stream().collect(Collectors.toList());
+        for (String fileName : fileNames) {
+            files.put(fileName, new FileInfo(dir.resolve(fileName)));
+        }
     }
 
     /**
@@ -110,7 +127,7 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
      * @return the set contains the name of each watching file
      */
     public Set<String> watchingFiles() {
-        return watchingFiles;
+        return watchingFiles.keySet();
     }
 
     /**
@@ -119,7 +136,7 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
      * @return a {@code Stream<Path>}
      */
     public Stream<Path> resolvedWatchingFiles() {
-        return watchingFiles.stream().map(dir::resolve);
+        return watchingFiles().stream().map(dir::resolve);
     }
 
     @Override
@@ -144,6 +161,14 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
         }
     }
 
+    private WatchService getWatchService() {
+        return watchService;
+    }
+
+    private Map<String, FileInfo> getWatchingFiles() {
+        return watchingFiles;
+    }
+
     private class WatchingTask implements Runnable {
 
         private final SslContextProvider factory;
@@ -154,6 +179,8 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
 
         @Override
         public void run() {
+            WatchService watchService = getWatchService();
+            Map<String, FileInfo> watchingFiles = getWatchingFiles();
             for (; !isClosed();) {
                 try {
                     WatchKey watchKey = watchService.poll(30, TimeUnit.SECONDS);
@@ -164,18 +191,22 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
                             for (WatchEvent<?> watchEvent : events) {
                                 String fileName = watchEvent.context().toString();
                                 log.debug("Polled event {} {} ==> {}", watchEvent.kind(), fileName);
-                                if (watchEvent.count() == 1 && watchingFiles.contains(fileName)) {
-                                    needRebuild = true;
+                                FileInfo old = watchingFiles.get(fileName);
+                                if (watchEvent.count() == 1 && old != null) {
+                                    FileInfo current = new FileInfo(dir.resolve(fileName));
+                                    if (!old.equals(current)) {
+                                        needRebuild = true;
+                                    }
                                 }
                             }
                         } finally {
                             watchKey.reset();
                         }
                         if (needRebuild) {
-                            Thread.sleep(100L); // sleep 100 milliseconds to wait all IO operations finished
                             SslContext sslContext = factory.get();
                             SslContext old = sslContextRef.getAndSet(sslContext);
                             log.info("Auto rebuild SslContext: {} => {}", old, sslContext);
+                            refreshFiles();
                         }
                     }
                 } catch (InterruptedException | ClosedWatchServiceException e) {
@@ -185,6 +216,35 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
                 }
             }
         }
+    }
+
+    private static final class FileInfo {
+
+        private final long length;
+        private final long lastModified;
+
+        private FileInfo(long length, long lastModified) {
+            this.length = length;
+            this.lastModified = lastModified;
+        }
+
+        private FileInfo(Path path) {
+            this(path.toFile());
+        }
+
+        private FileInfo(File file) {
+            this(file.length(), file.lastModified());
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof FileInfo) {
+                FileInfo o = (FileInfo) obj;
+                return length == o.length && lastModified == o.lastModified;
+            }
+            return false;
+        }
+
     }
 
 }
