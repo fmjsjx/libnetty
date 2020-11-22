@@ -49,6 +49,19 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
         return value;
     }
 
+    /**
+     * Close this provider and trigger {@link DefaultHttpServerHandler#onServerClosed()}.
+     * 
+     * @since 1.2
+     */
+    @Override
+    public void close() throws Exception {
+        DefaultHttpServerHandler value = this.value;
+        if (value != null) {
+            value.onServerClosed();
+        }
+    }
+
     private DefaultHttpServerHandler initHandler() {
         return new DefaultHttpServerHandler(middlewares, lastChain, exceptionHandler);
     }
