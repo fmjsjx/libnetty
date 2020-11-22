@@ -729,15 +729,20 @@ public class DefaultHttpServer implements HttpServer {
         if (!running.compareAndSet(true, false)) {
             throw new IllegalStateException("The HTTP server '" + name + "' is not running!");
         }
+        HttpServerHandlerProvider handlerProvider = this.handlerProvider;
+        log.debug("Close handler provider: {}", handlerProvider);
+        handlerProvider.close();
         if (closeGroupsWhenShutdown) {
             closeGroups();
         }
         return this;
     }
-
+    
     private void closeGroups() {
+        EventLoopGroup parentGroup = this.parentGroup;
         log.debug("Close parent group: {}", parentGroup);
         parentGroup.shutdownGracefully();
+        EventLoopGroup childGroup = this.childGroup;
         log.debug("Close child group: {}", childGroup);
         childGroup.shutdownGracefully();
     }
