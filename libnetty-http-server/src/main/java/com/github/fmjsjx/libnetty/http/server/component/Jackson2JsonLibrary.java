@@ -62,12 +62,8 @@ public class Jackson2JsonLibrary implements JsonLibrary {
     public static final ObjectMapper defaultObjectMapper() {
         ObjectMapper om = new ObjectMapper().setSerializationInclusion(Include.NON_ABSENT)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        if (jdk8ModuleEnabled()) {
-            om.registerModule(jdk8Module());
-        }
-        if (javaTimeModuleEnabled()) {
-            om.registerModule(javaTimeModule());
-        }
+        jdk8Module.ifPresent(om::registerModule);
+        javaTimeModule.ifPresent(om::registerModule);
         return om;
     }
 
