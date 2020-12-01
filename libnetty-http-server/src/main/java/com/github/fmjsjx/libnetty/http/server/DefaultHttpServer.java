@@ -768,6 +768,10 @@ public class DefaultHttpServer implements HttpServer {
         HttpServerHandlerProvider handlerProvider = this.handlerProvider;
         log.debug("Close handler provider: {}", handlerProvider);
         handlerProvider.close();
+        for (HttpServerComponent component : components.values()) {
+            log.debug("Close component: {}", component);
+            component.onServerClosed();
+        }
         if (closeGroupsWhenShutdown) {
             closeGroups();
         }
