@@ -82,6 +82,15 @@ public interface HttpResponder {
             CharSequence contentType);
 
     /**
+     * Send HTTP response with {@code "400 Bad Request Error"} to client and returns
+     * the {@link HttpResult} asynchronously.
+     * 
+     * @param cause the cause
+     * @return a {@code CompletableFuture<HttpResult>}
+     */
+    CompletableFuture<HttpResult> respondBadRequestError(Throwable cause);
+
+    /**
      * Send HTTP response with {@code "500 Internal Server Error"} to client and
      * returns the {@link HttpResult} asynchronously.
      * 

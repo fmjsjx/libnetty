@@ -3,6 +3,7 @@ package com.github.fmjsjx.libnetty.http.server;
 import static io.netty.channel.ChannelFutureListener.CLOSE;
 import static io.netty.handler.codec.http.HttpHeaderNames.LOCATION;
 import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
@@ -468,6 +469,9 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
         if (cause instanceof HttpFailureException) {
             return simpleRespond((HttpFailureException) cause);
         }
+        if (cause instanceof IllegalArgumentException) {
+            return respondBadRequestError(cause);
+        }
         return respondInternalServerError(cause);
     }
 
@@ -495,6 +499,17 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
             CharSequence contentType) {
         return sendResponse(responseFactory().createFull(status, content, contentLength, contentType), contentLength);
     }
+    
+
+    @Override
+    default CompletableFuture<HttpResult> respondBadRequestError(Throwable cause) {
+        HttpResponseStatus status = BAD_REQUEST;
+        String value = status.code() + " " + status.reasonPhrase() + ": " + cause.toString();
+        ByteBuf content = alloc().buffer();
+        int contentLength = ByteBufUtil.writeUtf8(content, value);
+        return simpleRespond(status, content, contentLength, TEXT_PLAIN_UTF8);
+    }
+
 
     @Override
     default CompletableFuture<HttpResult> respondInternalServerError(Throwable cause) {
