@@ -16,6 +16,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.netty.buffer.ByteBuf;
@@ -34,11 +35,11 @@ public class Jackson2JsonLibrary implements JsonLibrary {
 
     private static final Logger logger = LoggerFactory.getLogger(Jackson2JsonLibrary.class);
 
-    private static final Optional<com.fasterxml.jackson.datatype.jdk8.Jdk8Module> jdk8Module;
-    private static final Optional<com.fasterxml.jackson.datatype.jsr310.JavaTimeModule> javaTimeModule;
+    private static final Optional<Module> jdk8Module;
+    private static final Optional<Module> javaTimeModule;
 
     static {
-        Optional<com.fasterxml.jackson.datatype.jdk8.Jdk8Module> _jdk8Module;
+        Optional<Module> _jdk8Module;
         try {
             Class.forName("com.fasterxml.jackson.datatype.jdk8.Jdk8Module");
             _jdk8Module = Optional.of(new com.fasterxml.jackson.datatype.jdk8.Jdk8Module());
@@ -47,7 +48,7 @@ public class Jackson2JsonLibrary implements JsonLibrary {
             _jdk8Module = Optional.empty();
         }
         jdk8Module = _jdk8Module;
-        Optional<com.fasterxml.jackson.datatype.jsr310.JavaTimeModule> _javaTimeModule;
+        Optional<Module> _javaTimeModule;
         try {
             Class.forName("com.fasterxml.jackson.datatype.jsr310.JavaTimeModule");
             _javaTimeModule = Optional.of(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
@@ -71,7 +72,7 @@ public class Jackson2JsonLibrary implements JsonLibrary {
         return jdk8Module.isPresent();
     }
 
-    public static final com.fasterxml.jackson.datatype.jdk8.Jdk8Module jdk8Module() {
+    public static final Module jdk8Module() {
         return jdk8Module.get();
     }
 
@@ -79,7 +80,7 @@ public class Jackson2JsonLibrary implements JsonLibrary {
         return javaTimeModule.isPresent();
     }
 
-    public static final com.fasterxml.jackson.datatype.jsr310.JavaTimeModule javaTimeModule() {
+    public static final Module javaTimeModule() {
         return javaTimeModule.get();
     }
 
