@@ -152,15 +152,18 @@ public class RouterUtil {
             }
             return;
         }
-        checkReturnType(method, blocking);
+        if (blocking) {
+            throw new IllegalArgumentException("the return type must be a CompletionStage<HttpResult>");
+        }
+        checkReturnType(method);
         Parameter[] params = method.getParameters();
         requireContext(params);
         switch (params.length) {
         case 1:
-            router.add(toSimpleInvoker(controller, method, blocking), path, httpMethods);
+            router.add(toSimpleInvoker(controller, method), path, httpMethods);
             break;
         default:
-            router.add(toParamsInvoker(controller, method, blocking, params), path, httpMethods);
+            router.add(toParamsInvoker(controller, method, params), path, httpMethods);
             break;
         }
 
@@ -182,19 +185,6 @@ public class RouterUtil {
             } catch (Exception e) {
                 return ctx.respondError(e);
             }
-        };
-    }
-
-    private static final BiFunction<HttpResult, Throwable, CompletionStage<HttpResult>> httpResultHandler(
-            HttpRequestContext ctx) {
-        return (result, cause) -> {
-            if (cause != null) {
-                if (cause instanceof CompletionException) {
-                    return ctx.respondError(cause.getCause());
-                }
-                return ctx.respondError(cause);
-            }
-            return CompletableFuture.completedFuture(result);
         };
     }
 
@@ -353,47 +343,13 @@ public class RouterUtil {
     }
 
     @SuppressWarnings("unchecked")
-    private static final HttpServiceInvoker toSimpleInvoker(Object controller, Method method, boolean blocking) {
+    private static final HttpServiceInvoker toSimpleInvoker(Object controller, Method method) {
         if (Modifier.isStatic(method.getModifiers())) {
-            if (blocking) {
-                return ctx -> {
-                    try {
-                        WorkerPool workerPool = ctx.component(WorkerPool.class)
-                                .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
-                        return CompletableFuture.supplyAsync(() -> {
-                            try {
-                                return (HttpResult) method.invoke(null, ctx);
-                            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                                throw new CompletionException(e);
-                            }
-                        }, workerPool.executor()).handle(httpResultHandler(ctx)).thenCompose(resultIdentity);
-                    } catch (Exception e) {
-                        return ctx.respondError(e);
-                    }
-                };
-            }
             return ctx -> {
                 try {
                     return (CompletionStage<HttpResult>) method.invoke(null, ctx);
                 } catch (InvocationTargetException e) {
                     return ctx.respondError(e.getTargetException());
-                } catch (Exception e) {
-                    return ctx.respondError(e);
-                }
-            };
-        }
-        if (blocking) {
-            return ctx -> {
-                try {
-                    WorkerPool workerPool = ctx.component(WorkerPool.class)
-                            .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
-                    return CompletableFuture.supplyAsync(() -> {
-                        try {
-                            return (HttpResult) method.invoke(controller, ctx);
-                        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                            throw new CompletionException(e);
-                        }
-                    }, workerPool.executor()).handle(httpResultHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
                     return ctx.respondError(e);
                 }
@@ -411,49 +367,14 @@ public class RouterUtil {
     }
 
     @SuppressWarnings("unchecked")
-    private static final HttpServiceInvoker toParamsInvoker(Object controller, Method method, boolean blocking,
-            Parameter[] params) {
+    private static final HttpServiceInvoker toParamsInvoker(Object controller, Method method, Parameter[] params) {
         Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
         if (Modifier.isStatic(method.getModifiers())) {
-            if (blocking) {
-                return ctx -> {
-                    try {
-                        WorkerPool workerPool = ctx.component(WorkerPool.class)
-                                .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
-                        return CompletableFuture.supplyAsync(() -> {
-                            try {
-                                return (HttpResult) method.invoke(null, parametesMapper.apply(ctx));
-                            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                                throw new CompletionException(e);
-                            }
-                        }, workerPool.executor()).handle(httpResultHandler(ctx)).thenCompose(resultIdentity);
-                    } catch (Exception e) {
-                        return ctx.respondError(e);
-                    }
-                };
-            }
             return ctx -> {
                 try {
                     return (CompletionStage<HttpResult>) method.invoke(null, parametesMapper.apply(ctx));
                 } catch (InvocationTargetException e) {
                     return ctx.respondError(e.getTargetException());
-                } catch (Exception e) {
-                    return ctx.respondError(e);
-                }
-            };
-        }
-        if (blocking) {
-            return ctx -> {
-                try {
-                    WorkerPool workerPool = ctx.component(WorkerPool.class)
-                            .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
-                    return CompletableFuture.supplyAsync(() -> {
-                        try {
-                            return (HttpResult) method.invoke(controller, parametesMapper.apply(ctx));
-                        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                            throw new CompletionException(e);
-                        }
-                    }, workerPool.executor()).handle(httpResultHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
                     return ctx.respondError(e);
                 }
@@ -1100,16 +1021,10 @@ public class RouterUtil {
         };
     }
 
-    private static final void checkReturnType(Method method, boolean blocking) {
-        if (blocking) {
-            if (!HttpResult.class.isAssignableFrom(method.getReturnType())) {
-                throw new IllegalArgumentException("the return type must be a HttpResult on blocking mode");
-            }
-        } else {
-            ParameterizedType returnType = (ParameterizedType) method.getGenericReturnType();
-            if (!HttpResult.class.isAssignableFrom((Class<?>) returnType.getActualTypeArguments()[0])) {
-                throw new IllegalArgumentException("the return type must be a CompletionStage<HttpResult>");
-            }
+    private static final void checkReturnType(Method method) {
+        ParameterizedType returnType = (ParameterizedType) method.getGenericReturnType();
+        if (!HttpResult.class.isAssignableFrom((Class<?>) returnType.getActualTypeArguments()[0])) {
+            throw new IllegalArgumentException("the return type must be a CompletionStage<HttpResult>");
         }
     }
 
