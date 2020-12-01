@@ -8,6 +8,8 @@ Provides a simplified HTTP server framework.
 - Support HTTPS(OpenSSL, JdkSSL)
 - Simple support for content compression(gzip, deflate)
 - Non-blocking, asynchronous, API
+- Optional support for JSON
+- Blocking mode API for JSON responses
 
 ## Quick Start
 
