@@ -207,6 +207,18 @@ public class RouterUtil {
     private static final Function<CompletionStage<HttpResult>, CompletionStage<HttpResult>> resultIdentity = Function
             .identity();
 
+    private static final CompletionException fromTarget(InvocationTargetException e) {
+        return valueOf(e.getTargetException());
+    }
+
+    private static final CompletionException valueOf(Throwable e) {
+        if (e instanceof CompletionException) {
+            return (CompletionException) e;
+        } else {
+            return new CompletionException(e.getMessage(), e);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method, boolean blocking) {
         if (Modifier.isStatic(method.getModifiers())) {
@@ -218,8 +230,10 @@ public class RouterUtil {
                         return CompletableFuture.supplyAsync(() -> {
                             try {
                                 return method.invoke(null);
-                            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                                throw new CompletionException(e);
+                            } catch (InvocationTargetException e) {
+                                throw fromTarget(e);
+                            } catch (Exception e) {
+                                throw valueOf(e);
                             }
                         }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                     } catch (Exception e) {
@@ -246,8 +260,10 @@ public class RouterUtil {
                     return CompletableFuture.supplyAsync(() -> {
                         try {
                             return method.invoke(controller);
-                        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw fromTarget(e);
+                        } catch (IllegalAccessException | IllegalArgumentException e) {
+                            throw valueOf(e);
                         }
                     }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
@@ -280,8 +296,10 @@ public class RouterUtil {
                         return CompletableFuture.supplyAsync(() -> {
                             try {
                                 return method.invoke(null, parametesMapper.apply(ctx));
-                            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                                throw new CompletionException(e);
+                            } catch (InvocationTargetException e) {
+                                throw fromTarget(e);
+                            } catch (Exception e) {
+                                throw valueOf(e);
                             }
                         }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                     } catch (Exception e) {
@@ -308,8 +326,10 @@ public class RouterUtil {
                     return CompletableFuture.supplyAsync(() -> {
                         try {
                             return method.invoke(controller, parametesMapper.apply(ctx));
-                        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw fromTarget(e);
+                        } catch (Exception e) {
+                            throw valueOf(e);
                         }
                     }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
@@ -1031,8 +1051,7 @@ public class RouterUtil {
     private static final String[] routeValue(Annotation ma) {
         try {
             return (String[]) ma.annotationType().getMethod("value").invoke(ma);
-        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-                | SecurityException e) {
+        } catch (Exception e) {
             throw new IllegalArgumentException("register controller failed", e);
         }
     }
