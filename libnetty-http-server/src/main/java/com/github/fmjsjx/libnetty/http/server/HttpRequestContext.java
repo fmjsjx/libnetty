@@ -499,17 +499,17 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
             CharSequence contentType) {
         return sendResponse(responseFactory().createFull(status, content, contentLength, contentType), contentLength);
     }
-    
 
     @Override
     default CompletableFuture<HttpResult> respondBadRequestError(Throwable cause) {
         HttpResponseStatus status = BAD_REQUEST;
-        String value = status.code() + " " + status.reasonPhrase() + ": " + cause.toString();
+        String message = cause.getMessage();
+        String value = message == null ? status.toString()
+                : status.code() + " " + status.reasonPhrase() + ": " + message;
         ByteBuf content = alloc().buffer();
         int contentLength = ByteBufUtil.writeUtf8(content, value);
         return simpleRespond(status, content, contentLength, TEXT_PLAIN_UTF8);
     }
-
 
     @Override
     default CompletableFuture<HttpResult> respondInternalServerError(Throwable cause) {
