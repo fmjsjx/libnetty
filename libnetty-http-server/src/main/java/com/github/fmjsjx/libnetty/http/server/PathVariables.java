@@ -17,9 +17,20 @@ import java.util.OptionalLong;
 public interface PathVariables {
 
     /**
-     * The empty {@link PathVariables} instances.
+     * @deprecated please use {@link #empty()} instead since 2.0
      */
+    @Deprecated
     PathVariables EMPTY = EmptyPathVariables.INSTANCE;
+
+    /**
+     * Returns the empty {@link PathVariables} instances.
+     * 
+     * @return the empty {@code PathVariables} instances
+     * @since 2.0
+     */
+    static PathVariables empty() {
+        return EmptyPathVariables.INSTANCE;
+    }
 
     /**
      * Returns the path variable by the name given.
@@ -99,13 +110,11 @@ class EmptyPathVariables implements PathVariables {
 
     @Override
     public OptionalLong getLong(String name) {
-        // TODO Auto-generated method stub
         return OptionalLong.empty();
     }
 
     @Override
     public OptionalInt getInt(String name) {
-        // TODO Auto-generated method stub
         return OptionalInt.empty();
     }
 

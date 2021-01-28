@@ -54,7 +54,7 @@ public interface PathMatcher {
         if (matcher.matches()) {
             List<String> pathVariableNames = pattern.pathVariableNames();
             if (pathVariableNames.isEmpty()) {
-                ctx.pathVariables(PathVariables.EMPTY);
+                ctx.pathVariables(PathVariables.empty());
             } else {
                 DefaultPathVariables pathVariables = new DefaultPathVariables();
                 for (String name : pathVariableNames) {
