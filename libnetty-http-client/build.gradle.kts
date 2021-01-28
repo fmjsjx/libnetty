@@ -17,6 +17,7 @@ dependencies {
 
     api(project(":libnetty-handler"))
     api(project(":libnetty-http"))
+    api("io.netty:netty-handler-proxy")
     api(project(":libnetty-transport"))
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
@@ -54,7 +55,7 @@ publishing {
             }
             pom {
                 name.set("libnetty/HTTP-Client")
-                description.set("A set of some common useful libraries.")
+                description.set("A set of some useful libraries based on netty4.1.x.")
                 url.set("https://github.com/fmjsjx/libnetty")
                 licenses {
                     license {
