@@ -2,6 +2,8 @@
 
 A set of some useful libraries based on netty4.1.x.
 
+> Since version 2.0, All modules are compiled based on JDK11.
+
 
 ## Modules
 
