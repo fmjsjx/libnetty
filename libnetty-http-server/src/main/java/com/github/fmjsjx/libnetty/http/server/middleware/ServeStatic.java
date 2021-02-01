@@ -199,12 +199,7 @@ public class ServeStatic implements Middleware {
             if (Files.isDirectory(p)) {
                 boolean hitRedirect = !path.endsWith("/");
                 if (hitRedirect && redirectDirectory) {
-                    String rawQuery = ctx.rawQuery();
-                    String location = StringUtil.isNullOrEmpty(rawQuery) ? path + "/" : path + "/?" + rawQuery;
-                    FullHttpResponse response = ctx.responseFactory().createFull(FOUND);
-                    addCustomHeaders(response.headers());
-                    response.headers().set(LOCATION, location);
-                    return ctx.sendResponse(response, 0);
+                    return ctx.sendRedirect(path + "/", addHeaders);
                 } else {
                     boolean exists = false;
                     for (String index : indexes) {

@@ -17,7 +17,10 @@ import io.netty.util.CharsetUtil;
  * @since 1.0
  *
  * @author MJ Fang
+ * 
+ * @deprecated please always use {@link HttpCommonUtil}
  */
+@Deprecated
 public final class HttpUtil {
 
     /**

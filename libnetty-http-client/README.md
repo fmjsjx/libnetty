@@ -6,7 +6,8 @@ Provides a simplified HTTP client, supports both synchronous and asynchronous(ba
 
 - Basic calls on HTTP/1.1
 - Support HTTPS(OpenSSL, JdkSSL)
-- Simple support for content compression(gzip, deflate)
+- Support Proxys(HTTP, Socks5, Socks4)
+- Simple support for content compression(gzip, deflate, Brotli)
 - Non-blocking, asynchronous, API
 
 ## Quick Start

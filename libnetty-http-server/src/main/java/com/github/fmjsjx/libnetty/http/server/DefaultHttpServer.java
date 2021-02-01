@@ -4,13 +4,17 @@ import static io.netty.channel.ChannelOption.*;
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static java.util.Objects.*;
 
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
+import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -56,6 +62,7 @@ public class DefaultHttpServer implements HttpServer {
 
     private String name;
     private String host;
+    private InetAddress address;
     private int port;
     private int ioThreads;
 
@@ -73,16 +80,14 @@ public class DefaultHttpServer implements HttpServer {
 
     private SslContextProvider sslContextProvider;
 
-    @SuppressWarnings("rawtypes")
-    private Map<ChannelOption, Object> options = new LinkedHashMap<>();
-    @SuppressWarnings("rawtypes")
-    private Map<ChannelOption, Object> childOptions = new LinkedHashMap<>();
+    private ServerBootstrap bootstrap = new ServerBootstrap();
 
     private List<Consumer<HttpContentCompressorFactory.Builder>> compressionSettingsListeners = new ArrayList<>();
     private HttpContentCompressorFactory httpContentCompressorFactory;
 
     private HttpServerHandlerProvider handlerProvider;
 
+    private Map<Class<?>, HttpServerComponent> components = new LinkedHashMap<>();
     private Consumer<HttpHeaders> addHeaders = defaultAddHeaders;
 
     /**
@@ -233,6 +238,31 @@ public class DefaultHttpServer implements HttpServer {
     public DefaultHttpServer host(String host) {
         ensureNotStarted();
         this.host = host;
+        this.address = null;
+        return this;
+    }
+
+    /**
+     * Returns the network address to which the server should bind.
+     * 
+     * @return the network address to which the server should bind
+     */
+    public InetAddress address() {
+        return address;
+    }
+
+    /**
+     * Set the network address to which the server should bind
+     * <p>
+     * The default value, {@code null}, means any address.
+     * 
+     * @param address the network address
+     * @return this server
+     */
+    public DefaultHttpServer address(InetAddress address) {
+        ensureNotStarted();
+        this.address = address;
+        this.host = null;
         return this;
     }
 
@@ -414,11 +444,7 @@ public class DefaultHttpServer implements HttpServer {
     public <T> DefaultHttpServer option(ChannelOption<T> option, T value) {
         ensureNotStarted();
         requireNonNull(option, "option must not be null");
-        if (value == null) {
-            options.remove(option);
-        } else {
-            options.put(option, value);
-        }
+        bootstrap.option(option, value);
         return this;
     }
 
@@ -451,11 +477,7 @@ public class DefaultHttpServer implements HttpServer {
     public <T> DefaultHttpServer childOption(ChannelOption<T> childOption, T value) {
         ensureNotStarted();
         requireNonNull(childOption, "childOption must not be null");
-        if (value == null) {
-            childOptions.remove(childOption);
-        } else {
-            childOptions.put(childOption, value);
-        }
+        bootstrap.childOption(childOption, value);
         return this;
     }
 
@@ -553,6 +575,32 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
+     * Set an {@link HttpServerComponent}.
+     * 
+     * @param component the component
+     * @return this server
+     * 
+     * @since 1.3
+     */
+    public DefaultHttpServer component(HttpServerComponent component) {
+        components.put(component.componentType(), component);
+        return this;
+    }
+
+    /**
+     * Support JSON features.
+     * <p>
+     * This method is equivalent to: {@code component(JsonLibrary.getInstance())}.
+     * 
+     * @return this server
+     * 
+     * @since 1.3
+     */
+    public DefaultHttpServer supportJson() {
+        return component(JsonLibrary.getInstance());
+    }
+
+    /**
      * Set the function to add HTTP response headers. Include default headers.
      * <p>
      * The default headers:
@@ -603,6 +651,7 @@ public class DefaultHttpServer implements HttpServer {
         ensureNotStarted();
         name = DEFAULT_NAME;
         host = null;
+        address = null;
         port = DEFAULT_PORT_HTTP;
 
         ioThreads = 0;
@@ -617,8 +666,7 @@ public class DefaultHttpServer implements HttpServer {
 
         sslContextProvider = null;
 
-        options.clear();
-        childOptions.clear();
+        bootstrap = new ServerBootstrap();
 
         compressionSettingsListeners.clear();
 
@@ -640,12 +688,13 @@ public class DefaultHttpServer implements HttpServer {
         }
         try {
             initSettings();
-            ServerBootstrap bootstrap = new ServerBootstrap().group(parentGroup, childGroup).channel(channelClass);
-            options.forEach(bootstrap::option);
-            childOptions.forEach(bootstrap::childOption);
+            ServerBootstrap bootstrap = this.bootstrap;
+            bootstrap.group(parentGroup, childGroup).channel(channelClass);
+            Map<Class<?>, Object> components = this.components.entrySet().stream()
+                    .collect(Collectors.toMap(Entry::getKey, e -> Optional.ofNullable(e.getValue())));
             DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
                     maxContentLength, corsConfig, sslContextProvider, httpContentCompressorFactory, handlerProvider,
-                    addHeaders);
+                    components, addHeaders);
 
             bootstrap.childHandler(initializer);
 
@@ -687,7 +736,7 @@ public class DefaultHttpServer implements HttpServer {
         }
         // always set AUTO_READ to false
         // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
-        childOptions.put(AUTO_READ, false);
+        bootstrap.childOption(AUTO_READ, false);
 
         if (compressionSettingsListeners.size() > 0) {
             HttpContentCompressorFactory.Builder builder = HttpContentCompressorFactory.builder();
@@ -697,10 +746,13 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     private ChannelFuture bind(ServerBootstrap bootstrap) {
-        if (host == null) {
-            return bootstrap.bind(port);
+        if (address != null) {
+            return bootstrap.bind(address, port);
         }
-        return bootstrap.bind(host, port);
+        if (host != null) {
+            return bootstrap.bind(host, port);
+        }
+        return bootstrap.bind(port);
     }
 
     @Override
@@ -713,27 +765,45 @@ public class DefaultHttpServer implements HttpServer {
         if (!running.compareAndSet(true, false)) {
             throw new IllegalStateException("The HTTP server '" + name + "' is not running!");
         }
+        HttpServerHandlerProvider handlerProvider = this.handlerProvider;
+        log.debug("Close handler provider: {}", handlerProvider);
+        handlerProvider.close();
+        for (HttpServerComponent component : components.values()) {
+            log.debug("Close component: {}", component);
+            component.onServerClosed();
+        }
         if (closeGroupsWhenShutdown) {
             closeGroups();
         }
         return this;
     }
-
+    
     private void closeGroups() {
+        EventLoopGroup parentGroup = this.parentGroup;
         log.debug("Close parent group: {}", parentGroup);
         parentGroup.shutdownGracefully();
+        EventLoopGroup childGroup = this.childGroup;
         log.debug("Close child group: {}", childGroup);
         childGroup.shutdownGracefully();
     }
 
     @Override
     public String toString() {
-        return "DefaultHttpServer(name=" + nameToString() + ", host=" + host + ", port=" + port + ")";
-
+        return "DefaultHttpServer(name=" + nameToString() + ", binding=" + bindingToString() + ")";
     }
 
     private String nameToString() {
         return name + (isSslEnabled() ? "[SSL]" : "");
+    }
+
+    private String bindingToString() {
+        if (address != null) {
+            return address + ":" + port;
+        } else if (host != null) {
+            return host + ":" + port;
+        } else {
+            return "*:" + port;
+        }
     }
 
 }

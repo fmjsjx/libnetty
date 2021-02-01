@@ -50,7 +50,6 @@ public class BrotliDecompressor extends MessageToMessageDecoder<FullHttpResponse
 
     @Override
     protected void decode(ChannelHandlerContext ctx, FullHttpResponse msg, List<Object> out) throws Exception {
-        System.err.println(msg);
         if (!msg.headers().containsValue(CONTENT_ENCODING, "br", true)) {
             ctx.fireChannelRead(msg.retain());
             return;

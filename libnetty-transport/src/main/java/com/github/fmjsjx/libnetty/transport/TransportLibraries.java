@@ -3,9 +3,8 @@ package com.github.fmjsjx.libnetty.transport;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Static factory class for {@link TransportLibrary}.
@@ -14,9 +13,10 @@ import lombok.extern.slf4j.Slf4j;
  * 
  * @author MJ Fang
  */
-@Slf4j
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+
 final class TransportLibraries {
+    
+    private static final Logger log = LoggerFactory.getLogger(TransportLibraries.class);
 
     private static final class DefaultLibraryHolder {
         private static final TransportLibrary defaultLibrary;
@@ -69,4 +69,6 @@ final class TransportLibraries {
         return DefaultLibraryHolder.defaultLibrary;
     }
 
+    private TransportLibraries() {}
+    
 }

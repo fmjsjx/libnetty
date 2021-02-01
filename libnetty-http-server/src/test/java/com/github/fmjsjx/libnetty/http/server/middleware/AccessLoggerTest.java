@@ -13,11 +13,13 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
+import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.HttpHeaderXNames;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResponder;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.PathVariables;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -96,7 +98,7 @@ public class AccessLoggerTest {
 
             @Override
             public String remoteAddress() {
-                return com.github.fmjsjx.libnetty.http.HttpUtil.remoteAddress(channel(), request.headers());
+                return HttpCommonUtil.remoteAddress(channel(), request.headers());
             }
 
             @Override
@@ -122,11 +124,6 @@ public class AccessLoggerTest {
             @Override
             public HttpResponder pathVariables(PathVariables pathVariables) {
                 return null;
-            }
-
-            @Override
-            public Stream<Object> propertyKeys() {
-                return Stream.empty();
             }
 
             @Override
@@ -162,6 +159,16 @@ public class AccessLoggerTest {
             @Override
             public HttpResponseFactory responseFactory() {
                 return null;
+            }
+
+            @Override
+            public <C extends HttpServerComponent> Optional<C> component(Class<? extends C> componentType) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Stream<String> propertyKeyNames() {
+                return Stream.empty();
             }
         };
     }

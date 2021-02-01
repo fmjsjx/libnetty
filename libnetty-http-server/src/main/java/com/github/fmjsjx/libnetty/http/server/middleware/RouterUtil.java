@@ -1,9 +1,9 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
-import static com.github.fmjsjx.libnetty.http.HttpUtil.contentType;
+import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
+import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_JSON;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpHeaderValues.*;
-import static io.netty.util.CharsetUtil.*;
+import static io.netty.util.CharsetUtil.UTF_8;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
@@ -31,6 +31,7 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,15 +52,19 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext.HttpResponseFac
 import com.github.fmjsjx.libnetty.http.server.HttpResponder;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServiceInvoker;
+import com.github.fmjsjx.libnetty.http.server.annotation.ComponentValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpRoute;
 import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
 import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
+import com.github.fmjsjx.libnetty.http.server.annotation.PropertyValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
+import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
+import com.github.fmjsjx.libnetty.http.server.component.WorkerPool;
 import com.github.fmjsjx.libnetty.http.server.exception.BadRequestException;
-import com.github.fmjsjx.libnetty.http.server.middleware.SupportJson.JsonLibrary;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -132,22 +137,24 @@ public class RouterUtil {
     private static final void registerMethod(Router router, Object controller, Method method, String path,
             HttpMethod[] httpMethods) {
         logger.debug("Register method: {}, {}, {}, {}, {}", router, controller, method, path, httpMethods);
-        if (!CompletionStage.class.isAssignableFrom(method.getReturnType())) {
-            throw new IllegalArgumentException("the return type must be a CompletionStage");
-        }
+        boolean blocking = !CompletionStage.class.isAssignableFrom(method.getReturnType());
+        method.setAccessible(true);
         JsonBody jsonResposne = method.getAnnotation(JsonBody.class);
         if (jsonResposne != null) {
             method.setAccessible(true);
             Parameter[] params = method.getParameters();
             switch (params.length) {
             case 0:
-                router.add(toJsonResponseInvoker(controller, method), path, httpMethods);
+                router.add(toJsonResponseInvoker(controller, method, blocking), path, httpMethods);
                 break;
             default:
-                router.add(toJsonResponseInvoker(controller, method, params), path, httpMethods);
+                router.add(toJsonResponseInvoker(controller, method, blocking, params), path, httpMethods);
                 break;
             }
             return;
+        }
+        if (blocking) {
+            throw new IllegalArgumentException("the return type must be a CompletionStage<HttpResult>");
         }
         checkReturnType(method);
         Parameter[] params = method.getParameters();
@@ -161,6 +168,7 @@ public class RouterUtil {
             router.add(toParamsInvoker(controller, method, params), path, httpMethods);
             break;
         }
+
     }
 
     private static final BiFunction<Object, Throwable, CompletionStage<HttpResult>> jsonResponseHandler(
@@ -173,7 +181,7 @@ public class RouterUtil {
                 return ctx.respondError(cause);
             }
             try {
-                ByteBuf content = ctx.property(JsonLibrary.KEY).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
+                ByteBuf content = ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
                         .write(ctx.alloc(), result);
                 return ctx.simpleRespond(OK, content, JsonConstants.APPLICATION_JSON_UTF8);
             } catch (Exception e) {
@@ -192,18 +200,74 @@ public class RouterUtil {
 
     }
 
+    private static final class WorkerPoolConstants {
+        private static final IllegalArgumentException MISSING_WORKER_POOL_EXCEPTION = new IllegalArgumentException();
+
+        private static final Supplier<IllegalArgumentException> MISSING_WORKER_POOL = () -> MISSING_WORKER_POOL_EXCEPTION;
+    }
+
     private static final Function<CompletionStage<HttpResult>, CompletionStage<HttpResult>> resultIdentity = Function
             .identity();
 
+    private static final CompletionException fromTarget(InvocationTargetException e) {
+        return valueOf(e.getTargetException());
+    }
+
+    private static final CompletionException valueOf(Throwable e) {
+        if (e instanceof CompletionException) {
+            return (CompletionException) e;
+        } else {
+            return new CompletionException(e.getMessage(), e);
+        }
+    }
+
     @SuppressWarnings("unchecked")
-    private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method) {
+    private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method, boolean blocking) {
         if (Modifier.isStatic(method.getModifiers())) {
+            if (blocking) {
+                return ctx -> {
+                    try {
+                        WorkerPool workerPool = ctx.component(WorkerPool.class)
+                                .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
+                        return CompletableFuture.supplyAsync(() -> {
+                            try {
+                                return method.invoke(null);
+                            } catch (InvocationTargetException e) {
+                                throw fromTarget(e);
+                            } catch (Exception e) {
+                                throw valueOf(e);
+                            }
+                        }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
+                    } catch (Exception e) {
+                        return ctx.respondError(e);
+                    }
+                };
+            }
             return ctx -> {
                 try {
                     return ((CompletionStage<Object>) method.invoke(null)).handle(jsonResponseHandler(ctx))
                             .thenCompose(resultIdentity);
                 } catch (InvocationTargetException e) {
                     return ctx.respondError(e.getTargetException());
+                } catch (Exception e) {
+                    return ctx.respondError(e);
+                }
+            };
+        }
+        if (blocking) {
+            return ctx -> {
+                try {
+                    WorkerPool workerPool = ctx.component(WorkerPool.class)
+                            .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return method.invoke(controller);
+                        } catch (InvocationTargetException e) {
+                            throw fromTarget(e);
+                        } catch (IllegalAccessException | IllegalArgumentException e) {
+                            throw valueOf(e);
+                        }
+                    }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
                     return ctx.respondError(e);
                 }
@@ -222,15 +286,54 @@ public class RouterUtil {
     }
 
     @SuppressWarnings("unchecked")
-    private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method, Parameter[] params) {
+    private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method, boolean blocking,
+            Parameter[] params) {
         Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
         if (Modifier.isStatic(method.getModifiers())) {
+            if (blocking) {
+                return ctx -> {
+                    try {
+                        WorkerPool workerPool = ctx.component(WorkerPool.class)
+                                .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
+                        return CompletableFuture.supplyAsync(() -> {
+                            try {
+                                return method.invoke(null, parametesMapper.apply(ctx));
+                            } catch (InvocationTargetException e) {
+                                throw fromTarget(e);
+                            } catch (Exception e) {
+                                throw valueOf(e);
+                            }
+                        }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
+                    } catch (Exception e) {
+                        return ctx.respondError(e);
+                    }
+                };
+            }
             return ctx -> {
                 try {
                     return ((CompletionStage<Object>) method.invoke(null, parametesMapper.apply(ctx)))
                             .handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (InvocationTargetException e) {
                     return ctx.respondError(e.getTargetException());
+                } catch (Exception e) {
+                    return ctx.respondError(e);
+                }
+            };
+        }
+        if (blocking) {
+            return ctx -> {
+                try {
+                    WorkerPool workerPool = ctx.component(WorkerPool.class)
+                            .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return method.invoke(controller, parametesMapper.apply(ctx));
+                        } catch (InvocationTargetException e) {
+                            throw fromTarget(e);
+                        } catch (Exception e) {
+                            throw valueOf(e);
+                        }
+                    }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
                     return ctx.respondError(e);
                 }
@@ -355,6 +458,14 @@ public class RouterUtil {
                         "unsupperted type " + param.getType() + " for @RemoteAddr, only support String");
             }
             return remoteAddrMapper;
+        }
+        ComponentValue componentValue = param.getAnnotation(ComponentValue.class);
+        if (componentValue != null) {
+            return toComponentValueMapper(param, componentValue);
+        }
+        PropertyValue propertyValue = param.getAnnotation(PropertyValue.class);
+        if (propertyValue != null) {
+            return toPropertyValueMapper(param, propertyValue);
         }
         return toZeroValueMapper(param);
     }
@@ -599,7 +710,7 @@ public class RouterUtil {
         } else if (type == byte[].class) {
             return contentToBytesMapper;
         } else {
-            return ctx -> ctx.property(JsonLibrary.KEY).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
+            return ctx -> ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
                     .read(ctx.request().content(), type);
         }
     }
@@ -622,6 +733,100 @@ public class RouterUtil {
             return toOptionalMapper(headerValue, (ParameterizedType) type, name);
         }
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static final Function<HttpRequestContext, Object> toComponentValueMapper(Parameter param,
+            ComponentValue componentValue) {
+        Type type = param.getParameterizedType();
+        if (componentValue.value() == HttpServerComponent.class) {
+            if (type instanceof Class<?>) {
+                Class<? extends HttpServerComponent> key = (Class<? extends HttpServerComponent>) param.getType();
+                if (componentValue.required()) {
+                    Supplier<IllegalArgumentException> noSuchComponentValue = noSuchComponentValue(key.toString());
+                    return ctx -> ctx.component(key).orElseThrow(noSuchComponentValue);
+                } else {
+                    return ctx -> ctx.component(key).orElse(null);
+                }
+            }
+            if (Optional.class == param.getType()) {
+                Type atype = ((ParameterizedType) type).getActualTypeArguments()[0];
+                if (atype instanceof Class<?>) {
+                    Class<? extends HttpServerComponent> key = (Class<? extends HttpServerComponent>) atype;
+                    // skip required check
+                    return ctx -> ctx.component(key);
+                }
+            }
+        } else {
+            Class<? extends HttpServerComponent> key = componentValue.value();
+            if (type instanceof Class<?>) {
+                if (componentValue.required()) {
+                    Supplier<IllegalArgumentException> noSuchComponentValue = noSuchComponentValue(key.toString());
+                    return ctx -> ctx.component(key).orElseThrow(noSuchComponentValue);
+                } else {
+                    return ctx -> ctx.component(key).orElse(null);
+                }
+            }
+            if (Optional.class == param.getType()) {
+                // skip required check
+                return ctx -> ctx.property(key);
+            }
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @PropertyValue");
+    }
+
+    private static final Function<HttpRequestContext, Object> toPropertyValueMapper(Parameter param,
+            PropertyValue propertyValue) {
+        Type type = param.getParameterizedType();
+        if (StringUtil.isNullOrEmpty(propertyValue.value())) {
+            if (type instanceof Class<?>) {
+                Class<?> key = param.getType();
+                if (propertyValue.required()) {
+                    Supplier<IllegalArgumentException> noSuchPropertyValue = noSuchPropertyValue(key.toString());
+                    return ctx -> ctx.property(key).orElseThrow(noSuchPropertyValue);
+                } else {
+                    return ctx -> ctx.property(key).orElse(null);
+                }
+            }
+            if (Optional.class == param.getType()) {
+                Type atype = ((ParameterizedType) type).getActualTypeArguments()[0];
+                if (atype instanceof Class<?>) {
+                    Class<?> key = (Class<?>) atype;
+                    // skip required check
+                    return ctx -> ctx.property(key);
+                }
+            }
+        } else {
+            String key = propertyValue.value();
+            if (type instanceof Class<?>) {
+                Class<?> valueType = param.getType();
+                if (propertyValue.required()) {
+                    Supplier<IllegalArgumentException> noSuchPropertyValue = noSuchPropertyValue(key.toString());
+                    return ctx -> ctx.property(key, valueType).orElseThrow(noSuchPropertyValue);
+                } else {
+                    return ctx -> ctx.property(key, valueType).orElse(null);
+                }
+            }
+            if (Optional.class == param.getType()) {
+                // skip required check
+                return ctx -> ctx.property(key);
+            }
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @PropertyValue");
+    }
+
+    private static final Supplier<IllegalArgumentException> noSuchComponentValue(String name) {
+        String message = "missing component value " + name;
+        IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
+                IllegalArgumentException::new);
+        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
+    }
+
+    private static final Supplier<IllegalArgumentException> noSuchPropertyValue(String name) {
+        String message = "missing property value " + name;
+        IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
+                IllegalArgumentException::new);
+        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
     private static Function<HttpRequestContext, Object> toSimpleMapper(HeaderValue headerValue, Type type,
@@ -848,8 +1053,7 @@ public class RouterUtil {
     private static final String[] routeValue(Annotation ma) {
         try {
             return (String[]) ma.annotationType().getMethod("value").invoke(ma);
-        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-                | SecurityException e) {
+        } catch (Exception e) {
             throw new IllegalArgumentException("register controller failed", e);
         }
     }

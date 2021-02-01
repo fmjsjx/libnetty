@@ -1,9 +1,16 @@
 package com.github.fmjsjx.libnetty.http.client;
 
-import static com.github.fmjsjx.libnetty.http.HttpUtil.*;
-import static io.netty.handler.codec.http.HttpHeaderNames.*;
-import static io.netty.handler.codec.http.HttpHeaderValues.*;
-import static io.netty.handler.codec.http.HttpMethod.*;
+import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
+import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT_ENCODING;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
+import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
+import static io.netty.handler.codec.http.HttpHeaderValues.GZIP_DEFLATE;
+import static io.netty.handler.codec.http.HttpMethod.DELETE;
+import static io.netty.handler.codec.http.HttpMethod.PATCH;
+import static io.netty.handler.codec.http.HttpMethod.POST;
+import static io.netty.handler.codec.http.HttpMethod.PUT;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -57,7 +64,8 @@ import lombok.RequiredArgsConstructor;
  * A common implementation of {@link HttpClient} which will cache {@code TCP}
  * connections.
  * 
- * @deprecated please use {@link DefaultHttpClient} instead
+ * @deprecated please use {@link DefaultHttpClient} instead, this class will be
+ *             deleted in version 2.x
  * 
  * @since 1.0
  *
@@ -81,7 +89,7 @@ public class ConnectionCachedHttpClient extends AbstractHttpClient {
     ConnectionCachedHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
             SslContextProvider sslContextProvider, boolean compressionEnabled, boolean shutdownGroupOnClose,
             int timeoutSeconds, int maxContentLength) {
-        super(group, channelClass, sslContextProvider, compressionEnabled, false);
+        super(group, channelClass, sslContextProvider, compressionEnabled, false, null);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;

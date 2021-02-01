@@ -94,8 +94,7 @@ public class DefaultBlobErrorMessage implements Resp3BlobErrorMessage {
     public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
         byte[] value = text.getBytes(CharsetUtil.UTF_8);
         byte[] lengthValue = RespCodecUtil.longToAsciiBytes(value.length);
-        ByteBuf buf = RespCodecUtil.buffer(alloc,
-                TYPE_LENGTH + lengthValue.length + EOL_LENGTH + value.length + EOL_LENGTH);
+        ByteBuf buf = alloc.buffer(TYPE_LENGTH + lengthValue.length + EOL_LENGTH + value.length + EOL_LENGTH);
         buf.writeByte(type().value()).writeBytes(lengthValue).writeShort(EOL_SHORT).writeBytes(value)
                 .writeShort(EOL_SHORT);
         out.add(buf);

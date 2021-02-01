@@ -1,9 +1,16 @@
 package com.github.fmjsjx.libnetty.http.client;
 
-import static com.github.fmjsjx.libnetty.http.HttpUtil.*;
-import static io.netty.handler.codec.http.HttpHeaderNames.*;
-import static io.netty.handler.codec.http.HttpHeaderValues.*;
-import static io.netty.handler.codec.http.HttpMethod.*;
+import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
+import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT_ENCODING;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
+import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
+import static io.netty.handler.codec.http.HttpHeaderValues.GZIP_DEFLATE;
+import static io.netty.handler.codec.http.HttpMethod.DELETE;
+import static io.netty.handler.codec.http.HttpMethod.PATCH;
+import static io.netty.handler.codec.http.HttpMethod.POST;
+import static io.netty.handler.codec.http.HttpMethod.PUT;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -21,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
+import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.Bootstrap;
@@ -44,14 +52,13 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.proxy.ProxyConnectionEvent;
+import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.resolver.NoopAddressResolverGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 
 /**
  * The default implementation of {@link HttpClient} which will cache {@code TCP}
@@ -76,8 +83,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
     DefaultHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
             SslContextProvider sslContextProvider, boolean compressionEnabled, boolean brotliEnabled,
-            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength) {
-        super(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled);
+            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength,
+            ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
+        super(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled, proxyHandlerFactory);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
@@ -108,34 +116,78 @@ public class DefaultHttpClient extends AbstractHttpClient {
         if (conn.isPresent()) {
             conn.get().sendAsnyc(requestContext);
         } else {
-            InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
             String headerHost = defaultPort ? host : host + ":" + port;
-            InternalHttpClientHandler handler = new InternalHttpClientHandler(address, headerHost, cachedPool);
-            Bootstrap b = new Bootstrap().group(group).channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
-                    .option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        protected void initChannel(SocketChannel ch) throws Exception {
-                            ChannelPipeline cp = ch.pipeline();
-                            cp.addLast(new IdleStateHandler(0, 0, timeoutSeconds));
-                            if (ssl) {
-                                cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
+            if (proxyHandlerFactory.isPresent()) {
+                ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory = this.proxyHandlerFactory.get();
+                InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
+                Bootstrap b = new Bootstrap().resolver(NoopAddressResolverGroup.INSTANCE).group(group)
+                        .channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
+                        .option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
+                            @Override
+                            protected void initChannel(SocketChannel ch) throws Exception {
+                                ChannelPipeline cp = ch.pipeline();
+                                cp.addLast(proxyHandlerFactory.create());
+                                cp.addLast(new ProxyEventHandler((ctx, obj) -> {
+                                    if (obj instanceof Throwable) {
+                                        future.completeExceptionally((Throwable) obj);
+                                    } else if (obj instanceof ProxyConnectionEvent) {
+                                        ChannelPipeline pipeline = ctx.pipeline();
+                                        InternalHttpClientHandler handler = new InternalHttpClientHandler(address,
+                                                headerHost, cachedPool, ctx.channel());
+                                        pipeline.addLast(new IdleStateHandler(0, 0, timeoutSeconds));
+                                        if (ssl) {
+                                            pipeline.addLast(
+                                                    sslContextProvider.get().newHandler(ctx.alloc(), host, port));
+                                        }
+                                        pipeline.addLast(new HttpClientCodec());
+                                        pipeline.addLast(new HttpContentDecompressor());
+                                        pipeline.addLast(new HttpObjectAggregator(maxContentLength));
+                                        if (brotliEnabled) {
+                                            pipeline.addLast(BrotliDecompressor.INSTANCE);
+                                        }
+                                        pipeline.addLast(handler);
+                                        handler.sendAsnyc(requestContext);
+                                    } else {
+                                        future.completeExceptionally(
+                                                new HttpRuntimeException("unknown event type " + obj.getClass()));
+                                    }
+                                }));
                             }
-                            cp.addLast(new HttpClientCodec());
-                            cp.addLast(new HttpContentDecompressor());
-                            cp.addLast(new HttpObjectAggregator(maxContentLength));
-                            if (brotliEnabled) {
-                                cp.addLast(BrotliDecompressor.INSTANCE);
+                        });
+                b.connect(address).addListener((ChannelFuture cf) -> {
+                    if (!cf.isSuccess()) {
+                        future.completeExceptionally(cf.cause());
+                    }
+                });
+            } else {
+                InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
+                InternalHttpClientHandler handler = new InternalHttpClientHandler(address, headerHost, cachedPool);
+                Bootstrap b = new Bootstrap().group(group).channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
+                        .option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
+                            @Override
+                            protected void initChannel(SocketChannel ch) throws Exception {
+                                ChannelPipeline cp = ch.pipeline();
+                                cp.addLast(new IdleStateHandler(0, 0, timeoutSeconds));
+                                if (ssl) {
+                                    cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
+                                }
+                                cp.addLast(new HttpClientCodec());
+                                cp.addLast(new HttpContentDecompressor());
+                                cp.addLast(new HttpObjectAggregator(maxContentLength));
+                                if (brotliEnabled) {
+                                    cp.addLast(BrotliDecompressor.INSTANCE);
+                                }
+                                cp.addLast(handler);
                             }
-                            cp.addLast(handler);
-                        }
-                    });
-            b.connect(address).addListener((ChannelFuture cf) -> {
-                if (cf.isSuccess()) {
-                    handler.sendAsnyc(requestContext);
-                } else {
-                    future.completeExceptionally(cf.cause());
-                }
-            });
+                        });
+                b.connect(address).addListener((ChannelFuture cf) -> {
+                    if (cf.isSuccess()) {
+                        handler.sendAsnyc(requestContext);
+                    } else {
+                        future.completeExceptionally(cf.cause());
+                    }
+                });
+            }
         }
         return future;
     }
@@ -153,13 +205,20 @@ public class DefaultHttpClient extends AbstractHttpClient {
         return Optional.empty();
     }
 
-    @AllArgsConstructor(access = AccessLevel.PRIVATE)
     private static final class RequestContext<T> {
 
         private final Request request;
         private final CompletableFuture<? super Response<T>> future;
         private final HttpContentHandler<T> contentHandler;
         private final Optional<Executor> executor;
+
+        private RequestContext(Request request, CompletableFuture<? super Response<T>> future,
+                HttpContentHandler<T> contentHandler, Optional<Executor> executor) {
+            this.request = request;
+            this.future = future;
+            this.contentHandler = contentHandler;
+            this.executor = executor;
+        }
 
         private void complete(FullHttpResponse msg) {
             complete(msg.protocolVersion(), msg.status(), msg.headers(), msg.content());
@@ -188,7 +247,6 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
     }
 
-    @RequiredArgsConstructor
     private final class InternalHttpClientHandler extends SimpleChannelInboundHandler<FullHttpResponse>
             implements HttpConnection {
 
@@ -198,6 +256,21 @@ public class DefaultHttpClient extends AbstractHttpClient {
         private volatile Channel channel;
 
         private RequestContext<?> requestContext;
+
+        private InternalHttpClientHandler(InetSocketAddress address, CharSequence headerHost,
+                ConcurrentLinkedDeque<HttpConnection> cachedPool) {
+            this.address = address;
+            this.headerHost = headerHost;
+            this.cachedPool = cachedPool;
+        }
+
+        private InternalHttpClientHandler(InetSocketAddress address, CharSequence headerHost,
+                ConcurrentLinkedDeque<HttpConnection> cachedPool, Channel channel) {
+            this.address = address;
+            this.headerHost = headerHost;
+            this.cachedPool = cachedPool;
+            this.channel = channel;
+        }
 
         @Override
         public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
@@ -309,8 +382,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         } else {
                             headers.remove(ACCEPT_ENCODING);
                         }
-                        System.err.println(req);
                         HttpUtil.setKeepAlive(req, true);
+                        log.debug("Send HTTP request async: {}", req);
                         channel.writeAndFlush(req);
                     } else {
                         requestContext.future.completeExceptionally(new ClosedChannelException());
@@ -348,8 +421,10 @@ public class DefaultHttpClient extends AbstractHttpClient {
      *
      * @author MJ Fang
      */
-    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Builder extends AbstractBuilder<DefaultHttpClient, Builder> {
+
+        private Builder() {
+        }
 
         /**
          * Returns a new {@link DefaultHttpClient} built from the current state of this
@@ -362,14 +437,16 @@ public class DefaultHttpClient extends AbstractHttpClient {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
-            return new DefaultHttpClient(transportLibrary.createGroup(0, threadFactory),
+            return new DefaultHttpClient(transportLibrary.createGroup(ioThreads, threadFactory),
                     transportLibrary.channelClass(), sslContextProvider, compressionEnabled, brotliEnabled, true,
-                    timeoutSeconds(), maxContentLength);
+                    timeoutSeconds(), maxContentLength, proxyHandlerFactory);
         }
 
         /**
          * Returns a new {@link DefaultHttpClient} built from the current state of this
          * builder with given {@link EventLoopGroup}.
+         * <p>
+         * In this solution, the builder option {@code ioThreads} will be ignored
          * 
          * @param group the {@link EventLoopGroup}
          * @return a new {@code ConnectionCachedHttpClient}
@@ -382,6 +459,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
         /**
          * Returns a new {@link DefaultHttpClient} built from the current state of this
          * builder with given {@link EventLoopGroup}.
+         * <p>
+         * In this solution, the builder option {@code ioThreads} will be ignored
          * 
          * @param group        the {@link EventLoopGroup}
          * @param channelClass the {@link Class} of {@link Channel}
@@ -390,7 +469,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         public DefaultHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
             return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled,
-                    false, timeoutSeconds(), maxContentLength);
+                    false, timeoutSeconds(), maxContentLength, proxyHandlerFactory);
         }
 
     }

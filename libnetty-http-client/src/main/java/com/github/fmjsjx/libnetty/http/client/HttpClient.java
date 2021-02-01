@@ -17,7 +17,7 @@ import javax.net.ssl.SSLContext;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
-import com.github.fmjsjx.libnetty.http.HttpUtil;
+import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
 import io.netty.handler.codec.http.DefaultHttpHeaders;
@@ -25,6 +25,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.AsciiString;
 
@@ -460,7 +461,7 @@ public interface HttpClient extends AutoCloseable {
          * @return this builder
          */
         public Self contentType(CharSequence contentType, Charset charset) {
-            return contentType(HttpUtil.contentType(AsciiString.of(contentType), charset));
+            return contentType(HttpCommonUtil.contentType(AsciiString.of(contentType), charset));
         }
 
         /**
@@ -782,6 +783,16 @@ public interface HttpClient extends AutoCloseable {
         HttpClient build();
 
         /**
+         * Sets the number of the IO threads for this client.
+         * <p>
+         * The default value is the configured number of available processors for Netty.
+         * 
+         * @param ioThreads the number of the IO threads for this client
+         * @return this {@code Builder}
+         */
+        Builder ioThreads(int ioThreads);
+
+        /**
          * Sets the timeout duration for this client.
          * 
          * @param duration the timeout {@link Duration}
@@ -848,6 +859,16 @@ public interface HttpClient extends AutoCloseable {
          * @return this {@code Builder}
          */
         Builder brotli(boolean enabled);
+
+        /**
+         * Sets the factory of {@link ProxyHandler}.
+         * 
+         * @param factory the factory
+         * @return this {@code Builder}
+         * 
+         * @since 1.2
+         */
+        Builder proxyHandlerFactory(ProxyHandlerFactory<? extends ProxyHandler> factory);
 
     }
 

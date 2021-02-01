@@ -82,6 +82,15 @@ public interface HttpResponder {
             CharSequence contentType);
 
     /**
+     * Send HTTP response with {@code "400 Bad Request Error"} to client and returns
+     * the {@link HttpResult} asynchronously.
+     * 
+     * @param cause the cause
+     * @return a {@code CompletableFuture<HttpResult>}
+     */
+    CompletableFuture<HttpResult> respondBadRequestError(Throwable cause);
+
+    /**
      * Send HTTP response with {@code "500 Internal Server Error"} to client and
      * returns the {@link HttpResult} asynchronously.
      * 
@@ -106,5 +115,28 @@ public interface HttpResponder {
      * @return a {@code CompletableFuture<HttpResult>}
      */
     CompletableFuture<HttpResult> sendResponse(FullHttpResponse response);
+
+    /**
+     * Send HTTP response with {@code "302 Found"} to client and returns the
+     * {@link HttpResult} asynchronously.
+     * 
+     * @param location the location
+     * @return a {@code CompletableFuture<HttpResult>}
+     * 
+     * @since 1.2
+     */
+    CompletableFuture<HttpResult> sendRedirect(CharSequence location);
+
+    /**
+     * Send HTTP response with {@code "302 Found"} to client and returns the
+     * {@link HttpResult} asynchronously.
+     * 
+     * @param location   the location
+     * @param addHeaders a function to add headers
+     * @return a {@code CompletableFuture<HttpResult>}
+     * 
+     * @since 1.2
+     */
+    CompletableFuture<HttpResult> sendRedirect(CharSequence location, Consumer<HttpHeaders> addHeaders);
 
 }

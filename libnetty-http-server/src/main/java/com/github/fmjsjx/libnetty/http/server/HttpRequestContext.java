@@ -1,7 +1,10 @@
 package com.github.fmjsjx.libnetty.http.server;
 
 import static io.netty.channel.ChannelFutureListener.CLOSE;
+import static io.netty.handler.codec.http.HttpHeaderNames.LOCATION;
 import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 import java.nio.charset.Charset;
@@ -13,9 +16,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
+import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpServer.User;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import com.github.fmjsjx.libnetty.http.server.exception.HttpFailureException;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 
@@ -37,6 +43,7 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCounted;
+import io.netty.util.internal.StringUtil;
 
 /**
  * A context that runs through each HTTP requests.
@@ -50,7 +57,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     /**
      * {@code "text/plain; charset=UTF-8"}
      */
-    AsciiString TEXT_PLAIN_UTF8 = com.github.fmjsjx.libnetty.http.HttpUtil.contentType(TEXT_PLAIN, CharsetUtil.UTF_8);
+    AsciiString TEXT_PLAIN_UTF8 = HttpCommonUtil.contentType(TEXT_PLAIN, CharsetUtil.UTF_8);
 
     /**
      * Returns the value of the running Java Virtual Machine'shigh-resolution time
@@ -275,6 +282,15 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     HttpResponder pathVariables(PathVariables pathVariables);
 
     /**
+     * Returns the component with the specified {@code componentType}.
+     * 
+     * @param <C>           the type of the component
+     * @param componentType the type of the component
+     * @return an {@code Optional<HttpServerComponent>}
+     */
+    <C extends HttpServerComponent> Optional<C> component(Class<? extends C> componentType);
+
+    /**
      * Returns the {@link User}.
      * 
      * @return an {@code Optional<T>} may contains the user
@@ -377,8 +393,23 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * {@link HttpRequestContext}.
      * 
      * @return a {@code Stream<Object>}
+     * 
+     * @deprecated please use {@link #propertyKeyNames()} instead
      */
-    Stream<Object> propertyKeys();
+    @Deprecated
+    default Stream<Object> propertyKeys() {
+        return propertyKeyNames().map(Function.identity());
+    }
+
+    /**
+     * Returns a {@link Stream} contains the key name of each property in thie
+     * {@link HttpRequestContext}.
+     * 
+     * @return a {@code Stream<String>}
+     * 
+     * @since 1.3
+     */
+    Stream<String> propertyKeyNames();
 
     @Override
     default int refCnt() {
@@ -438,6 +469,9 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
         if (cause instanceof HttpFailureException) {
             return simpleRespond((HttpFailureException) cause);
         }
+        if (cause instanceof IllegalArgumentException) {
+            return respondBadRequestError(cause);
+        }
         return respondInternalServerError(cause);
     }
 
@@ -464,6 +498,17 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     default CompletableFuture<HttpResult> simpleRespond(HttpResponseStatus status, ByteBuf content, int contentLength,
             CharSequence contentType) {
         return sendResponse(responseFactory().createFull(status, content, contentLength, contentType), contentLength);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> respondBadRequestError(Throwable cause) {
+        HttpResponseStatus status = BAD_REQUEST;
+        String message = cause.getMessage();
+        String value = message == null ? status.toString()
+                : status.code() + " " + status.reasonPhrase() + ": " + message;
+        ByteBuf content = alloc().buffer();
+        int contentLength = ByteBufUtil.writeUtf8(content, value);
+        return simpleRespond(status, content, contentLength, TEXT_PLAIN_UTF8);
     }
 
     @Override
@@ -495,6 +540,39 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     @Override
     default CompletableFuture<HttpResult> sendResponse(FullHttpResponse response) {
         return sendResponse(response, response.content().readableBytes());
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> sendRedirect(CharSequence location) {
+        return sendRedirect(location, null);
+    }
+
+    @Override
+    default CompletableFuture<HttpResult> sendRedirect(CharSequence location, Consumer<HttpHeaders> addHeaders) {
+        FullHttpResponse response = responseFactory().createFull(FOUND);
+        String rawQuery = rawQuery();
+        if (StringUtil.isNullOrEmpty(rawQuery)) {
+            response.headers().set(LOCATION, location);
+        } else {
+            if (location instanceof AsciiString) {
+                if (((AsciiString) location).indexOf('?', 0) == -1) {
+                    response.headers().set(LOCATION, location + "?" + rawQuery);
+                } else {
+                    response.headers().set(LOCATION, location);
+                }
+            } else {
+                String base = location.toString();
+                if (base.indexOf('?') == -1) {
+                    response.headers().set(LOCATION, base + "?" + rawQuery);
+                } else {
+                    response.headers().set(LOCATION, base);
+                }
+            }
+        }
+        if (addHeaders != null) {
+            addHeaders.accept(response.headers());
+        }
+        return sendResponse(response, 0);
     }
 
     /**
