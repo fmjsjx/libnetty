@@ -301,6 +301,8 @@ public class AccessLogger implements Middleware {
         case ":method":
         case ":http-method":
             return result -> result.requestContext().method();
+        case ":uri":
+            return result -> result.requestContext().uri();
         case ":url":
         case ":path":
             return result -> result.requestContext().path();

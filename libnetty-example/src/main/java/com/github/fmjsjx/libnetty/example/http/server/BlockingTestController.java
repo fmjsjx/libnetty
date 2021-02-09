@@ -10,6 +10,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.HttpGet;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPost;
 import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
+import com.github.fmjsjx.libnetty.http.server.annotation.StringBody;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 
 import io.netty.handler.codec.http.HttpHeaderValues;
@@ -48,6 +49,21 @@ public class BlockingTestController {
         System.out.println(Thread.currentThread());
         System.out.println("value ==> " + value);
         return value;
+    }
+
+    @HttpGet("/no-content")
+    public void getNoContent(QueryStringDecoder query) {
+        // GET /no-content
+        System.out.println("-- no content --");
+        System.out.println(query.uri());
+    }
+
+    @HttpGet("/ok")
+    @StringBody
+    public CharSequence getOK(QueryStringDecoder query) {
+        System.out.println("-- ok --");
+        System.out.println(query.uri());
+        return TestController.ASCII_OK;
     }
 
 }

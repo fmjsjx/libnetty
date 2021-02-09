@@ -2,6 +2,8 @@ package com.github.fmjsjx.libnetty.http.server.middleware;
 
 import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
 import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_JSON;
+import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpResponseStatus.NO_CONTENT;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.util.CharsetUtil.UTF_8;
 
@@ -61,6 +63,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.PropertyValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
+import com.github.fmjsjx.libnetty.http.server.annotation.StringBody;
 import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
 import com.github.fmjsjx.libnetty.http.server.component.WorkerPool;
@@ -139,9 +142,21 @@ public class RouterUtil {
         logger.debug("Register method: {}, {}, {}, {}, {}", router, controller, method, path, httpMethods);
         boolean blocking = !CompletionStage.class.isAssignableFrom(method.getReturnType());
         method.setAccessible(true);
+        Parameter[] params = method.getParameters();
+        if ((blocking && isVoidType(method.getReturnType()))
+                || (!blocking && isVoidType(getActualTypeArguments(method.getGenericReturnType())[0]))) {
+            switch (params.length) {
+            case 0:
+                router.add(toVoidResponseInvoker(controller, method, blocking), path, httpMethods);
+                break;
+            default:
+                router.add(toVoidResponseInvoker(controller, method, blocking, params), path, httpMethods);
+                break;
+            }
+            return;
+        }
         JsonBody jsonResposne = method.getAnnotation(JsonBody.class);
         if (jsonResposne != null) {
-            Parameter[] params = method.getParameters();
             switch (params.length) {
             case 0:
                 router.add(toJsonResponseInvoker(controller, method, blocking), path, httpMethods);
@@ -152,11 +167,22 @@ public class RouterUtil {
             }
             return;
         }
+        StringBody stringBody = method.getAnnotation(StringBody.class);
+        if (stringBody != null) {
+            switch (params.length) {
+            case 0:
+                router.add(toStringResponseInvoker(controller, method, blocking), path, httpMethods);
+                break;
+            default:
+                router.add(toStringResponseInvoker(controller, method, blocking, params), path, httpMethods);
+                break;
+            }
+            return;
+        }
         if (blocking) {
             throw new IllegalArgumentException("the return type must be a CompletionStage<HttpResult>");
         }
         checkReturnType(method);
-        Parameter[] params = method.getParameters();
         requireContext(params);
         switch (params.length) {
         case 1:
@@ -167,6 +193,23 @@ public class RouterUtil {
             break;
         }
 
+    }
+
+    private static final BiFunction<Void, Throwable, CompletionStage<HttpResult>> voidResponseHandler(
+            HttpRequestContext ctx) {
+        return (nil, cause) -> {
+            if (cause != null) {
+                if (cause instanceof CompletionException) {
+                    return ctx.respondError(cause.getCause());
+                }
+                return ctx.respondError(cause);
+            }
+            try {
+                return ctx.simpleRespond(NO_CONTENT);
+            } catch (Exception e) {
+                return ctx.respondError(e);
+            }
+        };
     }
 
     private static final BiFunction<Object, Throwable, CompletionStage<HttpResult>> jsonResponseHandler(
@@ -181,16 +224,39 @@ public class RouterUtil {
             try {
                 ByteBuf content = ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
                         .write(ctx.alloc(), result);
-                return ctx.simpleRespond(OK, content, JsonConstants.APPLICATION_JSON_UTF8);
+                return ctx.simpleRespond(OK, content, ResponseContants.APPLICATION_JSON_UTF8);
             } catch (Exception e) {
                 return ctx.respondError(e);
             }
         };
     }
 
-    private static final class JsonConstants {
+    private static final BiFunction<Object, Throwable, CompletionStage<HttpResult>> stringResponseHandler(
+            HttpRequestContext ctx) {
+        return (result, cause) -> {
+            if (cause != null) {
+                if (cause instanceof CompletionException) {
+                    return ctx.respondError(cause.getCause());
+                }
+                return ctx.respondError(cause);
+            }
+            try {
+                ByteBuf content = ByteBufUtil.writeUtf8(ctx.alloc(), (CharSequence) result);
+                return ctx.simpleRespond(OK, content, ResponseContants.TEXT_PLAIN_UTF8);
+            } catch (Exception e) {
+                return ctx.respondError(e);
+            }
+        };
+    }
+
+    private static final class ResponseContants {
 
         private static final AsciiString APPLICATION_JSON_UTF8 = contentType(APPLICATION_JSON, UTF_8);
+
+        private static final AsciiString TEXT_PLAIN_UTF8 = contentType(TEXT_PLAIN, UTF_8);
+    }
+
+    private static final class JsonConstants {
 
         private static final IllegalArgumentException MISSING_JSON_LIBRARY_EXCEPTION = new IllegalArgumentException();
 
@@ -219,38 +285,92 @@ public class RouterUtil {
         }
     }
 
+    private static final Type[] getActualTypeArguments(Type type) {
+        return ((ParameterizedType) type).getActualTypeArguments();
+    }
+
+    private static final boolean isVoidType(Type type) {
+        return type == void.class || type == Void.class;
+    }
+
     @SuppressWarnings("unchecked")
-    private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method, boolean blocking) {
+    private static HttpServiceInvoker toVoidResponseInvoker(Object controller, Method method, boolean blocking) {
         if (Modifier.isStatic(method.getModifiers())) {
-            if (blocking) {
-                return ctx -> {
-                    try {
-                        WorkerPool workerPool = ctx.component(WorkerPool.class)
-                                .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
-                        return CompletableFuture.supplyAsync(() -> {
-                            try {
-                                return method.invoke(null);
-                            } catch (InvocationTargetException e) {
-                                throw fromTarget(e);
-                            } catch (Exception e) {
-                                throw valueOf(e);
-                            }
-                        }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
-                    } catch (Exception e) {
-                        return ctx.respondError(e);
-                    }
-                };
-            }
+            logger.warn("It is not recommended to declare a routing method as a static method! -- {}", method);
+        }
+        if (blocking) {
             return ctx -> {
                 try {
-                    return ((CompletionStage<Object>) method.invoke(null)).handle(jsonResponseHandler(ctx))
-                            .thenCompose(resultIdentity);
-                } catch (InvocationTargetException e) {
-                    return ctx.respondError(e.getTargetException());
+                    WorkerPool workerPool = ctx.component(WorkerPool.class)
+                            .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
+                    return CompletableFuture.runAsync(() -> {
+                        try {
+                            method.invoke(controller);
+                        } catch (InvocationTargetException e) {
+                            throw fromTarget(e);
+                        } catch (IllegalAccessException | IllegalArgumentException e) {
+                            throw valueOf(e);
+                        }
+                    }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
                     return ctx.respondError(e);
                 }
             };
+        }
+        return ctx -> {
+            try {
+                return ((CompletionStage<Void>) method.invoke(controller)).handle(voidResponseHandler(ctx))
+                        .thenCompose(resultIdentity);
+            } catch (InvocationTargetException e) {
+                return ctx.respondError(e.getTargetException());
+            } catch (Exception e) {
+                return ctx.respondError(e);
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpServiceInvoker toVoidResponseInvoker(Object controller, Method method, boolean blocking,
+            Parameter[] params) {
+        Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
+        if (Modifier.isStatic(method.getModifiers())) {
+            logger.warn("It is not recommended to declare a routing method as a static method! -- {}", method);
+        }
+        if (blocking) {
+            return ctx -> {
+                try {
+                    WorkerPool workerPool = ctx.component(WorkerPool.class)
+                            .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
+                    return CompletableFuture.runAsync(() -> {
+                        try {
+                            method.invoke(controller, parametesMapper.apply(ctx));
+                        } catch (InvocationTargetException e) {
+                            throw fromTarget(e);
+                        } catch (Exception e) {
+                            throw valueOf(e);
+                        }
+                    }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
+                } catch (Exception e) {
+                    return ctx.respondError(e);
+                }
+            };
+        }
+        return ctx -> {
+            try {
+                return ((CompletionStage<Void>) method.invoke(controller, parametesMapper.apply(ctx)))
+                        .handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
+            } catch (InvocationTargetException e) {
+                return ctx.respondError(e.getTargetException());
+            } catch (Exception e) {
+                return ctx.respondError(e);
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method, boolean blocking) {
+        if (Modifier.isStatic(method.getModifiers())) {
+            logger.warn("It is not recommended to declare a routing method as a static method! -- {}", method);
         }
         if (blocking) {
             return ctx -> {
@@ -288,37 +408,28 @@ public class RouterUtil {
             Parameter[] params) {
         Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
         if (Modifier.isStatic(method.getModifiers())) {
-            if (blocking) {
+            logger.warn("It is not recommended to declare a routing method as a static method! -- {}", method);
+        }
+        if (blocking) {
+            if (isVoidType(method.getReturnType())) {
                 return ctx -> {
                     try {
                         WorkerPool workerPool = ctx.component(WorkerPool.class)
                                 .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
-                        return CompletableFuture.supplyAsync(() -> {
+                        return CompletableFuture.runAsync(() -> {
                             try {
-                                return method.invoke(null, parametesMapper.apply(ctx));
+                                method.invoke(controller, parametesMapper.apply(ctx));
                             } catch (InvocationTargetException e) {
                                 throw fromTarget(e);
                             } catch (Exception e) {
                                 throw valueOf(e);
                             }
-                        }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
+                        }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
                     } catch (Exception e) {
                         return ctx.respondError(e);
                     }
                 };
             }
-            return ctx -> {
-                try {
-                    return ((CompletionStage<Object>) method.invoke(null, parametesMapper.apply(ctx)))
-                            .handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
-                } catch (InvocationTargetException e) {
-                    return ctx.respondError(e.getTargetException());
-                } catch (Exception e) {
-                    return ctx.respondError(e);
-                }
-            };
-        }
-        if (blocking) {
             return ctx -> {
                 try {
                     WorkerPool workerPool = ctx.component(WorkerPool.class)
@@ -332,6 +443,18 @@ public class RouterUtil {
                             throw valueOf(e);
                         }
                     }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
+                } catch (Exception e) {
+                    return ctx.respondError(e);
+                }
+            };
+        }
+        if (isVoidType(getActualTypeArguments(method.getGenericReturnType())[0])) {
+            return ctx -> {
+                try {
+                    return ((CompletionStage<Void>) method.invoke(controller, parametesMapper.apply(ctx)))
+                            .handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
+                } catch (InvocationTargetException e) {
+                    return ctx.respondError(e.getTargetException());
                 } catch (Exception e) {
                     return ctx.respondError(e);
                 }
@@ -354,6 +477,96 @@ public class RouterUtil {
         Function<HttpRequestContext, Object>[] parameterMappers = Arrays.stream(params)
                 .map(RouterUtil::toParameterMapper).toArray(Function[]::new);
         return toParametersMapper(parameterMappers);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpServiceInvoker toStringResponseInvoker(Object controller, Method method, boolean blocking) {
+        if (Modifier.isStatic(method.getModifiers())) {
+            logger.warn("It is not recommended to declare a routing method as a static method! -- {}", method);
+        }
+        if (blocking) {
+            if (!CharSequence.class.isAssignableFrom(method.getReturnType())) {
+                throw new IllegalArgumentException(
+                        "The return type must be or extend CharSequence when @StringBody is present! -- " + method);
+            }
+            return ctx -> {
+                try {
+                    WorkerPool workerPool = ctx.component(WorkerPool.class)
+                            .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return method.invoke(controller);
+                        } catch (InvocationTargetException e) {
+                            throw fromTarget(e);
+                        } catch (IllegalAccessException | IllegalArgumentException e) {
+                            throw valueOf(e);
+                        }
+                    }, workerPool.executor()).handle(stringResponseHandler(ctx)).thenCompose(resultIdentity);
+                } catch (Exception e) {
+                    return ctx.respondError(e);
+                }
+            };
+        }
+        if (!CharSequence.class.isAssignableFrom((Class<?>) getActualTypeArguments(method.getGenericReturnType())[0])) {
+            throw new IllegalArgumentException(
+                    "The return type must be or extend CharSequence when @StringBody is present! -- " + method);
+        }
+        return ctx -> {
+            try {
+                return ((CompletionStage<Object>) method.invoke(controller)).handle(stringResponseHandler(ctx))
+                        .thenCompose(resultIdentity);
+            } catch (InvocationTargetException e) {
+                return ctx.respondError(e.getTargetException());
+            } catch (Exception e) {
+                return ctx.respondError(e);
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpServiceInvoker toStringResponseInvoker(Object controller, Method method, boolean blocking,
+            Parameter[] params) {
+        Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
+        if (Modifier.isStatic(method.getModifiers())) {
+            logger.warn("It is not recommended to declare a routing method as a static method! -- {}", method);
+        }
+        if (blocking) {
+            if (!CharSequence.class.isAssignableFrom(method.getReturnType())) {
+                throw new IllegalArgumentException(
+                        "The return type must be or extend CharSequence when @StringBody is present! -- " + method);
+            }
+            return ctx -> {
+                try {
+                    WorkerPool workerPool = ctx.component(WorkerPool.class)
+                            .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return method.invoke(controller, parametesMapper.apply(ctx));
+                        } catch (InvocationTargetException e) {
+                            throw fromTarget(e);
+                        } catch (Exception e) {
+                            throw valueOf(e);
+                        }
+                    }, workerPool.executor()).handle(stringResponseHandler(ctx)).thenCompose(resultIdentity);
+                } catch (Exception e) {
+                    return ctx.respondError(e);
+                }
+            };
+        }
+        if (!CharSequence.class.isAssignableFrom((Class<?>) getActualTypeArguments(method.getGenericReturnType())[0])) {
+            throw new IllegalArgumentException(
+                    "The return type must be or extend CharSequence when @StringBody is present! -- " + method);
+        }
+        return ctx -> {
+            try {
+                return ((CompletionStage<Object>) method.invoke(controller, parametesMapper.apply(ctx)))
+                        .handle(stringResponseHandler(ctx)).thenCompose(resultIdentity);
+            } catch (InvocationTargetException e) {
+                return ctx.respondError(e.getTargetException());
+            } catch (Exception e) {
+                return ctx.respondError(e);
+            }
+        };
     }
 
     private static final void requireContext(Parameter[] params) {
@@ -444,6 +657,10 @@ public class RouterUtil {
         JsonBody jsonBody = param.getAnnotation(JsonBody.class);
         if (jsonBody != null) {
             return toJsonBodyMapper(param, jsonBody);
+        }
+        StringBody stringBody = param.getAnnotation(StringBody.class);
+        if (stringBody != null) {
+            return toStringBodyMapper(param, stringBody);
         }
         HeaderValue headerValue = param.getAnnotation(HeaderValue.class);
         if (headerValue != null) {
@@ -710,6 +927,18 @@ public class RouterUtil {
         } else {
             return ctx -> ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
                     .read(ctx.request().content(), type);
+        }
+    }
+
+    private static final Function<HttpRequestContext, Object> toStringBodyMapper(Parameter param,
+            StringBody strongBody) {
+        Type type = param.getParameterizedType();
+        if (type == String.class || type == CharSequence.class) {
+            return contentToStringMapper;
+        } else {
+            throw new IllegalArgumentException(
+                    "The type of the parameter must be String or CharSequence when @StringBody is present! -- "
+                            + param);
         }
     }
 

@@ -228,7 +228,16 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     }
 
     /**
-     * Returns the raw path (with query string) of the HTTP request {@code URI}.
+     * Returns the {@code uri} of the HTTP request.
+     * 
+     * @return the {@code uri} string
+     */
+    default String uri() {
+        return queryStringDecoder().uri();
+    }
+
+    /**
+     * Returns the raw path of the HTTP request {@code URI}.
      * 
      * @return the raw path string
      */

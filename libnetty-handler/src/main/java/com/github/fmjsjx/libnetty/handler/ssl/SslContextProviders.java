@@ -2,6 +2,7 @@ package com.github.fmjsjx.libnetty.handler.ssl;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLException;
 
@@ -11,6 +12,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
+import io.netty.util.internal.StringUtil;
 
 /**
  * Implementations of {@link SslContextProvider}.
@@ -34,8 +36,8 @@ public class SslContextProviders {
         SelfSignedCertificate ssc = SelfSignedCertificateHolder.instance;
         SslContextBuilder builder = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey());
         try {
-            SslContext sslContex = chooseProvider(builder).build();
-            return simple(sslContex);
+            SslContext sslContext = chooseProvider(builder).build();
+            return simple(sslContext);
         } catch (SSLException e) {
             throw new SSLRuntimeException("Create self-signed certificate SslContext failed!", e);
         }
@@ -74,8 +76,8 @@ public class SslContextProviders {
     public static final SslContextProvider forServer(File keyCertChainFile, File keyFile) throws SSLRuntimeException {
         SslContextBuilder builder = SslContextBuilder.forServer(keyCertChainFile, keyFile);
         try {
-            SslContext sslContex = chooseProvider(builder).build();
-            return simple(sslContex);
+            SslContext sslContext = chooseProvider(builder).build();
+            return simple(sslContext);
         } catch (SSLException e) {
             throw new SSLRuntimeException("Create SslContext for server failed!", e);
         }
@@ -97,8 +99,8 @@ public class SslContextProviders {
             throws SSLRuntimeException {
         SslContextBuilder builder = SslContextBuilder.forServer(keyCertChainFile, keyFile, keyPassword);
         try {
-            SslContext sslContex = chooseProvider(builder).build();
-            return simple(sslContex);
+            SslContext sslContext = chooseProvider(builder).build();
+            return simple(sslContext);
         } catch (SSLException e) {
             throw new SSLRuntimeException("Create SslContext for server failed!", e);
         }
@@ -117,22 +119,66 @@ public class SslContextProviders {
      */
     public static final SslContextProvider watchingForServer(File keyCertChainFile, File keyFile)
             throws SSLRuntimeException, IOException {
-        return new ServerAutoRebuildSslContextProvider(keyCertChainFile, keyFile);
+        return new ServerAutoRebuildSslContextProvider(keyCertChainFile, keyFile, null);
+    }
+
+    /**
+     * Returns an {@link SslContextProvider} which will auto rebuild
+     * {@link SslContext} when the watching certificate file just be modified.
+     * 
+     * @param keyCertChainFile an X.509 certificate chain file in PEM format
+     * @param keyFile          a PKCS#8 private key file in PEM format
+     * 
+     * @return a {@code SslContextProvider}
+     * @throws SSLRuntimeException if any SSL error occurs
+     * @throws IOException         if any IO error occurs
+     */
+    public static final SslContextProvider watchingForClient(File keyCertChainFile, File keyFile)
+            throws SSLRuntimeException, IOException {
+        return new ClientAutoRebuildSslContextProvider(keyCertChainFile, keyFile, null);
     }
 
     private static final class ServerAutoRebuildSslContextProvider extends AutoRebuildSslContextProvider {
 
-        private ServerAutoRebuildSslContextProvider(File keyCertChainFile, File keyFile)
+        private ServerAutoRebuildSslContextProvider(File keyCertChainFile, File keyFile, String keyPassword)
                 throws SSLRuntimeException, IOException {
-            super(factoryForServer(keyCertChainFile, keyFile), keyCertChainFile.getAbsoluteFile().toPath().getParent(),
-                    keyCertChainFile.getName());
+            super(factoryForServer(keyCertChainFile, keyFile, keyPassword),
+                    keyCertChainFile.getAbsoluteFile().toPath().getParent(), keyCertChainFile.getName());
         }
 
     }
 
-    private static final SslContextProvider factoryForServer(File keyCertChainFile, File keyFile) {
+    private static final class ClientAutoRebuildSslContextProvider extends AutoRebuildSslContextProvider {
+
+        private ClientAutoRebuildSslContextProvider(File keyCertChainFile, File keyFile, String keyPassword)
+                throws SSLRuntimeException, IOException {
+            super(factoryForClient(keyCertChainFile, keyFile, keyPassword),
+                    keyCertChainFile.getAbsoluteFile().toPath().getParent(), keyCertChainFile.getName());
+        }
+
+    }
+
+    private static final SslContextProvider factoryForServer(File keyCertChainFile, File keyFile, String keyPassword) {
         return () -> {
-            SslContextBuilder builder = SslContextBuilder.forServer(keyCertChainFile, keyFile);
+            SslContextBuilder builder = StringUtil.isNullOrEmpty(keyPassword)
+                    ? SslContextBuilder.forServer(keyCertChainFile, keyFile)
+                    : SslContextBuilder.forServer(keyCertChainFile, keyFile, keyPassword);
+            try {
+                return chooseProvider(builder).build();
+            } catch (SSLException e) {
+                throw new SSLRuntimeException("Create SslContext for server failed!", e);
+            }
+        };
+    }
+
+    private static final SslContextProvider factoryForClient(File keyCertChainFile, File keyFile, String keyPassword) {
+        return () -> {
+            SslContextBuilder builder = SslContextBuilder.forClient();
+            if (StringUtil.isNullOrEmpty(keyPassword)) {
+                builder.keyManager(keyCertChainFile, keyFile);
+            } else {
+                builder.keyManager(keyCertChainFile, keyFile, keyPassword);
+            }
             try {
                 return chooseProvider(builder).build();
             } catch (SSLException e) {
@@ -152,8 +198,8 @@ public class SslContextProviders {
     public static final SslContextProvider insecureForClient() throws SSLRuntimeException {
         SslContextBuilder builder = SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE);
         try {
-            SslContext sslContex = chooseProvider(builder).build();
-            return simple(sslContex);
+            SslContext sslContext = chooseProvider(builder).build();
+            return simple(sslContext);
         } catch (SSLException e) {
             throw new SSLRuntimeException("Create insecure SslContext for client failed!", e);
         }
@@ -175,8 +221,8 @@ public class SslContextProviders {
     public static final SslContextProvider forClient(File trustCertCollectionFile) throws SSLRuntimeException {
         SslContextBuilder builder = SslContextBuilder.forClient().trustManager(trustCertCollectionFile);
         try {
-            SslContext sslContex = chooseProvider(builder).build();
-            return simple(sslContex);
+            SslContext sslContext = chooseProvider(builder).build();
+            return simple(sslContext);
         } catch (SSLException e) {
             throw new SSLRuntimeException("Create SslContext with certificate failed!", e);
         }
@@ -191,6 +237,41 @@ public class SslContextProviders {
      */
     public static final SslContextProvider simple(SslContext sslContext) {
         return () -> sslContext;
+    }
+
+    /**
+     * Returns a {@link PermutableSslContextProvider} instance holding the specified
+     * {@link SslContext}.
+     * 
+     * @param sslContext sslContext a {@code SslContext}
+     * @return a {@code PermutableSslContextProvider}
+     * @since 2.0
+     */
+    public static final PermutableSslContextProvider permutable(SslContext sslContext) {
+        return new PermutableSslContextProviderImpl(sslContext);
+    }
+
+    private static final class PermutableSslContextProviderImpl implements PermutableSslContextProvider {
+
+        private final AtomicReference<SslContext> sslContextRef = new AtomicReference<>();
+
+        private PermutableSslContextProviderImpl(SslContext sslContext) {
+            set(sslContext);
+        }
+
+        @Override
+        public SslContext get() {
+            return sslContextRef.get();
+        }
+
+        @Override
+        public SslContext set(SslContext sslContext) {
+            if (sslContext == null) {
+                throw new IllegalArgumentException("sslContext must not be null");
+            }
+            return sslContextRef.getAndSet(sslContext);
+        }
+
     }
 
     private SslContextProviders() {
