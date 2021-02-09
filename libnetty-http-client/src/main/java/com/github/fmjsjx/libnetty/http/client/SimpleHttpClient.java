@@ -64,7 +64,7 @@ import lombok.NoArgsConstructor;
  * @author MJ Fang
  * 
  * @see AbstractHttpClient
- * @see ConnectionCachedHttpClient
+ * @see DefaultHttpClient
  */
 public class SimpleHttpClient extends AbstractHttpClient {
 

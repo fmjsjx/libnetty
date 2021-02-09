@@ -36,7 +36,6 @@ import io.netty.util.AsciiString;
  * 
  * @author MJ Fang
  * 
- * @see ConnectionCachedHttpClient
  * @see SimpleHttpClient
  */
 public interface HttpClient extends AutoCloseable {

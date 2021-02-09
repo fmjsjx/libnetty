@@ -22,6 +22,9 @@ import io.netty.util.NettyRuntime;
  * @since 1.0
  *
  * @author MJ Fang
+ * 
+ * @see DefaultHttpClient
+ * @see SimpleHttpClient
  */
 public abstract class AbstractHttpClient implements HttpClient {
 
