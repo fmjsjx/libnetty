@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,20 +76,37 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultHttpClient.class);
 
+    private static final int DEFUALT_MAX_CACHED_SIZE = 256;
+    private static final int MIN_MAX_CACHED_SIZE = 16;
+
     private final boolean shutdownGroupOnClose;
     private final int timeoutSeconds;
     private final int maxContentLength;
+    private final int maxCachedSize;
+
+    private final AtomicInteger estimatedSize = new AtomicInteger();
 
     private final ConcurrentMap<String, ConcurrentLinkedDeque<HttpConnection>> cachedPools = new ConcurrentHashMap<String, ConcurrentLinkedDeque<HttpConnection>>();
 
     DefaultHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
             SslContextProvider sslContextProvider, boolean compressionEnabled, boolean brotliEnabled,
-            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength,
+            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength, int maxCachedSize,
             ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
         super(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled, proxyHandlerFactory);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
+        this.maxCachedSize = maxCachedSize;
+    }
+
+    /**
+     * Returns the maximum cached connection size.
+     * 
+     * @return the maximum cached connection size
+     * @since 2.0
+     */
+    public int maxCachedSize() {
+        return maxCachedSize;
     }
 
     @Override
@@ -98,6 +116,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
             group.shutdownGracefully();
         }
         cachedPools.values().forEach(ConcurrentLinkedDeque::clear);
+        estimatedSize.set(0);
     }
 
     @Override
@@ -196,8 +215,10 @@ public class DefaultHttpClient extends AbstractHttpClient {
         return cachedPools.computeIfAbsent(addressKey, k -> new ConcurrentLinkedDeque<>());
     }
 
-    private static final Optional<HttpConnection> tryPollOne(ConcurrentLinkedDeque<HttpConnection> cachedPool) {
+    private Optional<HttpConnection> tryPollOne(ConcurrentLinkedDeque<HttpConnection> cachedPool) {
+        var estimatedSize = this.estimatedSize;
         for (HttpConnection conn = cachedPool.pollLast(); conn != null; conn = cachedPool.pollLast()) {
+            estimatedSize.decrementAndGet();
             if (conn.isActive()) {
                 return Optional.of(conn);
             }
@@ -288,7 +309,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 }
             } else {
                 // remove HttpConnection from cache pool
-                cachedPool.removeFirstOccurrence(this);
+                if (cachedPool.removeFirstOccurrence(this)) {
+                    estimatedSize.decrementAndGet();
+                }
             }
         }
 
@@ -305,7 +328,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         }
                     } else {
                         // remove HttpConnection from cache pool
-                        cachedPool.removeFirstOccurrence(this);
+                        if (cachedPool.removeFirstOccurrence(this)) {
+                            estimatedSize.decrementAndGet();
+                        }
                     }
                 }
             }
@@ -313,11 +338,14 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) throws Exception {
+            var estimatedSize = DefaultHttpClient.this.estimatedSize;
             if (this.requestContext != null) {
                 RequestContext<?> requestContext = this.requestContext;
                 this.requestContext = null;
-                if (isOpen() && HttpUtil.isKeepAlive(msg)) {
-                    cachedPool.offerLast(this);
+                if (isOpen() && HttpUtil.isKeepAlive(msg) && estimatedSize.get() < maxCachedSize) {
+                    if (cachedPool.offerLast(this)) {
+                        estimatedSize.incrementAndGet();
+                    }
                 } else {
                     ctx.close();
                 }
@@ -338,7 +366,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 // Just to be on the safe side, always close channel and remove it from cached
                 // pool.
                 ctx.close();
-                cachedPool.removeFirstOccurrence(this);
+                if (cachedPool.removeFirstOccurrence(this)) {
+                    estimatedSize.decrementAndGet();
+                }
             }
         }
 
@@ -423,7 +453,26 @@ public class DefaultHttpClient extends AbstractHttpClient {
      */
     public static final class Builder extends AbstractBuilder<DefaultHttpClient, Builder> {
 
+        private int maxCachedSize = DEFUALT_MAX_CACHED_SIZE;
+
         private Builder() {
+        }
+
+        /**
+         * Sets the number of maximum cached connections size.
+         * <p>
+         * The default value is {@code 256}.
+         * <p>
+         * The minimum value is {@code 16}.
+         * 
+         * @param maxCachedSize the number of maximum cached connections size
+         * @return this builder
+         * 
+         * @since 2.0
+         */
+        public Builder maxCachedSize(int maxCachedSize) {
+            this.maxCachedSize = Math.max(MIN_MAX_CACHED_SIZE, maxCachedSize);
+            return this;
         }
 
         /**
@@ -439,7 +488,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
             ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
             return new DefaultHttpClient(transportLibrary.createGroup(ioThreads, threadFactory),
                     transportLibrary.channelClass(), sslContextProvider, compressionEnabled, brotliEnabled, true,
-                    timeoutSeconds(), maxContentLength, proxyHandlerFactory);
+                    timeoutSeconds(), maxContentLength, maxCachedSize, proxyHandlerFactory);
         }
 
         /**
@@ -469,7 +518,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         public DefaultHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
             return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled,
-                    false, timeoutSeconds(), maxContentLength, proxyHandlerFactory);
+                    false, timeoutSeconds(), maxContentLength, maxCachedSize, proxyHandlerFactory);
         }
 
     }
