@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
+import com.github.fmjsjx.libnetty.http.client.DefaultHttpClient;
 import com.github.fmjsjx.libnetty.http.client.HttpClient;
 import com.github.fmjsjx.libnetty.http.client.HttpClient.Response;
 import com.github.fmjsjx.libnetty.http.client.HttpContentHandlers;
@@ -13,7 +14,7 @@ import com.github.fmjsjx.libnetty.http.client.HttpContentHolders;
 public class TestDefaultClient {
 
     public static void main(String[] args) throws Exception {
-        try (HttpClient client = HttpClient.defaultBuilder().compression(true).build()) {
+        try (HttpClient client = DefaultHttpClient.builder().enableBrotli().maxCachedSizeEachDomain(32).build()) {
             // Synchronous API
             testSynchronousApi(client);
             // Asynchronous API
@@ -22,7 +23,7 @@ public class TestDefaultClient {
     }
 
     static void testSynchronousApi(HttpClient client) throws IOException, InterruptedException {
-        // GET
+        // GET http://127.0.0.1:8080/foo
         Response<String> response1 = client.request(URI.create("http://127.0.0.1:8080/foo")).get()
                 .send(HttpContentHandlers.ofString());
         if (response1.statusCode() == 200) {
@@ -39,7 +40,7 @@ public class TestDefaultClient {
         }
     }
 
-    static void testAsynchronousApi(HttpClient client) throws IOException, InterruptedException {
+    static void testAsynchronousApi(HttpClient client) throws InterruptedException {
         CountDownLatch cd = new CountDownLatch(2);
         // GET
         CompletableFuture<Response<String>> future1 = client.request(URI.create("http://127.0.0.1:8080/foo")).get()
@@ -62,7 +63,6 @@ public class TestDefaultClient {
         }).whenComplete((v, e) -> cd.countDown());
         // wait requests completed
         cd.await();
-
     }
 
 }

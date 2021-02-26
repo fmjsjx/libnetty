@@ -19,6 +19,7 @@ dependencies {
     api(project(":libnetty-http"))
     api("io.netty:netty-handler-proxy")
     api(project(":libnetty-transport"))
+    api("com.github.fmjsjx:libcommon-util")
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-aarch_64")

@@ -15,19 +15,22 @@ import static io.netty.handler.codec.http.HttpMethod.PUT;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fmjsjx.libcommon.util.pool.BlockingCachedPool;
+import com.github.fmjsjx.libcommon.util.pool.CachedPool;
+import com.github.fmjsjx.libcommon.util.pool.ConcurrentCachedPool;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
@@ -76,37 +79,46 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultHttpClient.class);
 
-    private static final int DEFUALT_MAX_CACHED_SIZE = 256;
-    private static final int MIN_MAX_CACHED_SIZE = 16;
-
     private final boolean shutdownGroupOnClose;
     private final int timeoutSeconds;
     private final int maxContentLength;
-    private final int maxCachedSize;
+    private final int maxCachedSizeEachDomain;
+    private final IntFunction<CachedPool<HttpConnection>> cachedPoolFactory;
 
-    private final AtomicInteger estimatedSize = new AtomicInteger();
-
-    private final ConcurrentMap<String, ConcurrentLinkedDeque<HttpConnection>> cachedPools = new ConcurrentHashMap<String, ConcurrentLinkedDeque<HttpConnection>>();
+    private final ConcurrentMap<String, CachedPool<HttpConnection>> cachedPools = new ConcurrentHashMap<>();
 
     DefaultHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
             SslContextProvider sslContextProvider, boolean compressionEnabled, boolean brotliEnabled,
-            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength, int maxCachedSize,
+            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength, int maxCachedSizeEachDomain,
+            IntFunction<CachedPool<HttpConnection>> cachedPoolFactory,
             ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
         super(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled, proxyHandlerFactory);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
-        this.maxCachedSize = maxCachedSize;
+        this.maxCachedSizeEachDomain = maxCachedSizeEachDomain;
+        this.cachedPoolFactory = cachedPoolFactory;
     }
 
     /**
      * Returns the maximum cached connection size.
      * 
-     * @return the maximum cached connection size
-     * @since 2.0
+     * @return always {@code 0}
+     * @deprecated This method is deprecated and always returns {@code 0}.
      */
+    @Deprecated
     public int maxCachedSize() {
-        return maxCachedSize;
+        return 0;
+    }
+
+    /**
+     * Returns the maximum cached connection size for each domain.
+     * 
+     * @return the maximum cached connection size for each domain
+     * @since 2.1
+     */
+    public int maxCachedSizeEachDomain() {
+        return maxCachedSizeEachDomain;
     }
 
     @Override
@@ -115,8 +127,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
             log.debug("Shutdown {}", group);
             group.shutdownGracefully();
         }
-        cachedPools.values().forEach(ConcurrentLinkedDeque::clear);
-        estimatedSize.set(0);
+        // clear all cached Pools
+        cachedPools.values().forEach(CachedPool::clear);
     }
 
     @Override
@@ -130,7 +142,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         CompletableFuture<Response<T>> future = new CompletableFuture<>();
         RequestContext<T> requestContext = new RequestContext<>(request, future, contentHandler, executor);
         String addressKey = host + ":" + port;
-        ConcurrentLinkedDeque<HttpConnection> cachedPool = getCachedConnectionPool(addressKey);
+        var cachedPool = getCachedConnectionPool(addressKey);
         Optional<HttpConnection> conn = tryPollOne(cachedPool);
         if (conn.isPresent()) {
             conn.get().sendAsnyc(requestContext);
@@ -211,19 +223,19 @@ public class DefaultHttpClient extends AbstractHttpClient {
         return future;
     }
 
-    private ConcurrentLinkedDeque<HttpConnection> getCachedConnectionPool(String addressKey) {
-        return cachedPools.computeIfAbsent(addressKey, k -> new ConcurrentLinkedDeque<>());
+    private CachedPool<HttpConnection> getCachedConnectionPool(String addressKey) {
+        return cachedPools.computeIfAbsent(addressKey, k -> cachedPoolFactory.apply(maxCachedSizeEachDomain));
     }
 
-    private Optional<HttpConnection> tryPollOne(ConcurrentLinkedDeque<HttpConnection> cachedPool) {
-        var estimatedSize = this.estimatedSize;
-        for (HttpConnection conn = cachedPool.pollLast(); conn != null; conn = cachedPool.pollLast()) {
-            estimatedSize.decrementAndGet();
-            if (conn.isActive()) {
-                return Optional.of(conn);
+    private Optional<HttpConnection> tryPollOne(CachedPool<HttpConnection> cachedPool) {
+        for (;;) {
+            var o = cachedPool.tryTake();
+            if (o.isEmpty()) {
+                return o;
+            } else if (o.get().isActive()) {
+                return o;
             }
         }
-        return Optional.empty();
     }
 
     private static final class RequestContext<T> {
@@ -273,20 +285,20 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
         private final InetSocketAddress address;
         private final CharSequence headerHost;
-        private final ConcurrentLinkedDeque<HttpConnection> cachedPool;
+        private final CachedPool<HttpConnection> cachedPool;
         private volatile Channel channel;
 
         private RequestContext<?> requestContext;
 
         private InternalHttpClientHandler(InetSocketAddress address, CharSequence headerHost,
-                ConcurrentLinkedDeque<HttpConnection> cachedPool) {
+                CachedPool<HttpConnection> cachedPool) {
             this.address = address;
             this.headerHost = headerHost;
             this.cachedPool = cachedPool;
         }
 
         private InternalHttpClientHandler(InetSocketAddress address, CharSequence headerHost,
-                ConcurrentLinkedDeque<HttpConnection> cachedPool, Channel channel) {
+                CachedPool<HttpConnection> cachedPool, Channel channel) {
             this.address = address;
             this.headerHost = headerHost;
             this.cachedPool = cachedPool;
@@ -309,9 +321,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 }
             } else {
                 // remove HttpConnection from cache pool
-                if (cachedPool.removeFirstOccurrence(this)) {
-                    estimatedSize.decrementAndGet();
-                }
+                cachedPool.tryRelease(this);
             }
         }
 
@@ -328,9 +338,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         }
                     } else {
                         // remove HttpConnection from cache pool
-                        if (cachedPool.removeFirstOccurrence(this)) {
-                            estimatedSize.decrementAndGet();
-                        }
+                        cachedPool.tryRelease(this);
                     }
                 }
             }
@@ -338,13 +346,12 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) throws Exception {
-            var estimatedSize = DefaultHttpClient.this.estimatedSize;
             if (this.requestContext != null) {
                 RequestContext<?> requestContext = this.requestContext;
                 this.requestContext = null;
-                if (isOpen() && HttpUtil.isKeepAlive(msg) && estimatedSize.get() < maxCachedSize) {
-                    if (cachedPool.offerLast(this)) {
-                        estimatedSize.incrementAndGet();
+                if (isOpen() && HttpUtil.isKeepAlive(msg)) {
+                    if (!cachedPool.tryBack(this)) {
+                        ctx.close();
                     }
                 } else {
                     ctx.close();
@@ -363,12 +370,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 }
             } else {
                 // WARN: should not reach this line.
-                // Just to be on the safe side, always close channel and remove it from cached
-                // pool.
+                // To be on the safe side, always close channel and remove it from cached pool.
                 ctx.close();
-                if (cachedPool.removeFirstOccurrence(this)) {
-                    estimatedSize.decrementAndGet();
-                }
+                cachedPool.tryRelease(this);
             }
         }
 
@@ -453,7 +457,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
      */
     public static final class Builder extends AbstractBuilder<DefaultHttpClient, Builder> {
 
-        private int maxCachedSize = DEFUALT_MAX_CACHED_SIZE;
+        private int maxCachedSizeEachDomain = 16;
+        private IntFunction<CachedPool<HttpConnection>> cachedPoolFactory = ConcurrentCachedPool::new;
 
         private Builder() {
         }
@@ -469,10 +474,54 @@ public class DefaultHttpClient extends AbstractHttpClient {
          * @return this builder
          * 
          * @since 2.0
+         * @deprecated Please always use {@link #maxCachedSizeEachDomain(int)}.
          */
+        @Deprecated
         public Builder maxCachedSize(int maxCachedSize) {
-            this.maxCachedSize = Math.max(MIN_MAX_CACHED_SIZE, maxCachedSize);
             return this;
+        }
+
+        /**
+         * Sets the number of maximum cached connections size for each domain.
+         * <p>
+         * The default value is {@code 16}.
+         * <p>
+         * The minimum value is {@code 1}.
+         * 
+         * @param maxCachedSize the number of maximum cached connections size for each
+         *                      domain
+         * @return this builder
+         * 
+         * @since 2.1
+         */
+        public Builder maxCachedSizeEachDomain(int maxCachedSize) {
+            this.maxCachedSizeEachDomain = Math.max(1, maxCachedSize);
+            return this;
+        }
+
+        /**
+         * Set the factory of cached pool.
+         * <p>
+         * The default factory is {@code ConcurrentCachedPool::new}.
+         * 
+         * @param cachedPoolFactory the factory of cached pool
+         * @return this builder
+         * 
+         * @since 2.1
+         */
+        public Builder cachedPoolFactory(IntFunction<CachedPool<HttpConnection>> cachedPoolFactory) {
+            this.cachedPoolFactory = Objects.requireNonNull(cachedPoolFactory, "cachedPoolFactory must not be null");
+            return this;
+        }
+
+        /**
+         * Use {@link BlockingCachedPool} instead of default
+         * {@link ConcurrentCachedPool}.
+         * 
+         * @return this builder
+         */
+        public Builder useBlockingCachedPool() {
+            return cachedPoolFactory(BlockingCachedPool::new);
         }
 
         /**
@@ -488,7 +537,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
             ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
             return new DefaultHttpClient(transportLibrary.createGroup(ioThreads, threadFactory),
                     transportLibrary.channelClass(), sslContextProvider, compressionEnabled, brotliEnabled, true,
-                    timeoutSeconds(), maxContentLength, maxCachedSize, proxyHandlerFactory);
+                    timeoutSeconds(), maxContentLength, maxCachedSizeEachDomain, cachedPoolFactory,
+                    proxyHandlerFactory);
         }
 
         /**
@@ -518,7 +568,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
         public DefaultHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
             return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled,
-                    false, timeoutSeconds(), maxContentLength, maxCachedSize, proxyHandlerFactory);
+                    false, timeoutSeconds(), maxContentLength, maxCachedSizeEachDomain, cachedPoolFactory,
+                    proxyHandlerFactory);
         }
 
     }

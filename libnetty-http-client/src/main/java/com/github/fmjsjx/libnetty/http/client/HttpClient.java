@@ -54,7 +54,9 @@ public interface HttpClient extends AutoCloseable {
      * 
      * @return a {@code Builder}
      * @see DefaultHttpClient#builder()
+     * @deprecated Please use {@link DefaultHttpClient#builder()} directly.
      */
+    @Deprecated
     static Builder defaultBuilder() {
         return DefaultHttpClient.builder();
     }
@@ -64,7 +66,9 @@ public interface HttpClient extends AutoCloseable {
      * 
      * @return a {@code Builder}
      * @see SimpleHttpClient#builder()
+     * @deprecated Please use {@link SimpleHttpClient#builder()} directly.
      */
+    @Deprecated
     static Builder simpleBuilder() {
         return SimpleHttpClient.builder();
     }
