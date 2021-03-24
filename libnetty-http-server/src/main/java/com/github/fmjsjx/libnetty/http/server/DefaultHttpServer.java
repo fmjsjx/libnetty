@@ -1,8 +1,10 @@
 package com.github.fmjsjx.libnetty.http.server;
 
-import static io.netty.channel.ChannelOption.*;
-import static io.netty.handler.codec.http.HttpHeaderNames.*;
-import static java.util.Objects.*;
+import static io.netty.channel.ChannelOption.AUTO_READ;
+import static io.netty.channel.ChannelOption.SO_BACKLOG;
+import static io.netty.channel.ChannelOption.TCP_NODELAY;
+import static io.netty.handler.codec.http.HttpHeaderNames.SERVER;
+import static java.util.Objects.requireNonNull;
 
 import java.net.InetAddress;
 import java.time.Duration;
@@ -33,7 +35,6 @@ import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -301,7 +302,7 @@ public class DefaultHttpServer implements HttpServer {
      *                     instances
      * @return this server
      */
-    public DefaultHttpServer transport(EventLoopGroup group, Class<? extends ServerSocketChannel> channelClass) {
+    public DefaultHttpServer transport(EventLoopGroup group, Class<? extends ServerChannel> channelClass) {
         return transport(group, group, channelClass);
     }
 
@@ -315,7 +316,7 @@ public class DefaultHttpServer implements HttpServer {
      * @return this server
      */
     public DefaultHttpServer transport(EventLoopGroup parentGroup, EventLoopGroup childGroup,
-            Class<? extends ServerSocketChannel> channelClass) {
+            Class<? extends ServerChannel> channelClass) {
         ensureNotStarted();
         this.parentGroup = requireNonNull(parentGroup, "parentGroup must not be null");
         this.childGroup = requireNonNull(childGroup, "childGroup must not be null");
@@ -777,7 +778,7 @@ public class DefaultHttpServer implements HttpServer {
         }
         return this;
     }
-    
+
     private void closeGroups() {
         EventLoopGroup parentGroup = this.parentGroup;
         log.debug("Close parent group: {}", parentGroup);
