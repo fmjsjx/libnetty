@@ -41,6 +41,7 @@ public class TestDefaultServer {
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
                 .supportJson() // Support JSON using Jackson2s
+                .component(new TestExceptionHandler()) // Support test exception
                 .soBackLog(1024).tcpNoDelay() // channel options
                 .applyCompressionSettings( // compression support
                         HttpContentCompressorFactory.defaultSettings()) // default settings

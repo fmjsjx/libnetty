@@ -8,11 +8,16 @@ import static io.netty.handler.codec.http.HttpMethod.PUT;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletionStage;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpServer;
+import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
+import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.component.DefaultWorkerPool;
+import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
+import com.github.fmjsjx.libnetty.http.server.component.SimpleExceptionHandler;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLoggerWrapper;
@@ -20,6 +25,8 @@ import com.github.fmjsjx.libnetty.http.server.middleware.AuthBasic;
 import com.github.fmjsjx.libnetty.http.server.middleware.Router;
 import com.github.fmjsjx.libnetty.http.server.middleware.ServeStatic;
 
+import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +50,7 @@ public class TestBlockingServer {
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
                 .supportJson() // Support JSON using Jackson2s
                 .component(new DefaultWorkerPool(1, 1)) // support blocking APIs
+                .component(new TestExceptionHandler()) // support test error handler
                 .soBackLog(1024).tcpNoDelay() // channel options
                 .applyCompressionSettings( // compression support
                         HttpContentCompressorFactory.defaultSettings()) // default settings
@@ -71,3 +79,35 @@ public class TestBlockingServer {
 
 }
 
+class TestException extends RuntimeException {
+
+    private static final long serialVersionUID = 1L;
+
+    public TestException() {
+        super();
+    }
+
+    public TestException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public TestException(String message) {
+        super(message);
+    }
+
+    public TestException(Throwable cause) {
+        super(cause);
+    }
+
+}
+
+class TestExceptionHandler extends SimpleExceptionHandler<TestException> {
+
+    @Override
+    protected CompletionStage<HttpResult> handle0(HttpRequestContext ctx, TestException cause) {
+        var obj = Map.of("error", cause.toString());
+        var content = ctx.component(JsonLibrary.class).get().write(ctx.alloc(), obj);
+        return ctx.simpleRespond(HttpResponseStatus.OK, content, HttpHeaderValues.APPLICATION_JSON);
+    }
+
+}

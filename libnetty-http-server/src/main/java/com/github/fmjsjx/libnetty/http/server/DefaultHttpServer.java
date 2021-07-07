@@ -24,8 +24,10 @@ import org.slf4j.LoggerFactory;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
+import com.github.fmjsjx.libnetty.http.server.component.ExceptionHandler;
 import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
+import com.github.fmjsjx.libnetty.http.server.component.WorkerPool;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -584,7 +586,15 @@ public class DefaultHttpServer implements HttpServer {
      * @since 1.3
      */
     public DefaultHttpServer component(HttpServerComponent component) {
-        components.put(component.componentType(), component);
+        if (component instanceof JsonLibrary) {
+            components.put(JsonLibrary.class, component);
+        } else if (component instanceof WorkerPool) {
+            components.put(WorkerPool.class, component);
+        } else if (component instanceof ExceptionHandler) {
+            components.put(ExceptionHandler.class, component);
+        } else {
+            components.put(component.componentType(), component);
+        }
         return this;
     }
 

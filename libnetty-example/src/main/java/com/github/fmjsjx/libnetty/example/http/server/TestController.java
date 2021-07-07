@@ -7,6 +7,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 import java.nio.charset.Charset;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -22,6 +23,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPost;
 import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
 import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
+import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
 import com.github.fmjsjx.libnetty.http.server.annotation.StringBody;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
@@ -113,6 +115,14 @@ public class TestController {
         System.out.println("-- ok --");
         System.out.println(query.uri());
         return CompletableFuture.completedFuture(ASCII_OK);
+    }
+
+    @HttpGet("/error")
+    public CompletionStage<Void> getError(@QueryVar("test") OptionalInt test, Executor executor) {
+        System.err.println("-- error --");
+        System.err.println(test);
+        return CompletableFuture
+                .failedStage(test.orElse(0) == 1 ? new TestException("test error") : new Exception("no test"));
     }
 
 }

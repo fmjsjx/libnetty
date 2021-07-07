@@ -10,6 +10,7 @@ import java.util.concurrent.Executor;
  * @author MJ Fang
  * 
  * @see DefaultWorkerPool
+ * @see WrappedWorkerPool
  */
 public interface WorkerPool extends HttpServerComponent {
 
@@ -18,6 +19,11 @@ public interface WorkerPool extends HttpServerComponent {
         return WorkerPool.class;
     }
 
+    /**
+     * Returns the executor.
+     * 
+     * @return the executor
+     */
     Executor executor();
 
     @Override
@@ -25,6 +31,9 @@ public interface WorkerPool extends HttpServerComponent {
         shutdown();
     }
 
+    /**
+     * Shutdown this worker pool.
+     */
     void shutdown();
 
 }

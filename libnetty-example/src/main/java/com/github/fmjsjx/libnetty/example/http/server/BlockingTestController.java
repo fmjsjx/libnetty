@@ -2,6 +2,8 @@ package com.github.fmjsjx.libnetty.example.http.server;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
+import java.util.OptionalInt;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -10,6 +12,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.HttpGet;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPost;
 import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
+import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.StringBody;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 
@@ -64,6 +67,16 @@ public class BlockingTestController {
         System.out.println("-- ok --");
         System.out.println(query.uri());
         return TestController.ASCII_OK;
+    }
+
+    @HttpGet("/error")
+    @JsonBody
+    public void getError(@QueryVar("test") OptionalInt test) throws Exception {
+        System.err.println("-- error --");
+        System.err.println(test);
+        if (test.orElse(0) == 1)
+            throw new TestException("test error");
+        throw new Exception("no test");
     }
 
 }

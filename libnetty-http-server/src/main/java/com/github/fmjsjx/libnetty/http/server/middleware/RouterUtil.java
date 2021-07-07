@@ -64,6 +64,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.PropertyValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
 import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
 import com.github.fmjsjx.libnetty.http.server.annotation.StringBody;
+import com.github.fmjsjx.libnetty.http.server.component.ExceptionHandler;
 import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
 import com.github.fmjsjx.libnetty.http.server.component.WorkerPool;
@@ -199,15 +200,18 @@ public class RouterUtil {
             HttpRequestContext ctx) {
         return (nil, cause) -> {
             if (cause != null) {
-                if (cause instanceof CompletionException) {
-                    return ctx.respondError(cause.getCause());
+                if (cause.getClass() == CompletionException.class) {
+                    var e = cause.getCause();
+                    if (e != null) {
+                        return handleError(ctx, e);
+                    }
                 }
-                return ctx.respondError(cause);
+                return handleError(ctx, cause);
             }
             try {
                 return ctx.simpleRespond(NO_CONTENT);
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -216,17 +220,20 @@ public class RouterUtil {
             HttpRequestContext ctx) {
         return (result, cause) -> {
             if (cause != null) {
-                if (cause instanceof CompletionException) {
-                    return ctx.respondError(cause.getCause());
+                if (cause.getClass() == CompletionException.class) {
+                    var e = cause.getCause();
+                    if (e != null) {
+                        return handleError(ctx, e);
+                    }
                 }
-                return ctx.respondError(cause);
+                return handleError(ctx, cause);
             }
             try {
                 ByteBuf content = ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
                         .write(ctx.alloc(), result);
                 return ctx.simpleRespond(OK, content, ResponseContants.APPLICATION_JSON_UTF8);
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -235,16 +242,19 @@ public class RouterUtil {
             HttpRequestContext ctx) {
         return (result, cause) -> {
             if (cause != null) {
-                if (cause instanceof CompletionException) {
-                    return ctx.respondError(cause.getCause());
+                if (cause.getClass() == CompletionException.class) {
+                    var e = cause.getCause();
+                    if (e != null) {
+                        return handleError(ctx, e);
+                    }
                 }
-                return ctx.respondError(cause);
+                return handleError(ctx, cause);
             }
             try {
                 ByteBuf content = ByteBufUtil.writeUtf8(ctx.alloc(), (CharSequence) result);
                 return ctx.simpleRespond(OK, content, ResponseContants.TEXT_PLAIN_UTF8);
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -293,6 +303,17 @@ public class RouterUtil {
         return type == void.class || type == Void.class;
     }
 
+    private static final CompletionStage<HttpResult> handleError(HttpRequestContext ctx, Throwable cause) {
+        var handler = ctx.component(ExceptionHandler.class);
+        if (handler.isPresent()) {
+            var result = handler.get().handle(ctx, cause);
+            if (result.isPresent()) {
+                return result.get();
+            }
+        }
+        return ctx.respondError(cause);
+    }
+
     @SuppressWarnings("unchecked")
     private static HttpServiceInvoker toVoidResponseInvoker(Object controller, Method method, boolean blocking) {
         if (Modifier.isStatic(method.getModifiers())) {
@@ -313,7 +334,7 @@ public class RouterUtil {
                         }
                     }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
-                    return ctx.respondError(e);
+                    return handleError(ctx, e);
                 }
             };
         }
@@ -322,9 +343,9 @@ public class RouterUtil {
                 return ((CompletionStage<Void>) method.invoke(controller)).handle(voidResponseHandler(ctx))
                         .thenCompose(resultIdentity);
             } catch (InvocationTargetException e) {
-                return ctx.respondError(e.getTargetException());
+                return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -351,7 +372,7 @@ public class RouterUtil {
                         }
                     }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
-                    return ctx.respondError(e);
+                    return handleError(ctx, e);
                 }
             };
         }
@@ -360,9 +381,9 @@ public class RouterUtil {
                 return ((CompletionStage<Void>) method.invoke(controller, parametesMapper.apply(ctx)))
                         .handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
             } catch (InvocationTargetException e) {
-                return ctx.respondError(e.getTargetException());
+                return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -387,7 +408,7 @@ public class RouterUtil {
                         }
                     }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
-                    return ctx.respondError(e);
+                    return handleError(ctx, e);
                 }
             };
         }
@@ -396,9 +417,9 @@ public class RouterUtil {
                 return ((CompletionStage<Object>) method.invoke(controller)).handle(jsonResponseHandler(ctx))
                         .thenCompose(resultIdentity);
             } catch (InvocationTargetException e) {
-                return ctx.respondError(e.getTargetException());
+                return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -426,7 +447,7 @@ public class RouterUtil {
                             }
                         }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
                     } catch (Exception e) {
-                        return ctx.respondError(e);
+                        return handleError(ctx, e);
                     }
                 };
             }
@@ -444,7 +465,7 @@ public class RouterUtil {
                         }
                     }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
-                    return ctx.respondError(e);
+                    return handleError(ctx, e);
                 }
             };
         }
@@ -454,9 +475,9 @@ public class RouterUtil {
                     return ((CompletionStage<Void>) method.invoke(controller, parametesMapper.apply(ctx)))
                             .handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (InvocationTargetException e) {
-                    return ctx.respondError(e.getTargetException());
+                    return handleError(ctx, e.getTargetException());
                 } catch (Exception e) {
-                    return ctx.respondError(e);
+                    return handleError(ctx, e);
                 }
             };
         }
@@ -465,9 +486,9 @@ public class RouterUtil {
                 return ((CompletionStage<Object>) method.invoke(controller, parametesMapper.apply(ctx)))
                         .handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
             } catch (InvocationTargetException e) {
-                return ctx.respondError(e.getTargetException());
+                return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -503,7 +524,7 @@ public class RouterUtil {
                         }
                     }, workerPool.executor()).handle(stringResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
-                    return ctx.respondError(e);
+                    return handleError(ctx, e);
                 }
             };
         }
@@ -516,9 +537,9 @@ public class RouterUtil {
                 return ((CompletionStage<Object>) method.invoke(controller)).handle(stringResponseHandler(ctx))
                         .thenCompose(resultIdentity);
             } catch (InvocationTargetException e) {
-                return ctx.respondError(e.getTargetException());
+                return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -549,7 +570,7 @@ public class RouterUtil {
                         }
                     }, workerPool.executor()).handle(stringResponseHandler(ctx)).thenCompose(resultIdentity);
                 } catch (Exception e) {
-                    return ctx.respondError(e);
+                    return handleError(ctx, e);
                 }
             };
         }
@@ -562,9 +583,9 @@ public class RouterUtil {
                 return ((CompletionStage<Object>) method.invoke(controller, parametesMapper.apply(ctx)))
                         .handle(stringResponseHandler(ctx)).thenCompose(resultIdentity);
             } catch (InvocationTargetException e) {
-                return ctx.respondError(e.getTargetException());
+                return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -582,9 +603,9 @@ public class RouterUtil {
                 try {
                     return (CompletionStage<HttpResult>) method.invoke(null, ctx);
                 } catch (InvocationTargetException e) {
-                    return ctx.respondError(e.getTargetException());
+                    return handleError(ctx, e.getTargetException());
                 } catch (Exception e) {
-                    return ctx.respondError(e);
+                    return handleError(ctx, e);
                 }
             };
         }
@@ -592,9 +613,9 @@ public class RouterUtil {
             try {
                 return (CompletionStage<HttpResult>) method.invoke(controller, ctx);
             } catch (InvocationTargetException e) {
-                return ctx.respondError(e.getTargetException());
+                return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
@@ -607,9 +628,9 @@ public class RouterUtil {
                 try {
                     return (CompletionStage<HttpResult>) method.invoke(null, parametesMapper.apply(ctx));
                 } catch (InvocationTargetException e) {
-                    return ctx.respondError(e.getTargetException());
+                    return handleError(ctx, e.getTargetException());
                 } catch (Exception e) {
-                    return ctx.respondError(e);
+                    return handleError(ctx, e);
                 }
             };
         }
@@ -617,9 +638,9 @@ public class RouterUtil {
             try {
                 return (CompletionStage<HttpResult>) method.invoke(controller, parametesMapper.apply(ctx));
             } catch (InvocationTargetException e) {
-                return ctx.respondError(e.getTargetException());
+                return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
-                return ctx.respondError(e);
+                return handleError(ctx, e);
             }
         };
     }
