@@ -26,11 +26,20 @@ public class CachedRespMessages {
      * {@code -NOAUTH} Authentication required.
      */
     public static final CachedErrorMessage NOAUTH = CachedErrorMessage.createAscii("NOAUTH Authentication required.");
-    
+
     /**
      * {@code -ERR} invalid password
+     * 
+     * @since 2.2.2
      */
-    public static final CachedErrorMessage ERR_INVALID_PASSWORD = CachedErrorMessage.createAscii("ERR invalid password");
+    public static final CachedErrorMessage ERR_INVALID_PASSWORD = CachedErrorMessage
+            .createAscii("ERR invalid password");
+    /**
+     * {@code -ERR} syntax error
+     * 
+     * @since 2.2.3
+     */
+    public static final CachedErrorMessage ERR_SYNTAX_ERROR = CachedErrorMessage.createAscii("ERR syntax error");
     /**
      * {@code -ERR} value is not an integer or out of range
      */

@@ -131,6 +131,23 @@ public class RespMessages {
      * 
      * <pre>
      * {@code
+     *     -ERR syntax error
+     * }
+     * </pre>
+     * 
+     * @return a {@code RespErrorMessage}
+     * 
+     * @since 2.2.3
+     */
+    public static final RespErrorMessage syntaxError() {
+        return ERR_SYNTAX_ERROR;
+    }
+
+    /**
+     * Returns the error:
+     * 
+     * <pre>
+     * {@code
      *     -ERR value is not an integer or out of range
      * }
      * </pre>
