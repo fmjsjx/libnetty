@@ -306,4 +306,26 @@ public class Resp3Messages {
         return WrongPassInstanceHolder.INSTANCE;
     }
 
+    private static final class NoauthHelloInstanceHolder {
+        private static final CachedErrorMessage INSTANCE = CachedErrorMessage.createAscii(
+                "NOAUTH HELLO must be called with the client already authenticated, otherwise the HELLO AUTH <user> <pass> option can be used to authenticate the client and select the RESP protocol version at the same time");
+    }
+
+    /**
+     * Returns the error:
+     * 
+     * <pre>
+     * {@code
+     * NOAUTH HELLO must be called with the client already authenticated, otherwise the HELLO AUTH <user> <pass> option can be used to authenticate the client and select the RESP protocol version at the same time
+     * }
+     * </pre>
+     * 
+     * @return a {@code RespErrorMessage}
+     * 
+     * @since 2.2.3
+     */
+    public static final RespErrorMessage noauthHello() {
+        return NoauthHelloInstanceHolder.INSTANCE;
+    }
+
 }
