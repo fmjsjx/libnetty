@@ -26,6 +26,11 @@ public class CachedRespMessages {
      * {@code -NOAUTH} Authentication required.
      */
     public static final CachedErrorMessage NOAUTH = CachedErrorMessage.createAscii("NOAUTH Authentication required.");
+    
+    /**
+     * {@code -ERR} invalid password
+     */
+    public static final CachedErrorMessage ERR_INVALID_PASSWORD = CachedErrorMessage.createAscii("ERR invalid password");
     /**
      * {@code -ERR} value is not an integer or out of range
      */

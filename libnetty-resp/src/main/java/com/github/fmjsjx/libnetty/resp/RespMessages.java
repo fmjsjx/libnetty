@@ -114,6 +114,23 @@ public class RespMessages {
      * 
      * <pre>
      * {@code
+     *     -ERR invalid password
+     * }
+     * </pre>
+     * 
+     * @return a {@code RespErrorMessage}
+     * 
+     * @since 2.2.2
+     */
+    public static final RespErrorMessage invalidPassword() {
+        return ERR_INVALID_PASSWORD;
+    }
+
+    /**
+     * Returns the error:
+     * 
+     * <pre>
+     * {@code
      *     -ERR value is not an integer or out of range
      * }
      * </pre>
