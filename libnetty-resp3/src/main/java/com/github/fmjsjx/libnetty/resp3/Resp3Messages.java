@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Objects;
 
+import com.github.fmjsjx.libnetty.resp.CachedErrorMessage;
 import com.github.fmjsjx.libnetty.resp.RespCodecUtil;
+import com.github.fmjsjx.libnetty.resp.RespErrorMessage;
 import com.github.fmjsjx.libnetty.resp.RespMessage;
 import com.github.fmjsjx.libnetty.resp3.Resp3VerbatimStringMessage.Format;
 
@@ -280,6 +282,28 @@ public class Resp3Messages {
      */
     public static final Resp3EndMessage end() {
         return CachedEndMessage.INSTANCE;
+    }
+
+    private static final class WrongPassInstanceHolder {
+        private static final CachedErrorMessage INSTANCE = CachedErrorMessage
+                .createAscii("WRONGPASS invalid username-password pair");
+    }
+
+    /**
+     * Returns the error:
+     * 
+     * <pre>
+     * {@code
+     * WRONGPASS invalid username-password pair
+     * }
+     * </pre>
+     * 
+     * @return a {@code RespErrorMessage}
+     * 
+     * @since 2.2.2
+     */
+    public static final RespErrorMessage wrongPass() {
+        return WrongPassInstanceHolder.INSTANCE;
     }
 
 }
