@@ -6,7 +6,7 @@ repositories {
     maven {
         url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/")
     }
-    jcenter()
+    mavenCentral()
 }
 
 dependencies {
@@ -29,11 +29,11 @@ dependencies {
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
         // mockito
-        testImplementation("org.mockito:mockito-core:3.7.7")
-        testImplementation("org.mockito:mockito-inline:3.7.7")
+        testImplementation("org.mockito:mockito-core:3.12.4")
+        testImplementation("org.mockito:mockito-inline:3.12.4")
 	}
     // log4j2
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.14.2"))
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.14.1"))
 
 }
 
