@@ -2,6 +2,7 @@ package com.github.fmjsjx.libnetty.http;
 
 import java.util.function.Consumer;
 
+import io.netty.handler.codec.compression.StandardCompressionOptions;
 import io.netty.handler.codec.http.HttpContentCompressor;
 
 /**
@@ -252,7 +253,10 @@ public class HttpContentCompressorFactory {
      * @return a {@code HttpContentCompressor}
      */
     public HttpContentCompressor create() {
-        return new HttpContentCompressor(compressionLevel, windowBits, memLevel, contentSizeThreshold);
+        // only support deflate & gzip in this version
+        return new HttpContentCompressor(contentSizeThreshold,
+                StandardCompressionOptions.deflate(compressionLevel, windowBits, memLevel),
+                StandardCompressionOptions.gzip(compressionLevel, windowBits, memLevel));
     }
 
     @Override

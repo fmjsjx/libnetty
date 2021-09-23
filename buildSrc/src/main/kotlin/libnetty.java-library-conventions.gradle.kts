@@ -23,9 +23,9 @@ dependencies {
         api("org.slf4j:slf4j-api:1.7.32")
         compileOnly("org.projectlombok:lombok:1.18.20")
         annotationProcessor("org.projectlombok:lombok:1.18.20")
-        implementation("io.netty:netty-tcnative:2.0.41.Final")
-        implementation("io.netty:netty-tcnative-boringssl-static:2.0.41.Final")
-        implementation("ch.qos.logback:logback-classic:1.2.3")
+        implementation("io.netty:netty-tcnative:2.0.43.Final")
+        implementation("io.netty:netty-tcnative-boringssl-static:2.0.43.Final")
+        implementation("ch.qos.logback:logback-classic:1.2.6")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
         // mockito
