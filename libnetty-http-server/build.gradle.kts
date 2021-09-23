@@ -28,6 +28,7 @@ dependencies {
     "jsonSupportApi"("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
     "jsonSupportApi"("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.jcraft:jzlib")
+    implementation("com.aayushatharva.brotli4j:brotli4j")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.mockito:mockito-core")

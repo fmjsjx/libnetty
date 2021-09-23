@@ -28,6 +28,7 @@ dependencies {
         implementation("ch.qos.logback:logback-classic:1.2.6")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
+        implementation("com.aayushatharva.brotli4j:brotli4j:1.6.0")
         // mockito
         testImplementation("org.mockito:mockito-core:3.12.4")
         testImplementation("org.mockito:mockito-inline:3.12.4")
