@@ -91,7 +91,7 @@ class FcgiCodecUtil {
             in.skipBytes(1);
             return length;
         } else {
-            return in.readInt() & (1 << 31);
+            return in.readInt() & ((1 << 31) - 1);
         }
     }
 
