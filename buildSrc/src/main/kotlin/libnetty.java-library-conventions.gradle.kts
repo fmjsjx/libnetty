@@ -11,18 +11,18 @@ repositories {
 
 dependencies {
     // netty-bom
-    api(platform("io.netty:netty-bom:4.1.67.Final"))
+    api(platform("io.netty:netty-bom:4.1.69.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:2.5.1"))
+    api(platform("com.github.fmjsjx:libcommon-bom:2.5.2"))
     // junit-bom
     testImplementation(platform("org.junit:junit-bom:5.7.0"))
     // jackson2-bom
-    api(platform("com.fasterxml.jackson:jackson-bom:2.12.4"))
+    api(platform("com.fasterxml.jackson:jackson-bom:2.13.0"))
 
     constraints {
         api("org.slf4j:slf4j-api:1.7.32")
-        compileOnly("org.projectlombok:lombok:1.18.20")
-        annotationProcessor("org.projectlombok:lombok:1.18.20")
+        compileOnly("org.projectlombok:lombok:1.18.22")
+        annotationProcessor("org.projectlombok:lombok:1.18.22")
         implementation("io.netty:netty-tcnative:2.0.44.Final")
         implementation("io.netty:netty-tcnative-boringssl-static:2.0.44.Final")
         implementation("ch.qos.logback:logback-classic:1.2.6")
