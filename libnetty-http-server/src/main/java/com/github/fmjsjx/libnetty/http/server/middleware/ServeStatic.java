@@ -2,6 +2,7 @@ package com.github.fmjsjx.libnetty.http.server.middleware;
 
 import static io.netty.channel.ChannelFutureListener.*;
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.IDENTITY;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.nio.file.StandardOpenOption.*;
 
@@ -265,9 +266,14 @@ public class ServeStatic implements Middleware {
                     }
                 }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE };
                 Channel channel = ctx.channel();
+                var noSsl = channel.pipeline().get(SslHandler.class) == null;
+                if (noSsl) {
+                    // disable compression feature
+                    response.headers().set(CONTENT_ENCODING, IDENTITY);
+                }
                 channel.write(response);
                 FileChannel file = FileChannel.open(p, READ);
-                if (channel.pipeline().get(SslHandler.class) == null) {
+                if (noSsl) {
                     // Use zero-copy file transfer
                     channel.write(new DefaultFileRegion(file, 0, contentLength));
                     // Write the end marker.
