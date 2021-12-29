@@ -70,11 +70,11 @@ public class ServeStatic implements Middleware {
 
     private static final Logger logger = LoggerFactory.getLogger(ServeStatic.class);
 
-    private static final int chunkSize;
+    private static final int DEFAULT_CHUNK_SIZE;
 
     static {
-        chunkSize = SystemPropertyUtil.getInt("libnetty.http.server.middleware.static.chunkSize", 8192);
-        logger.debug("-Dlibnetty.http.server.middleware.static.chunkSize: {}", chunkSize);
+        DEFAULT_CHUNK_SIZE = SystemPropertyUtil.getInt("libnetty.http.server.middleware.static.chunkSize", 8192);
+        logger.debug("-Dlibnetty.http.server.middleware.static.chunkSize: {}", DEFAULT_CHUNK_SIZE);
     }
 
     private static final LinkedHashMap<String, String> toLinkedHashN(String... kvs) {
@@ -99,6 +99,7 @@ public class ServeStatic implements Middleware {
     private final long maxAge;
     private final EtagGenerator etagGenerator;
     private final Consumer<HttpHeaders> addHeaders;
+    private final int chunkSize;
 
     /**
      * Constructs a new {@link ServeStatic} with the specified {@code path} and
@@ -177,6 +178,7 @@ public class ServeStatic implements Middleware {
                         .mapToInt(s -> s.parseInt(8, s.length())).findFirst().orElse(0));
         this.etagGenerator = opt.etagGenerator;
         this.addHeaders = opt.addHeaders;
+        this.chunkSize = opt.chunkSize;
     }
 
     @Override
@@ -414,6 +416,7 @@ public class ServeStatic implements Middleware {
         private EtagGenerator etagGenerator = EtagGenerator.BASIC;
         private boolean lastModified = true;
         private Consumer<HttpHeaders> addHeaders;
+        private int chunkSize = DEFAULT_CHUNK_SIZE;
 
         /**
          * Set index.
@@ -549,11 +552,25 @@ public class ServeStatic implements Middleware {
             return this;
         }
 
+        /**
+         * Set the number of bytes to fetch for each chunk.
+         * 
+         * @param chunkSize the number of bytes to fetch for each chunk
+         * @return this {@code Options}
+         * 
+         * @since 2.3
+         */
+        public Options chunkSize(int chunkSize) {
+            this.chunkSize = chunkSize;
+            return this;
+        }
+
         @Override
         public String toString() {
             return "ServeStatic.Options[indexes=" + indexes + ", showHidden=" + showHidden + ", redirectDirectory="
                     + redirectDirectory + ", cacheControl=" + cacheControl + ", etag=" + etag + ", etagGenerator="
-                    + etagGenerator + ", lastModified=" + lastModified + ", addHeaders=" + addHeaders + "]";
+                    + etagGenerator + ", lastModified=" + lastModified + ", addHeaders=" + addHeaders + ", chunkSize="
+                    + chunkSize + "]";
         }
     }
 
