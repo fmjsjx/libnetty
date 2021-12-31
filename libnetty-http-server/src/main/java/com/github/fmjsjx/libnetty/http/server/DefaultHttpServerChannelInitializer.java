@@ -5,7 +5,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
-import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
+import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -38,14 +38,14 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final SslContextProvider sslContextProvider;
 
     private final boolean autoCompressionEnabled;
-    private final HttpContentCompressorFactory httpContentCompressorFactory;
+    private final HttpContentCompressorProvider httpContentCompressorProvider;
 
     private final HttpServerHandlerProvider handlerProvider;
 
     private final HttpRequestContextDecoder contextDecoder;
 
     DefaultHttpServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
-            SslContextProvider sslContextProvider, HttpContentCompressorFactory httpContentCompressorFactory,
+            SslContextProvider sslContextProvider, HttpContentCompressorProvider httpContentCompressorProvider,
             HttpServerHandlerProvider handlerProvider, Map<Class<?>, Object> components,
             Consumer<HttpHeaders> addHeaders) {
         this.timeoutSeconds = timeoutSeconds;
@@ -53,8 +53,8 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         this.corsConfig = Optional.ofNullable(corsConfig);
         this.sslEnabled = sslContextProvider != null;
         this.sslContextProvider = sslContextProvider;
-        this.autoCompressionEnabled = httpContentCompressorFactory != null;
-        this.httpContentCompressorFactory = httpContentCompressorFactory;
+        this.autoCompressionEnabled = httpContentCompressorProvider != null;
+        this.httpContentCompressorProvider = httpContentCompressorProvider;
         this.handlerProvider = handlerProvider;
         this.contextDecoder = new HttpRequestContextDecoder(components, addHeaders);
     }
@@ -72,7 +72,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         }
         pipeline.addLast(new HttpServerCodec());
         if (autoCompressionEnabled) {
-            pipeline.addLast(httpContentCompressorFactory.create());
+            pipeline.addLast(httpContentCompressorProvider.create());
         }
         pipeline.addLast(new HttpContentDecompressor());
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));

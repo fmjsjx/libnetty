@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
+import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.http.server.component.ExceptionHandler;
 import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
@@ -37,6 +38,7 @@ import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
+import io.netty.handler.codec.compression.StandardCompressionOptions;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -48,6 +50,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  *
  * @author MJ Fang
  */
+@SuppressWarnings("deprecation")
 public class DefaultHttpServer implements HttpServer {
 
     private static final String DEFAULT_NAME = "default";
@@ -85,8 +88,12 @@ public class DefaultHttpServer implements HttpServer {
 
     private ServerBootstrap bootstrap = new ServerBootstrap();
 
+    private List<Consumer<HttpContentCompressorProvider.Builder>> compressionOptionsListners = new ArrayList<>();
+
+    private HttpContentCompressorProvider httpContentCompressorProvider;
+
+    @Deprecated
     private List<Consumer<HttpContentCompressorFactory.Builder>> compressionSettingsListeners = new ArrayList<>();
-    private HttpContentCompressorFactory httpContentCompressorFactory;
 
     private HttpServerHandlerProvider handlerProvider;
 
@@ -524,11 +531,26 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
-     * Enable HTTP content compression feature and apply compression settings.
+     * Enable HTTP content compression feature and apply compression options.
      * 
      * @param action the apply action
      * @return this server
      */
+    public DefaultHttpServer applyCompressionOptions(Consumer<HttpContentCompressorProvider.Builder> action) {
+        ensureNotStarted();
+        compressionOptionsListners.add(action);
+        return this;
+    }
+
+    /**
+     * Enable HTTP content compression feature and apply compression settings.
+     * 
+     * @param action the apply action
+     * @return this server
+     * @deprecated since 2.3, please use {@link #applyCompressionOptions(Consumer)}
+     *             instead
+     */
+    @Deprecated
     public DefaultHttpServer applyCompressionSettings(Consumer<HttpContentCompressorFactory.Builder> action) {
         ensureNotStarted();
         compressionSettingsListeners.add(action);
@@ -703,9 +725,8 @@ public class DefaultHttpServer implements HttpServer {
             bootstrap.group(parentGroup, childGroup).channel(channelClass);
             Map<Class<?>, Object> components = this.components.entrySet().stream()
                     .collect(Collectors.toMap(Entry::getKey, e -> Optional.ofNullable(e.getValue())));
-            DefaultHttpServerChannelInitializer initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds,
-                    maxContentLength, corsConfig, sslContextProvider, httpContentCompressorFactory, handlerProvider,
-                    components, addHeaders);
+            var initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds, maxContentLength, corsConfig,
+                    sslContextProvider, httpContentCompressorProvider, handlerProvider, components, addHeaders);
 
             bootstrap.childHandler(initializer);
 
@@ -748,11 +769,21 @@ public class DefaultHttpServer implements HttpServer {
         // always set AUTO_READ to false
         // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
         bootstrap.childOption(AUTO_READ, false);
-
-        if (compressionSettingsListeners.size() > 0) {
-            HttpContentCompressorFactory.Builder builder = HttpContentCompressorFactory.builder();
-            compressionSettingsListeners.forEach(a -> a.accept(builder));
-            httpContentCompressorFactory = builder.build();
+        if (compressionOptionsListners.size() > 0) {
+            var builder = HttpContentCompressorProvider.builder();
+            compressionOptionsListners.forEach(a -> a.accept(builder));
+            httpContentCompressorProvider = builder.build();
+        }
+        if (compressionSettingsListeners.size() > 0 && httpContentCompressorProvider == null) {
+            var legacyBuilder = HttpContentCompressorFactory.builder();
+            compressionSettingsListeners.forEach(a -> a.accept(legacyBuilder));
+            var factory = legacyBuilder.build();
+            var builder = HttpContentCompressorProvider.builder().contentSizeThreshold(factory.contentSizeThreshold())
+                    .gzip(StandardCompressionOptions.gzip(factory.compressionLevel(), factory.windowBits(),
+                            factory.memLevel()))
+                    .deflate(StandardCompressionOptions.deflate(factory.compressionLevel(), factory.windowBits(),
+                            factory.memLevel()));
+            httpContentCompressorProvider = builder.build();
         }
     }
 

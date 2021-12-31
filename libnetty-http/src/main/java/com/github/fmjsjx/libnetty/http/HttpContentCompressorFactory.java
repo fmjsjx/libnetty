@@ -13,7 +13,11 @@ import io.netty.handler.codec.http.HttpContentCompressor;
  * @author MJ Fang
  * 
  * @see HttpContentCompressor
+ * 
+ * @deprecated since 2.6, please use
+ *             {@link DefaultHttpContentCompressorProvider} instead
  */
+@Deprecated
 public class HttpContentCompressorFactory {
 
     private static final int DEFAULT_COMPRESSION_LEVEL = 6;
@@ -50,7 +54,8 @@ public class HttpContentCompressorFactory {
      * @author MJ Fang
      * @see HttpContentCompressorFactory
      */
-    public static final class Builder {
+    @Deprecated
+    public static class Builder {
 
         private int compressionLevel = DEFAULT_COMPRESSION_LEVEL;
         private int windowBits = DEFAULT_WINDOW_BITS;
