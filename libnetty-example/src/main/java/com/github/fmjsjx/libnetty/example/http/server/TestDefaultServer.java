@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.Map;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
-import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
+import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpServer;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
@@ -43,10 +43,8 @@ public class TestDefaultServer {
                 .supportJson() // Support JSON using Jackson2s
                 .component(new TestExceptionHandler()) // Support test exception
                 .soBackLog(1024).tcpNoDelay() // channel options
-                .applyCompressionSettings( // compression support
-                        HttpContentCompressorFactory.defaultSettings()) // default settings
-//                        b -> b.compressionLevel(1).memLevel(1).windowBits(9).contentSizeThreshold(4096)) // fastest
-//                        b -> b.compressionLevel(9).memLevel(9).windowBits(15).contentSizeThreshold(512)) // best
+                .applyCompressionOptions( // compression support
+                        HttpContentCompressorProvider.defaultOptions());
         ;
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
@@ -69,4 +67,3 @@ public class TestDefaultServer {
     }
 
 }
-
