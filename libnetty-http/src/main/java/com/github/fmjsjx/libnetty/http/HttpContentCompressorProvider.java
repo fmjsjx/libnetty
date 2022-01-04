@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.http;
 
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import io.netty.handler.codec.compression.BrotliOptions;
@@ -19,6 +20,18 @@ import io.netty.handler.codec.http.HttpContentCompressor;
  */
 @FunctionalInterface
 public interface HttpContentCompressorProvider extends Supplier<HttpContentCompressor> {
+
+    /**
+     * Returns an apply action that just create builder with default options but do
+     * nothing.
+     * 
+     * @return a {@code Consumer<HttpContentCompressorProvider.Builder>}
+     */
+    static Consumer<Builder> defaultOptions() {
+        return builder -> {
+            // just create builder with default settings
+        };
+    }
 
     /**
      * Creates a default {@link HttpContentCompressorProvider.Builder} instance.
