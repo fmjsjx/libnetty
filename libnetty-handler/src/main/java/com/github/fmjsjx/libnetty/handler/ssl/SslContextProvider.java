@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 import io.netty.handler.ssl.SslContext;
 
 /**
- * Provides {@link SslContext} instance for HTTP server.
+ * Provides {@link SslContext} instance..
  * 
  * @since 1.1
  *
