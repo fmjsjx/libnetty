@@ -4,6 +4,73 @@ A set of some useful libraries based on netty4.1.x.
 
 > Since version 2.0, All modules are compiled based on JDK11.
 
+## Add Dependencies
+
+### Add Maven Dependencies
+`pom.xml`
+```xml
+...
+  <dependencyManagement>
+    <dependencies>
+      ...
+      <!-- BOM -->
+      <dependency>
+        <groupId>com.github.fmjsjx</groupId>
+        <artifactId>libnetty-bom</artifactId>
+        <version>2.3.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      ...
+    </dependencies>
+  </dependencyManagement>
+...
+  <dependencies>
+    ...
+    <!-- HTTP server -->
+    <dependency>
+      <groupId>com.github.fmjsjx</groupId>
+      <artifactId>libnetty-http-server</artifactId>
+    </dependency>
+    ...
+  </dependencies>
+...
+```
+
+### Add Gradle Dependencies
+
+#### Groovy DSL
+```groovy
+...
+repositories {
+    mavenCentral
+}
+
+dependencies {
+    // BOM
+    implementation platform('com.github.fmjsjx:libnetty-bom:2.3.0')
+    // HTTP server
+    implementation 'com.github.fmjsjx:libnetty-http-server'
+    ...
+}
+...
+```
+#### Kotlin DSL
+```kotlin
+...
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // BOM
+    implementation(platform("com.github.fmjsjx:libnetty-bom:2.3.0"))
+    // HTTP server
+    implementation("com.github.fmjsjx:libnetty-http-server")
+    ...
+}
+...
+```
 
 ## Modules
 
