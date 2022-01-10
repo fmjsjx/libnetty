@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
+import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 
 import io.netty.channel.Channel;
@@ -16,7 +16,6 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsHandler;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 
@@ -35,7 +34,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final Optional<CorsConfig> corsConfig;
 
     private final boolean sslEnabled;
-    private final SslContextProvider sslContextProvider;
+    private final ChannelSslInitializer<Channel> channelSslInitializer;
 
     private final boolean autoCompressionEnabled;
     private final HttpContentCompressorProvider httpContentCompressorProvider;
@@ -45,14 +44,14 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final HttpRequestContextDecoder contextDecoder;
 
     DefaultHttpServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
-            SslContextProvider sslContextProvider, HttpContentCompressorProvider httpContentCompressorProvider,
+            ChannelSslInitializer<Channel> channelSslInitializer, HttpContentCompressorProvider httpContentCompressorProvider,
             HttpServerHandlerProvider handlerProvider, Map<Class<?>, Object> components,
             Consumer<HttpHeaders> addHeaders) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.corsConfig = Optional.ofNullable(corsConfig);
-        this.sslEnabled = sslContextProvider != null;
-        this.sslContextProvider = sslContextProvider;
+        this.sslEnabled = channelSslInitializer != null;
+        this.channelSslInitializer = channelSslInitializer;
         this.autoCompressionEnabled = httpContentCompressorProvider != null;
         this.httpContentCompressorProvider = httpContentCompressorProvider;
         this.handlerProvider = handlerProvider;
@@ -67,8 +66,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast(new ReadTimeoutHandler(timeoutSeconds));
         }
         if (sslEnabled) {
-            SslContext sslContext = sslContextProvider.get();
-            pipeline.addLast(sslContext.newHandler(ch.alloc()));
+            channelSslInitializer.init(ch);
         }
         pipeline.addLast(new HttpServerCodec());
         if (autoCompressionEnabled) {

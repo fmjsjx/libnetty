@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
+import com.github.fmjsjx.libnetty.handler.ssl.SniHandlerProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
@@ -84,6 +86,7 @@ public class DefaultHttpServer implements HttpServer {
     private int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
     private CorsConfig corsConfig;
 
+    private SniHandlerProvider sniHandlerProvider;
     private SslContextProvider sslContextProvider;
 
     private ServerBootstrap bootstrap = new ServerBootstrap();
@@ -170,6 +173,46 @@ public class DefaultHttpServer implements HttpServer {
     public DefaultHttpServer(String name, SslContextProvider sslContextProvider, int port) {
         this(name, port);
         enableSsl(sslContextProvider);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified
+     * {@code sniHandlerProvider} and default HTTPs port ({@code 443}).
+     * 
+     * @param sniHandlerProvider the {@code sniHandlerProvider}
+     * 
+     * @since 2.3
+     */
+    public DefaultHttpServer(SniHandlerProvider sniHandlerProvider) {
+        this(DEFAULT_NAME, sniHandlerProvider);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified {@code name},
+     * {@code sniHandlerProvider} and default HTTPs port ({@code 443}).
+     * 
+     * @param name               the name of the server
+     * @param sniHandlerProvider the {@code sniHandlerProvider}
+     * 
+     * @since 2.3
+     */
+    public DefaultHttpServer(String name, SniHandlerProvider sniHandlerProvider) {
+        this(name, sniHandlerProvider, DEFAULT_PORT_HTTPS);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified {@code name},
+     * {@code sniHandlerProvider} and port.
+     * 
+     * @param name               the name of the server
+     * @param sniHandlerProvider the {@code sniHandlerProvider}
+     * @param port               the port
+     * 
+     * @since 2.3
+     */
+    public DefaultHttpServer(String name, SniHandlerProvider sniHandlerProvider, int port) {
+        this(name, port);
+        enableSsl(sniHandlerProvider);
     }
 
     @Override
@@ -507,6 +550,20 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
+     * Enable SSL support and set the {@link SniHandlerProvider}.
+     * 
+     * @param sniHandlerProvider a {@code SniHandlerProvider}
+     * 
+     * @return this server
+     */
+    public DefaultHttpServer enableSsl(SniHandlerProvider sniHandlerProvider) {
+        ensureNotStarted();
+        this.sniHandlerProvider = requireNonNull(sniHandlerProvider, "shiHandlerProvider must not be null");
+        this.sslContextProvider = null;
+        return this;
+    }
+
+    /**
      * Enable SSL support and set the {@link SslContextProvider}.
      * 
      * @param sslContextProvider a {@code SslContextProvider}
@@ -515,6 +572,7 @@ public class DefaultHttpServer implements HttpServer {
      */
     public DefaultHttpServer enableSsl(SslContextProvider sslContextProvider) {
         ensureNotStarted();
+        this.sniHandlerProvider = null;
         this.sslContextProvider = requireNonNull(sslContextProvider, "sslContextProvider must not be null");
         return this;
     }
@@ -526,6 +584,7 @@ public class DefaultHttpServer implements HttpServer {
      */
     public DefaultHttpServer disableSsl() {
         ensureNotStarted();
+        this.sniHandlerProvider = null;
         this.sslContextProvider = null;
         return this;
     }
@@ -697,10 +756,12 @@ public class DefaultHttpServer implements HttpServer {
         maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
         corsConfig = null;
 
+        sniHandlerProvider = null;
         sslContextProvider = null;
 
         bootstrap = new ServerBootstrap();
 
+        compressionOptionsListners.clear();
         compressionSettingsListeners.clear();
 
         handlerProvider = null;
@@ -726,7 +787,7 @@ public class DefaultHttpServer implements HttpServer {
             Map<Class<?>, Object> components = this.components.entrySet().stream()
                     .collect(Collectors.toMap(Entry::getKey, e -> Optional.ofNullable(e.getValue())));
             var initializer = new DefaultHttpServerChannelInitializer(timeoutSeconds, maxContentLength, corsConfig,
-                    sslContextProvider, httpContentCompressorProvider, handlerProvider, components, addHeaders);
+                    channelSslInitializer(), httpContentCompressorProvider, handlerProvider, components, addHeaders);
 
             bootstrap.childHandler(initializer);
 
@@ -785,6 +846,16 @@ public class DefaultHttpServer implements HttpServer {
                             factory.memLevel()));
             httpContentCompressorProvider = builder.build();
         }
+    }
+
+    private ChannelSslInitializer<Channel> channelSslInitializer() {
+        if (sniHandlerProvider != null) {
+            return ChannelSslInitializer.of(sniHandlerProvider);
+        }
+        if (sslContextProvider != null) {
+            return ChannelSslInitializer.of(sslContextProvider);
+        }
+        return null;
     }
 
     private ChannelFuture bind(ServerBootstrap bootstrap) {
