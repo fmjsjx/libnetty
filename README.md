@@ -48,7 +48,7 @@ repositories {
 
 dependencies {
     // BOM
-    implementation platform('com.github.fmjsjx:libnetty-bom:2.3.0')
+    implementation platform('com.github.fmjsjx:libnetty-bom:2.4.0')
     // HTTP server
     implementation 'com.github.fmjsjx:libnetty-http-server'
     ...
@@ -64,7 +64,7 @@ repositories {
 
 dependencies {
     // BOM
-    implementation(platform("com.github.fmjsjx:libnetty-bom:2.3.0"))
+    implementation(platform("com.github.fmjsjx:libnetty-bom:2.4.0"))
     // HTTP server
     implementation("com.github.fmjsjx:libnetty-http-server")
     ...
