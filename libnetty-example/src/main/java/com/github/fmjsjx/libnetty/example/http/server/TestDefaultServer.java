@@ -9,6 +9,7 @@ import static io.netty.handler.codec.http.HttpMethod.PUT;
 import java.util.Collections;
 import java.util.Map;
 
+import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpServer;
@@ -35,7 +36,7 @@ public class TestDefaultServer {
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
         DefaultHttpServer server = new DefaultHttpServer("test", 8443) // server name and port
-                .enableSsl(SslContextProviders.selfSignedForServer()) // SSL
+                .enableSsl(ChannelSslInitializer.of(SslContextProviders.selfSignedForServer())) // SSL
                 .neverTimeout() // never timeout
                 .corsConfig(corsConfig) // CORS support
                 .ioThreads(1) // IO threads (event loop)

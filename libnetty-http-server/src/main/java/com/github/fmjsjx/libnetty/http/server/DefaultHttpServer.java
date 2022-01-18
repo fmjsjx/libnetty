@@ -145,6 +145,8 @@ public class DefaultHttpServer implements HttpServer {
      * {@code sslContextProvider} and default HTTPs port ({@code 443}).
      * 
      * @param sslContextProvider the {@code sslContextProvider}
+     * @deprecated please use {@link #DefaultHttpServer(ChannelSslInitializer)}
+     *             instead
      */
     public DefaultHttpServer(SslContextProvider sslContextProvider) {
         this(DEFAULT_NAME, sslContextProvider);
@@ -156,6 +158,8 @@ public class DefaultHttpServer implements HttpServer {
      * 
      * @param name               the name of the server
      * @param sslContextProvider the {@code sslContextProvider}
+     * @deprecated please use {@link #DefaultHttpServer(ChannelSslInitializer)}
+     *             instead
      */
     public DefaultHttpServer(String name, SslContextProvider sslContextProvider) {
         this(name, sslContextProvider, DEFAULT_PORT_HTTPS);
@@ -168,6 +172,9 @@ public class DefaultHttpServer implements HttpServer {
      * @param name               the name of the server
      * @param sslContextProvider the {@code sslContextProvider}
      * @param port               the port
+     * @deprecated please use
+     *             {@link #DefaultHttpServer(String, ChannelSslInitializer, int)}
+     *             instead
      */
     public DefaultHttpServer(String name, SslContextProvider sslContextProvider, int port) {
         this(name, port);
@@ -181,6 +188,8 @@ public class DefaultHttpServer implements HttpServer {
      * @param sniHandlerProvider the {@code sniHandlerProvider}
      * 
      * @since 2.3
+     * @deprecated please use {@link #DefaultHttpServer(ChannelSslInitializer)}
+     *             instead
      */
     public DefaultHttpServer(SniHandlerProvider sniHandlerProvider) {
         this(DEFAULT_NAME, sniHandlerProvider);
@@ -194,6 +203,8 @@ public class DefaultHttpServer implements HttpServer {
      * @param sniHandlerProvider the {@code sniHandlerProvider}
      * 
      * @since 2.3
+     * @deprecated please use
+     *             {@link #DefaultHttpServer(String, ChannelSslInitializer)} instead
      */
     public DefaultHttpServer(String name, SniHandlerProvider sniHandlerProvider) {
         this(name, sniHandlerProvider, DEFAULT_PORT_HTTPS);
@@ -208,10 +219,53 @@ public class DefaultHttpServer implements HttpServer {
      * @param port               the port
      * 
      * @since 2.3
+     * @deprecated please use
+     *             {@link #DefaultHttpServer(String, ChannelSslInitializer, int)}
+     *             instead
      */
     public DefaultHttpServer(String name, SniHandlerProvider sniHandlerProvider, int port) {
         this(name, port);
         enableSsl(sniHandlerProvider);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified
+     * {@code channelSslInitializer} and default HTTPs port ({@code 443}).
+     * 
+     * @param channelSslInitializer the {@code ChannelSslInitializer}
+     * 
+     * @since 2.4
+     */
+    public DefaultHttpServer(ChannelSslInitializer<Channel> channelSslInitializer) {
+        this(DEFAULT_NAME, channelSslInitializer);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified {@code name},
+     * {@code channelSslInitializer} and default HTTPs port ({@code 443}).
+     * 
+     * @param name                  the name of the server
+     * @param channelSslInitializer the {@code ChannelSslInitializer}
+     * 
+     * @since 2.4
+     */
+    public DefaultHttpServer(String name, ChannelSslInitializer<Channel> channelSslInitializer) {
+        this(name, channelSslInitializer, DEFAULT_PORT_HTTPS);
+    }
+
+    /**
+     * Constructs a new {@link DefaultHttpServer} with the specified {@code name},
+     * {@code channelSslInitializer} and port.
+     * 
+     * @param name                  the name of the server
+     * @param channelSslInitializer the {@code ChannelSslInitializer}
+     * @param port                  the port
+     * 
+     * @since 2.4
+     */
+    public DefaultHttpServer(String name, ChannelSslInitializer<Channel> channelSslInitializer, int port) {
+        this(name, port);
+        enableSsl(channelSslInitializer);
     }
 
     @Override
@@ -568,8 +622,7 @@ public class DefaultHttpServer implements HttpServer {
      * @param sniHandlerProvider a {@code SniHandlerProvider}
      * 
      * @return this server
-     * @deprecated since 2.4, please use {@link #enableSsl(ChannelSslInitializer)}
-     *             instead
+     * @deprecated please use {@link #enableSsl(ChannelSslInitializer)} instead
      */
     public DefaultHttpServer enableSsl(SniHandlerProvider sniHandlerProvider) {
         ensureNotStarted();
@@ -584,8 +637,7 @@ public class DefaultHttpServer implements HttpServer {
      * @param sslContextProvider a {@code SslContextProvider}
      * 
      * @return this server
-     * @deprecated since 2.4, please use {@link #enableSsl(ChannelSslInitializer)}
-     *             instead
+     * @deprecated please use {@link #enableSsl(ChannelSslInitializer)} instead
      */
     public DefaultHttpServer enableSsl(SslContextProvider sslContextProvider) {
         ensureNotStarted();
@@ -622,8 +674,7 @@ public class DefaultHttpServer implements HttpServer {
      * 
      * @param action the apply action
      * @return this server
-     * @deprecated since 2.3, please use {@link #applyCompressionOptions(Consumer)}
-     *             instead
+     * @deprecated please use {@link #applyCompressionOptions(Consumer)} instead
      */
     @Deprecated
     public DefaultHttpServer applyCompressionSettings(Consumer<HttpContentCompressorFactory.Builder> action) {

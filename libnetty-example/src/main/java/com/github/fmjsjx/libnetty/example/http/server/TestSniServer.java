@@ -6,6 +6,7 @@ import static io.netty.handler.codec.http.HttpMethod.PATCH;
 import static io.netty.handler.codec.http.HttpMethod.POST;
 import static io.netty.handler.codec.http.HttpMethod.PUT;
 
+import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.handler.ssl.SniHandlerProviders;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
@@ -31,7 +32,7 @@ public class TestSniServer {
         var mappingBuilder = new DomainWildcardMappingBuilder<>(SslContextProviders.selfSignedForServer().get());
         var sniHandlerProvider = SniHandlerProviders.permutable(mappingBuilder.build());
         DefaultHttpServer server = new DefaultHttpServer("test", 8443) // server name and port
-                .enableSsl(sniHandlerProvider) // SSL
+                .enableSsl(ChannelSslInitializer.of(sniHandlerProvider)) // SSL
                 .neverTimeout() // never timeout
                 .corsConfig(corsConfig) // CORS support
                 .ioThreads(1) // IO threads (event loop)

@@ -11,6 +11,7 @@ import static io.netty.handler.codec.http.HttpUtil.setKeepAlive;
 
 import java.io.File;
 
+import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
@@ -44,8 +45,9 @@ public class TestWatchingSslServer {
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
         try (SslContextProvider sslContextProvider = SslContextProviders.watchingForServer(keyCertChainFile, keyFile)) {
-            DefaultHttpServer server = new DefaultHttpServer("test", sslContextProvider, 8443).corsConfig(corsConfig)
-                    .ioThreads(1).maxContentLength(10 * 1024 * 1024).soBackLog(1024).tcpNoDelay();
+            DefaultHttpServer server = new DefaultHttpServer("test", ChannelSslInitializer.of(sslContextProvider), 8443)
+                    .corsConfig(corsConfig).ioThreads(1).maxContentLength(10 * 1024 * 1024).soBackLog(1024)
+                    .tcpNoDelay();
             server.handler(new TestHandler());
             try {
                 server.startup();
