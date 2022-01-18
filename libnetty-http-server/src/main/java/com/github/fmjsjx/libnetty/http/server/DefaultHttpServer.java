@@ -86,8 +86,7 @@ public class DefaultHttpServer implements HttpServer {
     private int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
     private CorsConfig corsConfig;
 
-    private SniHandlerProvider sniHandlerProvider;
-    private SslContextProvider sslContextProvider;
+    private ChannelSslInitializer<Channel> channelSslInitializer;
 
     private ServerBootstrap bootstrap = new ServerBootstrap();
 
@@ -546,7 +545,21 @@ public class DefaultHttpServer implements HttpServer {
 
     @Override
     public boolean isSslEnabled() {
-        return sslContextProvider != null;
+        return channelSslInitializer != null;
+    }
+
+    /**
+     * Enable SSL support and set the {@link ChannelSslInitializer}
+     * 
+     * @param channelSslInitializer a {@code ChannelSslInitializer}
+     * @return this server
+     * @since 2.4
+     */
+    public DefaultHttpServer enableSsl(ChannelSslInitializer<Channel> channelSslInitializer) {
+        ensureNotStarted();
+        requireNonNull(channelSslInitializer, "channelSslInitializer must not be null");
+        this.channelSslInitializer = channelSslInitializer;
+        return this;
     }
 
     /**
@@ -555,11 +568,13 @@ public class DefaultHttpServer implements HttpServer {
      * @param sniHandlerProvider a {@code SniHandlerProvider}
      * 
      * @return this server
+     * @deprecated since 2.4, please use {@link #enableSsl(ChannelSslInitializer)}
+     *             instead
      */
     public DefaultHttpServer enableSsl(SniHandlerProvider sniHandlerProvider) {
         ensureNotStarted();
-        this.sniHandlerProvider = requireNonNull(sniHandlerProvider, "shiHandlerProvider must not be null");
-        this.sslContextProvider = null;
+        requireNonNull(sniHandlerProvider, "shiHandlerProvider must not be null");
+        this.channelSslInitializer = ChannelSslInitializer.of(sniHandlerProvider);
         return this;
     }
 
@@ -569,11 +584,13 @@ public class DefaultHttpServer implements HttpServer {
      * @param sslContextProvider a {@code SslContextProvider}
      * 
      * @return this server
+     * @deprecated since 2.4, please use {@link #enableSsl(ChannelSslInitializer)}
+     *             instead
      */
     public DefaultHttpServer enableSsl(SslContextProvider sslContextProvider) {
         ensureNotStarted();
-        this.sniHandlerProvider = null;
-        this.sslContextProvider = requireNonNull(sslContextProvider, "sslContextProvider must not be null");
+        requireNonNull(sslContextProvider, "sslContextProvider must not be null");
+        this.channelSslInitializer = ChannelSslInitializer.of(sslContextProvider);
         return this;
     }
 
@@ -584,8 +601,7 @@ public class DefaultHttpServer implements HttpServer {
      */
     public DefaultHttpServer disableSsl() {
         ensureNotStarted();
-        this.sniHandlerProvider = null;
-        this.sslContextProvider = null;
+        this.channelSslInitializer = null;
         return this;
     }
 
@@ -756,8 +772,7 @@ public class DefaultHttpServer implements HttpServer {
         maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
         corsConfig = null;
 
-        sniHandlerProvider = null;
-        sslContextProvider = null;
+        channelSslInitializer = null;
 
         bootstrap = new ServerBootstrap();
 
@@ -849,13 +864,7 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     private ChannelSslInitializer<Channel> channelSslInitializer() {
-        if (sniHandlerProvider != null) {
-            return ChannelSslInitializer.of(sniHandlerProvider);
-        }
-        if (sslContextProvider != null) {
-            return ChannelSslInitializer.of(sslContextProvider);
-        }
-        return null;
+        return channelSslInitializer;
     }
 
     private ChannelFuture bind(ServerBootstrap bootstrap) {
