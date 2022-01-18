@@ -11,11 +11,11 @@ repositories {
 
 dependencies {
     // netty-bom
-    api(platform("io.netty:netty-bom:4.1.72.Final"))
+    api(platform("io.netty:netty-bom:4.1.73.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:2.5.4"))
+    api(platform("com.github.fmjsjx:libcommon-bom:2.5.5"))
     // junit-bom
-    testImplementation(platform("org.junit:junit-bom:5.7.0"))
+    testImplementation(platform("org.junit:junit-bom:5.8.2"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.13.1"))
 
@@ -28,11 +28,11 @@ dependencies {
         implementation("org.brotli:dec:0.1.2")
         implementation("com.aayushatharva.brotli4j:brotli4j:1.6.0")
         // mockito
-        testImplementation("org.mockito:mockito-core:3.12.4")
-        testImplementation("org.mockito:mockito-inline:3.12.4")
+        testImplementation("org.mockito:mockito-core:4.2.0")
+        testImplementation("org.mockito:mockito-inline:4.2.0")
 	}
     // log4j2
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.17.0"))
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.17.1"))
 
 }
 
