@@ -148,6 +148,7 @@ public class DefaultHttpServer implements HttpServer {
      * @deprecated please use {@link #DefaultHttpServer(ChannelSslInitializer)}
      *             instead
      */
+    @Deprecated
     public DefaultHttpServer(SslContextProvider sslContextProvider) {
         this(DEFAULT_NAME, sslContextProvider);
     }
@@ -161,6 +162,7 @@ public class DefaultHttpServer implements HttpServer {
      * @deprecated please use {@link #DefaultHttpServer(ChannelSslInitializer)}
      *             instead
      */
+    @Deprecated
     public DefaultHttpServer(String name, SslContextProvider sslContextProvider) {
         this(name, sslContextProvider, DEFAULT_PORT_HTTPS);
     }
@@ -176,6 +178,7 @@ public class DefaultHttpServer implements HttpServer {
      *             {@link #DefaultHttpServer(String, ChannelSslInitializer, int)}
      *             instead
      */
+    @Deprecated
     public DefaultHttpServer(String name, SslContextProvider sslContextProvider, int port) {
         this(name, port);
         enableSsl(sslContextProvider);
@@ -191,6 +194,7 @@ public class DefaultHttpServer implements HttpServer {
      * @deprecated please use {@link #DefaultHttpServer(ChannelSslInitializer)}
      *             instead
      */
+    @Deprecated
     public DefaultHttpServer(SniHandlerProvider sniHandlerProvider) {
         this(DEFAULT_NAME, sniHandlerProvider);
     }
@@ -206,6 +210,7 @@ public class DefaultHttpServer implements HttpServer {
      * @deprecated please use
      *             {@link #DefaultHttpServer(String, ChannelSslInitializer)} instead
      */
+    @Deprecated
     public DefaultHttpServer(String name, SniHandlerProvider sniHandlerProvider) {
         this(name, sniHandlerProvider, DEFAULT_PORT_HTTPS);
     }
@@ -223,6 +228,7 @@ public class DefaultHttpServer implements HttpServer {
      *             {@link #DefaultHttpServer(String, ChannelSslInitializer, int)}
      *             instead
      */
+    @Deprecated
     public DefaultHttpServer(String name, SniHandlerProvider sniHandlerProvider, int port) {
         this(name, port);
         enableSsl(sniHandlerProvider);
@@ -624,6 +630,7 @@ public class DefaultHttpServer implements HttpServer {
      * @return this server
      * @deprecated please use {@link #enableSsl(ChannelSslInitializer)} instead
      */
+    @Deprecated
     public DefaultHttpServer enableSsl(SniHandlerProvider sniHandlerProvider) {
         ensureNotStarted();
         requireNonNull(sniHandlerProvider, "shiHandlerProvider must not be null");
@@ -639,6 +646,7 @@ public class DefaultHttpServer implements HttpServer {
      * @return this server
      * @deprecated please use {@link #enableSsl(ChannelSslInitializer)} instead
      */
+    @Deprecated
     public DefaultHttpServer enableSsl(SslContextProvider sslContextProvider) {
         ensureNotStarted();
         requireNonNull(sslContextProvider, "sslContextProvider must not be null");
