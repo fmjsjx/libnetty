@@ -11,28 +11,27 @@ repositories {
 
 dependencies {
     // netty-bom
-    api(platform("io.netty:netty-bom:4.1.73.Final"))
+    api(platform("io.netty:netty-bom:4.1.74.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:2.6.1"))
-    // junit-bom
-    testImplementation(platform("org.junit:junit-bom:5.8.2"))
+    api(platform("com.github.fmjsjx:libcommon-bom:2.6.2"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.13.1"))
+    // junit-bom
+    testImplementation(platform("org.junit:junit-bom:5.8.2"))
+    // mockito
+    testImplementation(platform("org.mockito:mockito-bom:4.3.1"))
+    // log4j2
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.17.1"))
 
     constraints {
-        api("org.slf4j:slf4j-api:1.7.32")
+        api("org.slf4j:slf4j-api:1.7.36")
         compileOnly("org.projectlombok:lombok:1.18.22")
         annotationProcessor("org.projectlombok:lombok:1.18.22")
         implementation("ch.qos.logback:logback-classic:1.2.10")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
         implementation("com.aayushatharva.brotli4j:brotli4j:1.6.0")
-        // mockito
-        testImplementation("org.mockito:mockito-core:4.2.0")
-        testImplementation("org.mockito:mockito-inline:4.2.0")
 	}
-    // log4j2
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.17.1"))
 
 }
 
