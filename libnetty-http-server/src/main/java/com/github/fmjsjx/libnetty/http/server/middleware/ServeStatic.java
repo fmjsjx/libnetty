@@ -185,13 +185,14 @@ public class ServeStatic implements Middleware {
     public CompletionStage<HttpResult> apply(HttpRequestContext ctx, MiddlewareChain next) {
         String path = ctx.path();
         boolean isGet = HttpMethod.GET.equals(ctx.method());
+        boolean isHead = HttpMethod.HEAD.equals(ctx.method());
         List<StaticLocationMapping> mappings = this.mappings;
         L1: for (StaticLocationMapping mapping : mappings) {
             String uri = mapping.uri;
             if (!path.startsWith(uri)) {
                 continue L1;
             }
-            if (!isGet) {
+            if (!isGet && !isHead) {
                 return ctx.simpleRespond(METHOD_NOT_ALLOWED);
             }
             Path p = Paths.get(mapping.location, path.substring(uri.length()));
@@ -260,9 +261,10 @@ public class ServeStatic implements Middleware {
                 response.headers().set(CONTENT_TYPE, MimeTypeUtil.probeContentType(p));
                 setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
                 CompletableFuture<HttpResult> future = new CompletableFuture<>();
+                var resultLength = isHead ? 0 : contentLength;
                 ChannelFutureListener[] cbs = new ChannelFutureListener[] { cf -> {
                     if (cf.isSuccess()) {
-                        future.complete(new DefaultHttpResult(ctx, contentLength, OK));
+                        future.complete(new DefaultHttpResult(ctx, resultLength, OK));
                     } else if (cf.cause() != null) {
                         future.completeExceptionally(cf.cause());
                     }
@@ -274,16 +276,20 @@ public class ServeStatic implements Middleware {
                     response.headers().set(CONTENT_ENCODING, IDENTITY);
                 }
                 channel.write(response);
-                FileChannel file = FileChannel.open(p, READ);
-                if (noSsl) {
-                    // Use zero-copy file transfer
-                    channel.write(new DefaultFileRegion(file, 0, contentLength));
-                    // Write the end marker.
+                if (isHead) {
                     channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
                 } else {
-                    ChunkedNioFile chunkedFile = new ChunkedNioFile(file, 0, contentLength, chunkSize);
-                    // HttpChunkedInput will write the end marker (LastHttpContent) for us.
-                    channel.writeAndFlush(new HttpChunkedInput(chunkedFile)).addListeners(cbs);
+                    FileChannel file = FileChannel.open(p, READ);
+                    if (noSsl) {
+                        // Use zero-copy file transfer
+                        channel.write(new DefaultFileRegion(file, 0, contentLength));
+                        // Write the end marker.
+                        channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
+                    } else {
+                        ChunkedNioFile chunkedFile = new ChunkedNioFile(file, 0, contentLength, chunkSize);
+                        // HttpChunkedInput will write the end marker (LastHttpContent) for us.
+                        channel.writeAndFlush(new HttpChunkedInput(chunkedFile)).addListeners(cbs);
+                    }
                 }
                 return future;
             } catch (IOException e) {
@@ -352,7 +358,7 @@ public class ServeStatic implements Middleware {
     }
 
     /**
-     * Function to generates {@code E-TAG}s.
+     * Function to generate {@code E-TAG}s.
      * 
      * @since 1.1
      *
@@ -375,15 +381,6 @@ public class ServeStatic implements Middleware {
             long modifiedTime = a.lastModifiedTime().to(TimeUnit.SECONDS);
             return "\"" + Long.toHexString(modifiedTime) + "-" + Long.toHexString(size) + "\"";
         };
-
-        /**
-         * Returns {@code true} if is weak validator, otherwise {@code false}
-         * 
-         * @return {@code true} if is weak validator, otherwise {@code false}
-         */
-        default boolean week() {
-            return false;
-        }
 
         /**
          * Generate the {@code E-TAG}.
