@@ -12,17 +12,18 @@ import com.github.fmjsjx.libnetty.http.client.exception.ClientClosedException;
 
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.compression.Brotli;
 import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.NettyRuntime;
 
 /**
  * Abstract implementation of {@link HttpClient}.
- * 
+ *
  * @since 1.0
  *
  * @author MJ Fang
- * 
+ *
  * @see DefaultHttpClient
  * @see SimpleHttpClient
  */
@@ -42,7 +43,6 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected final Class<? extends Channel> channelClass;
     protected final SslContextProvider sslContextProvider;
     protected final boolean compressionEnabled;
-    protected final boolean brotliEnabled;
 
     protected final Optional<ProxyHandlerFactory<? extends ProxyHandler>> proxyHandlerFactory;
 
@@ -50,13 +50,12 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected volatile boolean closed;
 
     protected AbstractHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
-            SslContextProvider sslContextProvider, boolean compressionEnabled, boolean brotliEnabled,
+            SslContextProvider sslContextProvider, boolean compressionEnabled,
             ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
         this.group = Objects.requireNonNull(group, "group must not be null");
         this.channelClass = Objects.requireNonNull(channelClass, "channelClass must not be null");
         this.sslContextProvider = Objects.requireNonNull(sslContextProvider, "sslContextProvider must not be null");
         this.compressionEnabled = compressionEnabled;
-        this.brotliEnabled = brotliEnabled;
         this.proxyHandlerFactory = Optional.ofNullable(proxyHandlerFactory);
     }
 
@@ -75,7 +74,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     /**
      * Returns {@code true} if compression feature is enabled of this client.
-     * 
+     *
      * @return {@code true} if compression feature is enabled
      */
     public boolean compressionEnabled() {
@@ -128,7 +127,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     /**
      * The abstract implementation of {@link HttpClient.Builder}.
-     * 
+     *
      * @since 1.0
      *
      * @author MJ Fang
@@ -141,13 +140,11 @@ public abstract class AbstractHttpClient implements HttpClient {
         protected int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
         protected SslContextProvider sslContextProvider;
         protected boolean compressionEnabled;
-        protected boolean brotliEnabled;
-
         protected ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory;
 
         /**
          * Returns the number of IO threads for this client.
-         * 
+         *
          * @return the number of IO threads for this client
          */
         public int ioThreads() {
@@ -163,7 +160,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
         /**
          * Returns the timeout duration for this client.
-         * 
+         *
          * @return the timeout {@link Duration}
          */
         public Duration timeout() {
@@ -183,7 +180,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
         /**
          * Returns the SSL context for this client.
-         * 
+         *
          * @return the {@link SslContext}
          * @deprecated please use
          */
@@ -194,7 +191,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
         /**
          * Returns the {@link SslContextProvider}.
-         * 
+         *
          * @return a {@code SslContextProvider}
          * @since 1.1
          */
@@ -217,7 +214,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
         /**
          * Returns the max content length for this client.
-         * 
+         *
          * @return the max content length
          */
         public int maxContentLength() {
@@ -234,47 +231,30 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         @Override
-        public Self enableCompression() {
-            return compression(true);
-        }
-
-        @Override
         @SuppressWarnings("unchecked")
         public Self compression(boolean enabled) {
             this.compressionEnabled = enabled;
-            this.brotliEnabled = false;
             return (Self) this;
         }
 
         /**
          * Returns {@code true} if the compression feature is enabled.
-         * 
+         *
          * @return {@code true} if the compression feature is enabled
          */
         public boolean compressionEnabled() {
             return compressionEnabled;
         }
 
-        @Override
-        public Self enableBrotli() {
-            return brotli(true);
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public Self brotli(boolean enabled) {
-            this.compressionEnabled = enabled;
-            this.brotliEnabled = enabled;
-            return (Self) this;
-        }
-
         /**
          * Returns {@code true} if Brotli is enabled.
-         * 
+         *
          * @return {@code true} if Brotli is enabled
+         * @deprecated use {@link Brotli#isAvailable()} instead
          */
+        @Deprecated
         public boolean brotliEnabled() {
-            return brotliEnabled;
+            return compressionEnabled();
         }
 
         @Override
@@ -286,9 +266,9 @@ public abstract class AbstractHttpClient implements HttpClient {
 
         /**
          * Returns the factory of {@link ProxyHandler}.
-         * 
+         *
          * @return the factory of {@code ProxyHandler}
-         * 
+         *
          * @since 1.2
          */
         public ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory() {

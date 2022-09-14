@@ -20,6 +20,7 @@ import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
+import io.netty.handler.codec.compression.Brotli;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
@@ -838,7 +839,9 @@ public interface HttpClient extends AutoCloseable {
          * 
          * @return this {@code Builder}
          */
-        Builder enableCompression();
+        default Builder enableCompression() {
+            return compression(true);
+        }
 
         /**
          * Sets if the content compression feature is enabled or not.
@@ -852,16 +855,27 @@ public interface HttpClient extends AutoCloseable {
          * Enable Brotli.
          * 
          * @return this {@code Builder}
+         * @deprecated Brotli will auto be enabled when compression enabled and {@link Brotli#isAvailable()} returns {@code true}
          */
-        Builder enableBrotli();
+        @Deprecated
+        default Builder enableBrotli() {
+            return brotli(true);
+        }
 
         /**
          * Sets if Brotli is enabled or not.
          * 
          * @param enabled {@code true} if enabled
          * @return this {@code Builder}
+         * @deprecated Brotli will auto be enabled when compression enabled and {@link Brotli#isAvailable()} returns {@code true}
          */
-        Builder brotli(boolean enabled);
+        @Deprecated
+        default Builder brotli(boolean enabled) {
+            if (enabled) {
+                return enableCompression();
+            }
+            return this;
+        }
 
         /**
          * Sets the factory of {@link ProxyHandler}.

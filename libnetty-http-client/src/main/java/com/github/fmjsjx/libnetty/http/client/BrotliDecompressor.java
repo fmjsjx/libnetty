@@ -16,6 +16,7 @@ import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpContentDecompressor;
 
 /**
  * Decompresses an {@link FullHttpResponse} compressed in {@code br(Brotli)}
@@ -24,8 +25,10 @@ import io.netty.handler.codec.http.FullHttpResponse;
  * @since 1.1
  *
  * @author MJ Fang
+ * @deprecated {@link HttpContentDecompressor} already support {@code br(Brotli)}
  */
 @Sharable
+@Deprecated
 public class BrotliDecompressor extends MessageToMessageDecoder<FullHttpResponse> {
 
     private static final int MAX_BUF_LEN = 65536;

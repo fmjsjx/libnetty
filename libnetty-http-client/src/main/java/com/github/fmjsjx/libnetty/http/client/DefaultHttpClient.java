@@ -46,6 +46,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.compression.Brotli;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpClientCodec;
@@ -88,11 +89,11 @@ public class DefaultHttpClient extends AbstractHttpClient {
     private final ConcurrentMap<String, CachedPool<HttpConnection>> cachedPools = new ConcurrentHashMap<>();
 
     DefaultHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
-            SslContextProvider sslContextProvider, boolean compressionEnabled, boolean brotliEnabled,
+            SslContextProvider sslContextProvider, boolean compressionEnabled,
             boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength, int maxCachedSizeEachDomain,
             IntFunction<CachedPool<HttpConnection>> cachedPoolFactory,
             ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
-        super(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled, proxyHandlerFactory);
+        super(group, channelClass, sslContextProvider, compressionEnabled, proxyHandlerFactory);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
@@ -173,9 +174,6 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                         pipeline.addLast(new HttpClientCodec());
                                         pipeline.addLast(new HttpContentDecompressor());
                                         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
-                                        if (brotliEnabled) {
-                                            pipeline.addLast(BrotliDecompressor.INSTANCE);
-                                        }
                                         pipeline.addLast(handler);
                                         handler.sendAsnyc(requestContext);
                                     } else {
@@ -205,9 +203,6 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                 cp.addLast(new HttpClientCodec());
                                 cp.addLast(new HttpContentDecompressor());
                                 cp.addLast(new HttpObjectAggregator(maxContentLength));
-                                if (brotliEnabled) {
-                                    cp.addLast(BrotliDecompressor.INSTANCE);
-                                }
                                 cp.addLast(handler);
                             }
                         });
@@ -412,7 +407,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                             }
                         }
                         if (compressionEnabled) {
-                            headers.set(ACCEPT_ENCODING, brotliEnabled ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
+                            headers.set(ACCEPT_ENCODING, Brotli.isAvailable() ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
                         } else {
                             headers.remove(ACCEPT_ENCODING);
                         }
@@ -536,7 +531,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
             return new DefaultHttpClient(transportLibrary.createGroup(ioThreads, threadFactory),
-                    transportLibrary.channelClass(), sslContextProvider, compressionEnabled, brotliEnabled, true,
+                    transportLibrary.channelClass(), sslContextProvider, compressionEnabled, true,
                     timeoutSeconds(), maxContentLength, maxCachedSizeEachDomain, cachedPoolFactory,
                     proxyHandlerFactory);
         }
@@ -567,7 +562,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
          */
         public DefaultHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled, brotliEnabled,
+            return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled,
                     false, timeoutSeconds(), maxContentLength, maxCachedSizeEachDomain, cachedPoolFactory,
                     proxyHandlerFactory);
         }
