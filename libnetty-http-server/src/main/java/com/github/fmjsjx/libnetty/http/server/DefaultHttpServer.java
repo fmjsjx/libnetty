@@ -64,9 +64,7 @@ public class DefaultHttpServer implements HttpServer {
     private static final int DEFAULT_MAX_CONTENT_LENGTH = Integer.MAX_VALUE;
     private static final int DEFAULT_TIMEOUT_SECONDS = 60;
 
-    private static final Consumer<HttpHeaders> defaultAddHeaders = headers -> {
-        headers.set(SERVER, "libnetty");
-    };
+    private static final Consumer<HttpHeaders> defaultAddHeaders = headers -> headers.set(SERVER, "libnetty");
 
     private String name;
     private String host;
@@ -90,10 +88,11 @@ public class DefaultHttpServer implements HttpServer {
 
     private ServerBootstrap bootstrap = new ServerBootstrap();
 
-    private List<Consumer<HttpContentCompressorProvider.Builder>> compressionOptionsListners = new ArrayList<>();
+    private List<Consumer<HttpContentCompressorProvider.Builder>> compressionOptionsListeners = new ArrayList<>();
 
     private HttpContentCompressorProvider httpContentCompressorProvider;
 
+    @SuppressWarnings("DeprecatedIsStillUsed")
     @Deprecated
     private List<Consumer<HttpContentCompressorFactory.Builder>> compressionSettingsListeners = new ArrayList<>();
 
@@ -673,7 +672,7 @@ public class DefaultHttpServer implements HttpServer {
      */
     public DefaultHttpServer applyCompressionOptions(Consumer<HttpContentCompressorProvider.Builder> action) {
         ensureNotStarted();
-        compressionOptionsListners.add(action);
+        compressionOptionsListeners.add(action);
         return this;
     }
 
@@ -835,7 +834,7 @@ public class DefaultHttpServer implements HttpServer {
 
         bootstrap = new ServerBootstrap();
 
-        compressionOptionsListners.clear();
+        compressionOptionsListeners.clear();
         compressionSettingsListeners.clear();
 
         handlerProvider = null;
@@ -904,9 +903,9 @@ public class DefaultHttpServer implements HttpServer {
         // always set AUTO_READ to false
         // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
         bootstrap.childOption(AUTO_READ, false);
-        if (compressionOptionsListners.size() > 0) {
+        if (compressionOptionsListeners.size() > 0) {
             var builder = HttpContentCompressorProvider.builder();
-            compressionOptionsListners.forEach(a -> a.accept(builder));
+            compressionOptionsListeners.forEach(a -> a.accept(builder));
             httpContentCompressorProvider = builder.build();
         }
         if (compressionSettingsListeners.size() > 0 && httpContentCompressorProvider == null) {
