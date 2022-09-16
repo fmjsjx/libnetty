@@ -13,7 +13,7 @@ dependencies {
     // netty-bom
     api(platform("io.netty:netty-bom:4.1.81.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:2.6.3"))
+    api(platform("com.github.fmjsjx:libcommon-bom:2.7.0"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.13.4"))
     // junit-bom
