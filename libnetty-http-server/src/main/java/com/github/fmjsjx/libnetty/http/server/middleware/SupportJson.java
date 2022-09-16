@@ -1,21 +1,13 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Type;
-import java.util.Objects;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ByteBufOutputStream;
 
 /**
  * A {@link Middleware} provides a {@link JsonLibrary} to support JSON features.
@@ -123,9 +115,7 @@ public class SupportJson implements Middleware {
     @Deprecated
     public static class Jackson2JsonLibrary implements JsonLibrary {
 
-        private static final ConcurrentMap<Type, com.fasterxml.jackson.databind.JavaType> cachedJavaTypes = new ConcurrentHashMap<>();
-
-        private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+        private final com.github.fmjsjx.libnetty.http.server.component.Jackson2JsonLibrary delegatedLibrary;
 
         /**
          * Constructs a new {@link Jackson2JsonLibrary} with the specified
@@ -134,7 +124,7 @@ public class SupportJson implements Middleware {
          * @param objectMapper an {@code ObjectMapper}
          */
         public Jackson2JsonLibrary(com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
-            this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+            this.delegatedLibrary = new com.github.fmjsjx.libnetty.http.server.component.Jackson2JsonLibrary(objectMapper);
         }
 
         /**
@@ -142,39 +132,17 @@ public class SupportJson implements Middleware {
          * {@link com.fasterxml.jackson.databind.ObjectMapper}.
          */
         public Jackson2JsonLibrary() {
-            this(new com.fasterxml.jackson.databind.ObjectMapper()
-                    .setSerializationInclusion(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT)
-                    .disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES));
+            this(com.github.fmjsjx.libnetty.http.server.component.Jackson2JsonLibrary.defaultObjectMapper());
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public <T> T read(ByteBuf content, Type valueType) {
-            try (InputStream src = new ByteBufInputStream(content.duplicate())) {
-                if (valueType instanceof Class) {
-                    if (com.fasterxml.jackson.databind.JsonNode.class.isAssignableFrom((Class<T>) valueType)) {
-                        return (T) objectMapper.readTree(src);
-                    }
-                    return objectMapper.readValue(src, (Class<T>) valueType);
-                }
-                com.fasterxml.jackson.databind.JavaType javaType = cachedJavaTypes.computeIfAbsent(valueType,
-                        objectMapper::constructType);
-                return objectMapper.readValue(src, javaType);
-            } catch (IOException e) {
-                throw new JsonException(e.getMessage(), e);
-            }
+            return delegatedLibrary.read(content, valueType);
         }
 
         @Override
         public ByteBuf write(ByteBufAllocator alloc, Object value) {
-            ByteBuf buf = alloc.buffer();
-            try (OutputStream out = new ByteBufOutputStream(buf)) {
-                objectMapper.writeValue(out, value);
-                return buf;
-            } catch (IOException e) {
-                buf.release();
-                throw new JsonException(e.getMessage(), e);
-            }
+            return delegatedLibrary.write(alloc, value);
         }
 
     }

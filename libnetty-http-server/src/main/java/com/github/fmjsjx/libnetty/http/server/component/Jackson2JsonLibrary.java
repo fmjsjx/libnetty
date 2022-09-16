@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import com.github.fmjsjx.libcommon.util.KotlinUtil;
+import com.github.fmjsjx.libcommon.util.ReflectUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,51 +39,103 @@ public class Jackson2JsonLibrary implements JsonLibrary {
 
     private static final Optional<Module> jdk8Module;
     private static final Optional<Module> javaTimeModule;
+    private static final Optional<Module> kotlinModule;
 
     static {
-        Optional<Module> _jdk8Module;
-        try {
-            Class.forName("com.fasterxml.jackson.datatype.jdk8.Jdk8Module");
-            _jdk8Module = Optional.of(new com.fasterxml.jackson.datatype.jdk8.Jdk8Module());
-        } catch (ClassNotFoundException e) {
+        jdk8Module = ReflectUtil.constructForClassName("com.fasterxml.jackson.datatype.jdk8.Jdk8Module");
+        if (jdk8Module.isEmpty()) {
             logger.debug("Class<com.fasterxml.jackson.datatype.jdk8.Jdk8Module> not found, jdk8Module disabled");
-            _jdk8Module = Optional.empty();
         }
-        jdk8Module = _jdk8Module;
-        Optional<Module> _javaTimeModule;
-        try {
-            Class.forName("com.fasterxml.jackson.datatype.jsr310.JavaTimeModule");
-            _javaTimeModule = Optional.of(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-        } catch (ClassNotFoundException e) {
+        javaTimeModule = ReflectUtil.constructForClassName("com.fasterxml.jackson.datatype.jsr310.JavaTimeModule");
+        if (javaTimeModule.isEmpty()) {
             logger.debug(
                     "Class<com.fasterxml.jackson.datatype.jsr310.JavaTimeModule> not found, javaTimeModule disabled");
-            _javaTimeModule = Optional.empty();
         }
-        javaTimeModule = _javaTimeModule;
+        if (KotlinUtil.isKotlinPresent()) {
+            kotlinModule = ReflectUtil.constructForClassName("com.fasterxml.jackson.module.kotlin.KotlinModule");
+        } else {
+            kotlinModule = Optional.empty();
+        }
     }
 
+    /**
+     * Creates and returns a new {@link ObjectMapper} with <b>default</b> options.
+     * <p>
+     * "<b>default</b>" means:
+     * <ul>
+     *     <li>{@code NON_ABSENT}</li>
+     *     <li>disable {@code FAIL_ON_UNKNOWN_PROPERTIES}</li>
+     *     <li>{@code Jdk8Module} if available</li>
+     *     <li>{@code JavaTimeModule} if available</li>
+     *     <li>{@code KotlinModule} if kotlin present and module available</li>
+     * </ul>
+     * </p>
+     *
+     * @return the created {@code ObjectMapper} instance
+     */
     public static final ObjectMapper defaultObjectMapper() {
         ObjectMapper om = new ObjectMapper().setSerializationInclusion(Include.NON_ABSENT)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         jdk8Module.ifPresent(om::registerModule);
         javaTimeModule.ifPresent(om::registerModule);
+        kotlinModule.ifPresent(om::registerModule);
         return om;
     }
 
+    /**
+     * Returns whether Jdk8Module is enabled or not.
+     *
+     * @return {@code true} if Jdk8Module is enabled, {@code false} otherwise
+     */
     public static final boolean jdk8ModuleEnabled() {
         return jdk8Module.isPresent();
     }
 
+    /**
+     * Returns the global Jdk8Module instance.
+     *
+     * @return the global Jdk8Module instance if enabled, {@code null} otherwise
+     */
     public static final Module jdk8Module() {
-        return jdk8Module.get();
+        return jdk8Module.orElse(null);
     }
 
+    /**
+     * Returns whether JavaTimeModule is enabled or not.
+     *
+     * @return {@code true} if JavaTimeModule is enabled, {@code false} otherwise
+     */
     public static final boolean javaTimeModuleEnabled() {
         return javaTimeModule.isPresent();
     }
 
+    /**
+     * Returns the global JavaTimeModule instance.
+     *
+     * @return the global JavaTimeModule instance if enabled, {@code null} otherwise
+     */
     public static final Module javaTimeModule() {
-        return javaTimeModule.get();
+        return javaTimeModule.orElse(null);
+    }
+
+    /**
+     * Returns whether KotlinModule is enabled or not.
+     *
+     * @return {@code true} if KotlinModule is enabled, {@code false} otherwise
+     * @since 2.5
+     */
+    public static final boolean kotlinModuleEnabled() {
+        return kotlinModule.isPresent();
+    }
+
+    /**
+     * Returns the global KotlinModule instance.
+     *
+     * @return the global KotlinModule instance if enabled, {@code null} otherwise
+     * @since 2.5
+     */
+    public static final Module kotlinModule() {
+        return kotlinModule.orElse(null);
     }
 
     private static final ConcurrentMap<Type, JavaType> cachedJavaTypes = new ConcurrentHashMap<>();
