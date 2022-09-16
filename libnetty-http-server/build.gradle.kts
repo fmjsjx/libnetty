@@ -10,6 +10,9 @@ java {
     registerFeature("jsonSupport") {
         usingSourceSet(sourceSets["main"])
     }
+    registerFeature("brotliSupport") {
+        usingSourceSet(sourceSets["main"])
+    }
 }
 
 dependencies {
@@ -18,6 +21,7 @@ dependencies {
     api(project(":libnetty-handler"))
     api(project(":libnetty-http"))
     api(project(":libnetty-transport"))
+    implementation("com.github.fmjsjx:libcommon-util")
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-aarch_64")
@@ -28,7 +32,7 @@ dependencies {
     "jsonSupportApi"("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
     "jsonSupportApi"("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.jcraft:jzlib")
-    implementation("com.aayushatharva.brotli4j:brotli4j")
+    "brotliSupportImplementation"("com.aayushatharva.brotli4j:brotli4j")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.mockito:mockito-core")
