@@ -1,6 +1,8 @@
 package com.github.fmjsjx.libnetty.http.client;
 
 import java.net.URI;
+import java.time.Duration;
+import java.util.Optional;
 
 import com.github.fmjsjx.libnetty.http.client.HttpClient.ClientWrappedRequest;
 import com.github.fmjsjx.libnetty.http.client.HttpClient.ClientWrappedRequestBuilder;
@@ -22,6 +24,7 @@ class DefaultRequest implements ClientWrappedRequest {
     private final HttpHeaders headers;
     private final HttpHeaders trailingHeaders;
     private final HttpContentHolder<?> contentHolder;
+    private final Optional<Duration> timeout;
 
     @Override
     public HttpMethod method() {
@@ -53,6 +56,11 @@ class DefaultRequest implements ClientWrappedRequest {
         return wrappedClient;
     }
 
+    @Override
+    public Optional<Duration> timeout() {
+        return timeout;
+    }
+
     static final class Builder extends ClientWrappedRequestBuilder<Builder> {
 
         Builder(HttpClient wrappedClient) {
@@ -65,7 +73,7 @@ class DefaultRequest implements ClientWrappedRequest {
 
         @Override
         protected ClientWrappedRequest build0() {
-            return new DefaultRequest(wrappedClient, method, uri, headers, trailingHeaders, contentHolder);
+            return new DefaultRequest(wrappedClient, method, uri, headers, trailingHeaders, contentHolder, Optional.ofNullable(timeout));
         }
 
     }

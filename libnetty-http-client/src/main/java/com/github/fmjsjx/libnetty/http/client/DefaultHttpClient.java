@@ -11,10 +11,12 @@ import static io.netty.handler.codec.http.HttpMethod.DELETE;
 import static io.netty.handler.codec.http.HttpMethod.PATCH;
 import static io.netty.handler.codec.http.HttpMethod.POST;
 import static io.netty.handler.codec.http.HttpMethod.PUT;
+import static java.net.InetSocketAddress.createUnresolved;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -81,7 +83,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
     private static final Logger log = LoggerFactory.getLogger(DefaultHttpClient.class);
 
     private final boolean shutdownGroupOnClose;
-    private final int timeoutSeconds;
+    private final int connectionTimeoutSeconds;
     private final int maxContentLength;
     private final int maxCachedSizeEachDomain;
     private final IntFunction<CachedPool<HttpConnection>> cachedPoolFactory;
@@ -89,13 +91,13 @@ public class DefaultHttpClient extends AbstractHttpClient {
     private final ConcurrentMap<String, CachedPool<HttpConnection>> cachedPools = new ConcurrentHashMap<>();
 
     DefaultHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
-            SslContextProvider sslContextProvider, boolean compressionEnabled,
-            boolean shutdownGroupOnClose, int timeoutSeconds, int maxContentLength, int maxCachedSizeEachDomain,
-            IntFunction<CachedPool<HttpConnection>> cachedPoolFactory,
-            ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
-        super(group, channelClass, sslContextProvider, compressionEnabled, proxyHandlerFactory);
+                      SslContextProvider sslContextProvider, boolean compressionEnabled, boolean shutdownGroupOnClose,
+                      int connectionTimeoutSeconds, Duration defaultRequestTimeout, int maxContentLength,
+                      int maxCachedSizeEachDomain, IntFunction<CachedPool<HttpConnection>> cachedPoolFactory,
+                      ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
+        super(group, channelClass, sslContextProvider, compressionEnabled, proxyHandlerFactory, defaultRequestTimeout);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
-        this.timeoutSeconds = timeoutSeconds;
+        this.connectionTimeoutSeconds = connectionTimeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.maxCachedSizeEachDomain = maxCachedSizeEachDomain;
         this.cachedPoolFactory = cachedPoolFactory;
@@ -151,12 +153,11 @@ public class DefaultHttpClient extends AbstractHttpClient {
             String headerHost = defaultPort ? host : host + ":" + port;
             if (proxyHandlerFactory.isPresent()) {
                 ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory = this.proxyHandlerFactory.get();
-                InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
                 Bootstrap b = new Bootstrap().resolver(NoopAddressResolverGroup.INSTANCE).group(group)
                         .channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
                         .option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
                             @Override
-                            protected void initChannel(SocketChannel ch) throws Exception {
+                            protected void initChannel(SocketChannel ch) {
                                 ChannelPipeline cp = ch.pipeline();
                                 cp.addLast(proxyHandlerFactory.create());
                                 cp.addLast(new ProxyEventHandler((ctx, obj) -> {
@@ -164,9 +165,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                         future.completeExceptionally((Throwable) obj);
                                     } else if (obj instanceof ProxyConnectionEvent) {
                                         ChannelPipeline pipeline = ctx.pipeline();
-                                        InternalHttpClientHandler handler = new InternalHttpClientHandler(address,
+                                        var handler = new InternalHttpClientHandler(createUnresolved(host, port),
                                                 headerHost, cachedPool, ctx.channel());
-                                        pipeline.addLast(new IdleStateHandler(0, 0, timeoutSeconds));
+                                        pipeline.addLast(new IdleStateHandler(0, 0, connectionTimeoutSeconds));
                                         if (ssl) {
                                             pipeline.addLast(
                                                     sslContextProvider.get().newHandler(ctx.alloc(), host, port));
@@ -183,20 +184,19 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                 }));
                             }
                         });
-                b.connect(address).addListener((ChannelFuture cf) -> {
+                b.connect(host, port).addListener((ChannelFuture cf) -> {
                     if (!cf.isSuccess()) {
                         future.completeExceptionally(cf.cause());
                     }
                 });
             } else {
-                InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
-                InternalHttpClientHandler handler = new InternalHttpClientHandler(address, headerHost, cachedPool);
+                var handler = new InternalHttpClientHandler(createUnresolved(host, port), headerHost, cachedPool);
                 Bootstrap b = new Bootstrap().group(group).channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
                         .option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
                             @Override
-                            protected void initChannel(SocketChannel ch) throws Exception {
+                            protected void initChannel(SocketChannel ch) {
                                 ChannelPipeline cp = ch.pipeline();
-                                cp.addLast(new IdleStateHandler(0, 0, timeoutSeconds));
+                                cp.addLast(new IdleStateHandler(0, 0, connectionTimeoutSeconds));
                                 if (ssl) {
                                     cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
                                 }
@@ -206,7 +206,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                 cp.addLast(handler);
                             }
                         });
-                b.connect(address).addListener((ChannelFuture cf) -> {
+                b.connect(handler.address()).addListener((ChannelFuture cf) -> {
                     if (cf.isSuccess()) {
                         handler.sendAsnyc(requestContext);
                     } else {
@@ -262,8 +262,6 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
     private interface HttpConnection {
 
-        InetSocketAddress address();
-
         Channel channel();
 
         default boolean isActive() {
@@ -301,12 +299,12 @@ public class DefaultHttpClient extends AbstractHttpClient {
         }
 
         @Override
-        public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        public void channelRegistered(ChannelHandlerContext ctx) {
             this.channel = ctx.channel();
         }
 
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             ctx.close();
             if (this.requestContext != null) {
                 RequestContext<?> requestContext = this.requestContext;
@@ -321,7 +319,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         }
 
         @Override
-        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
             if (evt instanceof IdleStateEvent) {
                 if (((IdleStateEvent) evt).state() == IdleState.ALL_IDLE) {
                     ctx.close();
@@ -340,7 +338,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         }
 
         @Override
-        protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) throws Exception {
+        protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) {
             if (this.requestContext != null) {
                 RequestContext<?> requestContext = this.requestContext;
                 this.requestContext = null;
@@ -371,7 +369,6 @@ public class DefaultHttpClient extends AbstractHttpClient {
             }
         }
 
-        @Override
         public InetSocketAddress address() {
             return address;
         }
@@ -530,10 +527,10 @@ public class DefaultHttpClient extends AbstractHttpClient {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
-            return new DefaultHttpClient(transportLibrary.createGroup(ioThreads, threadFactory),
-                    transportLibrary.channelClass(), sslContextProvider, compressionEnabled, true,
-                    timeoutSeconds(), maxContentLength, maxCachedSizeEachDomain, cachedPoolFactory,
-                    proxyHandlerFactory);
+            return new DefaultHttpClient(transportLibrary.createGroup(ioThreads(), threadFactory),
+                    transportLibrary.channelClass(), sslContextProvider(), compressionEnabled(), true,
+                    connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), maxCachedSizeEachDomain,
+                    cachedPoolFactory, proxyHandlerFactory());
         }
 
         /**
@@ -562,9 +559,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
          */
         public DefaultHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new DefaultHttpClient(group, channelClass, sslContextProvider, compressionEnabled,
-                    false, timeoutSeconds(), maxContentLength, maxCachedSizeEachDomain, cachedPoolFactory,
-                    proxyHandlerFactory);
+            return new DefaultHttpClient(group, channelClass, sslContextProvider(), compressionEnabled(), false,
+                    connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), maxCachedSizeEachDomain,
+                    cachedPoolFactory, proxyHandlerFactory());
         }
 
     }

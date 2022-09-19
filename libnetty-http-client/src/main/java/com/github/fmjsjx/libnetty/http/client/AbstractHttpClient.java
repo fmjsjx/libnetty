@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
@@ -43,20 +44,21 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected final Class<? extends Channel> channelClass;
     protected final SslContextProvider sslContextProvider;
     protected final boolean compressionEnabled;
-
     protected final Optional<ProxyHandlerFactory<? extends ProxyHandler>> proxyHandlerFactory;
+    protected final Optional<Duration> defaultRequestTimeout;
 
     private final Object closeLock = new Object();
     protected volatile boolean closed;
 
     protected AbstractHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
             SslContextProvider sslContextProvider, boolean compressionEnabled,
-            ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
+            ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory, Duration defaultRequestTimeout) {
         this.group = Objects.requireNonNull(group, "group must not be null");
         this.channelClass = Objects.requireNonNull(channelClass, "channelClass must not be null");
         this.sslContextProvider = Objects.requireNonNull(sslContextProvider, "sslContextProvider must not be null");
         this.compressionEnabled = compressionEnabled;
         this.proxyHandlerFactory = Optional.ofNullable(proxyHandlerFactory);
+        this.defaultRequestTimeout = Optional.ofNullable(defaultRequestTimeout);
     }
 
     protected EventLoopGroup group() {
@@ -79,6 +81,15 @@ public abstract class AbstractHttpClient implements HttpClient {
      */
     public boolean compressionEnabled() {
         return compressionEnabled;
+    }
+
+    /**
+     * Returns the default request timeout duration of this client.
+     *
+     * @return an {@code Optional<Duration>}
+     */
+    public Optional<Duration> defaultRequestTimeout() {
+        return defaultRequestTimeout;
     }
 
     @Override
@@ -112,18 +123,32 @@ public abstract class AbstractHttpClient implements HttpClient {
     @Override
     public <T> CompletableFuture<Response<T>> sendAsync(Request request, HttpContentHandler<T> contentHandler) {
         ensureOpen();
-        return sendAsync0(request, contentHandler, Optional.empty());
+        return doSendAsync(request, contentHandler, Optional.empty());
     }
 
     @Override
     public <T> CompletableFuture<Response<T>> sendAsync(Request request, HttpContentHandler<T> contentHandler,
             Executor executor) {
         ensureOpen();
-        return sendAsync0(request, contentHandler, Optional.of(executor));
+        return doSendAsync(request, contentHandler, Optional.of(executor));
+    }
+
+    private <T> CompletableFuture<Response<T>> doSendAsync(Request request, HttpContentHandler<T> contentHandler,
+                                                           Optional<Executor> executor) {
+        var requestTimeout = requestTimeout(request);
+        var future = sendAsync0(request, contentHandler, executor);
+        if (requestTimeout.isEmpty()) {
+            return future;
+        }
+        return future.orTimeout(requestTimeout.get().toNanos(), TimeUnit.NANOSECONDS);
     }
 
     protected abstract <T> CompletableFuture<Response<T>> sendAsync0(Request request,
             HttpContentHandler<T> contentHandler, Optional<Executor> executor);
+
+    protected Optional<Duration> requestTimeout(Request request) {
+        return request.timeout().or(this::defaultRequestTimeout);
+    }
 
     /**
      * The abstract implementation of {@link HttpClient.Builder}.
@@ -136,7 +161,8 @@ public abstract class AbstractHttpClient implements HttpClient {
             implements HttpClient.Builder {
 
         protected int ioThreads = NettyRuntime.availableProcessors();
-        protected Duration timeout = DEFAULT_TIMEOUT;
+        protected Duration connectionTimeout = DEFAULT_TIMEOUT;
+        protected Duration requestTimeout;
         protected int maxContentLength = DEFAULT_MAX_CONTENT_LENGTH;
         protected SslContextProvider sslContextProvider;
         protected boolean compressionEnabled;
@@ -162,20 +188,70 @@ public abstract class AbstractHttpClient implements HttpClient {
          * Returns the timeout duration for this client.
          *
          * @return the timeout {@link Duration}
+         * @deprecated please use {@link #connectionTimeout()} instead
          */
+        @Deprecated
         public Duration timeout() {
-            return timeout;
+            return connectionTimeout();
+        }
+
+        @Override
+        @SuppressWarnings("deprecation")
+        public Self timeout(Duration duration) {
+            return connectionTimeout(duration);
+        }
+
+        /**
+         * Returns the connection timeout duration for this client.
+         *
+         * @return the connection timeout {@link Duration}
+         */
+        public Duration connectionTimeout() {
+            return connectionTimeout;
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public Self timeout(Duration duration) {
-            timeout = duration == null ? DEFAULT_TIMEOUT : duration;
+        public Self connectionTimeout(Duration duration) {
+            connectionTimeout = duration == null ? DEFAULT_TIMEOUT : duration;
             return (Self) this;
         }
 
+        /**
+         * Returns the request timeout duration for this client.
+         *
+         * @return the request timeout {@link Duration}
+         */
+        public Duration requestTimeout() {
+            return requestTimeout;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Self requestTimeout(Duration duration) {
+            requestTimeout = duration;
+            return (Self) this;
+        }
+
+        /**
+         * Returns the timeout seconds for this client.
+         *
+         * @return the timeout seconds
+         * @deprecated please use {@link #connectionTimeoutSeconds()} instead
+         */
+        @Deprecated
         public int timeoutSeconds() {
-            return (int) timeout.getSeconds();
+            return connectionTimeoutSeconds();
+        }
+
+        /**
+         * Returns the connection timeout seconds for this client.
+         *
+         * @return the connection timeout
+         * @since 2.5
+         */
+        public int connectionTimeoutSeconds() {
+            return (int) connectionTimeout().getSeconds();
         }
 
         /**
@@ -231,6 +307,11 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         @Override
+        public Self enableCompression() {
+            return compression(true);
+        }
+
+        @Override
         @SuppressWarnings("unchecked")
         public Self compression(boolean enabled) {
             this.compressionEnabled = enabled;
@@ -246,6 +327,21 @@ public abstract class AbstractHttpClient implements HttpClient {
             return compressionEnabled;
         }
 
+        @SuppressWarnings("deprecation")
+        @Override
+        @Deprecated
+        public Self enableBrotli() {
+            return brotli(true);
+        }
+
+        @Override
+        @SuppressWarnings({"unchecked", "deprecation"})
+        @Deprecated
+        public Self brotli(boolean enabled) {
+            this.compressionEnabled = enabled;
+            return (Self) this;
+        }
+
         /**
          * Returns {@code true} if Brotli is enabled.
          *
@@ -254,7 +350,7 @@ public abstract class AbstractHttpClient implements HttpClient {
          */
         @Deprecated
         public boolean brotliEnabled() {
-            return compressionEnabled();
+            return compressionEnabled() && Brotli.isAvailable();
         }
 
         @Override

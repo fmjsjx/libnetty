@@ -14,6 +14,7 @@ import static io.netty.handler.codec.http.HttpMethod.PUT;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -92,9 +93,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(SimpleHttpClient.class, true);
-            return new SimpleHttpClient(transportLibrary.createGroup(ioThreads, threadFactory),
-                    transportLibrary.channelClass(), sslContextProvider, compressionEnabled, true,
-                    timeoutSeconds(), maxContentLength, proxyHandlerFactory);
+            return new SimpleHttpClient(transportLibrary.createGroup(ioThreads(), threadFactory),
+                    transportLibrary.channelClass(), sslContextProvider(), compressionEnabled(), true,
+                    connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), proxyHandlerFactory());
         }
 
         /**
@@ -123,8 +124,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
          */
         public SimpleHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
-            return new SimpleHttpClient(group, channelClass, sslContextProvider, compressionEnabled,
-                    false, timeoutSeconds(), maxContentLength, proxyHandlerFactory);
+            return new SimpleHttpClient(group, channelClass, sslContextProvider(), compressionEnabled(), false,
+                    connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), proxyHandlerFactory());
         }
 
     }
@@ -148,15 +149,16 @@ public class SimpleHttpClient extends AbstractHttpClient {
     }
 
     private final boolean shutdownGroupOnClose;
-    private final int timeoutSeconds;
+    private final int connectionTimeoutSeconds;
     private final int maxContentLength;
 
     SimpleHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContextProvider sslContextProvider,
-            boolean compressionEnabled, boolean shutdownGroupOnClose, int timeoutSeconds,
-            int maxContentLength, ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
-        super(group, channelClass, sslContextProvider, compressionEnabled, proxyHandlerFactory);
+                     boolean compressionEnabled, boolean shutdownGroupOnClose, int connectionTimeoutSeconds,
+                     Duration defaultRequestTimeout, int maxContentLength,
+                     ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
+        super(group, channelClass, sslContextProvider, compressionEnabled, proxyHandlerFactory, defaultRequestTimeout);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
-        this.timeoutSeconds = timeoutSeconds;
+        this.connectionTimeoutSeconds = connectionTimeoutSeconds;
         this.maxContentLength = maxContentLength;
     }
 
@@ -187,7 +189,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
             ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory = this.proxyHandlerFactory.get();
             b.handler(new ChannelInitializer<SocketChannel>() {
                 @Override
-                protected void initChannel(SocketChannel ch) throws Exception {
+                protected void initChannel(SocketChannel ch) {
                     ChannelPipeline cp = ch.pipeline();
                     cp.addLast(proxyHandlerFactory.create());
                     cp.addLast(new ProxyEventHandler((ctx, obj) -> {
@@ -195,7 +197,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
                             future.completeExceptionally((Throwable) obj);
                         } else if (obj instanceof ProxyConnectionEvent) {
                             ChannelPipeline pipeline = ctx.pipeline();
-                            pipeline.addLast(new ReadTimeoutHandler(timeoutSeconds));
+                            pipeline.addLast(new ReadTimeoutHandler(connectionTimeoutSeconds));
                             if (ssl) {
                                 pipeline.addLast(sslContextProvider.get().newHandler(ctx.alloc(), host, port));
                             }
@@ -221,9 +223,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
         } else {
             b.handler(new ChannelInitializer<SocketChannel>() {
                 @Override
-                protected void initChannel(SocketChannel ch) throws Exception {
+                protected void initChannel(SocketChannel ch) {
                     ChannelPipeline cp = ch.pipeline();
-                    cp.addLast(new ReadTimeoutHandler(timeoutSeconds));
+                    cp.addLast(new ReadTimeoutHandler(connectionTimeoutSeconds));
                     if (ssl) {
                         cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
                     }
@@ -284,7 +286,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
         }
 
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             log.debug("Error occurs", cause);
             if (!future.isDone()) {
                 future.completeExceptionally(cause);
@@ -293,14 +295,14 @@ public class SimpleHttpClient extends AbstractHttpClient {
         }
 
         @Override
-        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        public void channelInactive(ChannelHandlerContext ctx) {
             if (!future.isDone()) {
                 future.completeExceptionally(new IllegalStateException("No Response Content"));
             }
         }
 
         @Override
-        protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) throws Exception {
+        protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) {
             if (executor.isPresent()) {
                 msg.retain();
                 executor.get().execute(() -> {

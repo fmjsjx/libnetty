@@ -14,7 +14,7 @@ import com.github.fmjsjx.libnetty.http.client.HttpContentHolders;
 public class TestDefaultClient {
 
     public static void main(String[] args) throws Exception {
-        try (HttpClient client = DefaultHttpClient.builder().enableBrotli().maxCachedSizeEachDomain(32).build()) {
+        try (HttpClient client = DefaultHttpClient.builder().enableCompression().maxCachedSizeEachDomain(32).build()) {
             // Synchronous API
             testSynchronousApi(client);
             // Asynchronous API

@@ -47,7 +47,7 @@ public interface HttpClient extends AutoCloseable {
      * @return a {@code HttpClient}
      */
     static HttpClient build() {
-        return defaultBuilder().build();
+        return DefaultHttpClient.builder().build();
     }
 
     /**
@@ -185,7 +185,7 @@ public interface HttpClient extends AutoCloseable {
     interface Request {
 
         /**
-         * Returns a HTTP request builder with the specific {@code URI}.
+         * Returns an HTTP request builder with the specific {@code URI}.
          * 
          * @param uri the {@link URI}
          * 
@@ -196,7 +196,7 @@ public interface HttpClient extends AutoCloseable {
         }
 
         /**
-         * Returns a HTTP request builder.
+         * Returns an HTTP request builder.
          * 
          * @return a {@link RequestBuilder}
          */
@@ -239,6 +239,14 @@ public interface HttpClient extends AutoCloseable {
          */
         HttpContentHolder<?> contentHolder();
 
+        /**
+         * Returns the request timeout duration of this {@link Request}.
+         *
+         * @return an {@code Optional<Duration>}
+         * @since 2.5
+         */
+        Optional<Duration> timeout();
+
     }
 
     /**
@@ -256,6 +264,7 @@ public interface HttpClient extends AutoCloseable {
         protected HttpHeaders headers;
         protected HttpHeaders trailingHeaders;
         protected HttpContentHolder<?> contentHolder;
+        protected Duration timeout;
 
         /**
          * Sets the {@code URI} for this request.
@@ -556,6 +565,17 @@ public interface HttpClient extends AutoCloseable {
         }
 
         /**
+         * Sets the request timeout duration for this request.
+         *
+         * @param timeout the request timeout duration, {@code null} means unset
+         * @return this builder
+         */
+        public Self timeout(Duration timeout) {
+            this.timeout = timeout;
+            return (Self) this;
+        }
+
+        /**
          * Returns a new HTTP request built from the current state of this builder.
          * 
          * @return a {@link Request}
@@ -572,7 +592,7 @@ public interface HttpClient extends AutoCloseable {
     }
 
     /**
-     * A HTTP request with a {@link HttpClient} wrapped.
+     * An HTTP request with a {@link HttpClient} wrapped.
      * 
      * @since 1.0
      * 
@@ -801,8 +821,30 @@ public interface HttpClient extends AutoCloseable {
          * 
          * @param duration the timeout {@link Duration}
          * @return this {@code Builder}
+         * @deprecated please use {@link #connectionTimeout(Duration)} instead
          */
-        Builder timeout(Duration duration);
+        @Deprecated
+        default Builder timeout(Duration duration) {
+            return connectionTimeout(duration);
+        }
+
+        /**
+         * Sets the connection timeout duration for this client.
+         *
+         * @param duration the connection timeout {@link Duration}
+         * @return this {@code Builder}
+         * @since 2.5
+         */
+        Builder connectionTimeout(Duration duration);
+
+        /**
+         * Sets the request timeout duration for this client.
+         *
+         * @param duration the request timeout {@link Duration}
+         * @return this {@code Builder}
+         * @since 2.5
+         */
+        Builder requestTimeout(Duration duration);
 
         /**
          * Sets the max content length for this client.
