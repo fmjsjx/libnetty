@@ -1,16 +1,16 @@
 package com.github.fmjsjx.libnetty.http.client;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.client.exception.ClientClosedException;
 
+import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.compression.Brotli;
@@ -148,6 +148,27 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     protected Optional<Duration> requestTimeout(Request request) {
         return request.timeout().or(this::defaultRequestTimeout);
+    }
+
+    @Override
+    public <T> Response<T> send(Request request, HttpContentHandler<T> contentHandler) throws IOException,
+            InterruptedException, HttpRuntimeException, TimeoutException {
+        ensureOpen();
+        try {
+            var requestTimeout = requestTimeout(request);
+            var future = sendAsync0(request, contentHandler, Optional.empty());
+            if (requestTimeout.isEmpty()) {
+                return future.get();
+            }
+            return future.get(requestTimeout.get().toNanos(), TimeUnit.NANOSECONDS);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException) {
+                throw (IOException) cause;
+            } else {
+                throw new HttpRuntimeException(cause);
+            }
+        }
     }
 
     /**

@@ -2,8 +2,10 @@ package com.github.fmjsjx.libnetty.example.http.client;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 
 import com.github.fmjsjx.libnetty.http.client.DefaultHttpClient;
 import com.github.fmjsjx.libnetty.http.client.HttpClient;
@@ -14,7 +16,7 @@ import com.github.fmjsjx.libnetty.http.client.HttpContentHolders;
 public class TestDefaultClient {
 
     public static void main(String[] args) throws Exception {
-        try (HttpClient client = DefaultHttpClient.builder().enableCompression().maxCachedSizeEachDomain(32).build()) {
+        try (HttpClient client = DefaultHttpClient.builder().enableCompression().maxCachedSizeEachDomain(32).requestTimeout(Duration.ofMillis(1)).build()) {
             // Synchronous API
             testSynchronousApi(client);
             // Asynchronous API
@@ -22,14 +24,19 @@ public class TestDefaultClient {
         }
     }
 
-    static void testSynchronousApi(HttpClient client) throws IOException, InterruptedException {
-        // GET http://127.0.0.1:8080/foo
-        Response<String> response1 = client.request(URI.create("http://127.0.0.1:8080/foo")).get()
-                .send(HttpContentHandlers.ofString());
-        if (response1.statusCode() == 200) {
-            String body = response1.content();
-            System.out.println(body);
+    static void testSynchronousApi(HttpClient client) throws IOException, InterruptedException, TimeoutException {
+        try {
+            // GET http://127.0.0.1:8080/foo
+            Response<String> response1 = client.request(URI.create("https://www.baidu.com")).get()
+                    .send(HttpContentHandlers.ofString());
+            if (response1.statusCode() == 200) {
+                String body = response1.content();
+                System.out.println(body);
+            }
+        } catch (TimeoutException e) {
+            e.printStackTrace();
         }
+        System.exit(0);
         // POST
         String postBody = "p1=abc&p2=12345";
         Response<String> response2 = client.request(URI.create("http://127.0.0.1:8080/foo/bar"))

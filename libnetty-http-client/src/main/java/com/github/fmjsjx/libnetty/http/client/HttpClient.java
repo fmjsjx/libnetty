@@ -10,8 +10,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.SSLContext;
 
@@ -160,20 +160,10 @@ public interface HttpClient extends AutoCloseable {
      * @throws IOException          if an I/O error occurs when sending or receiving
      * @throws InterruptedException if the operation is interrupted
      * @throws HttpRuntimeException if any other error occurs
+     * @throws TimeoutException     (since 2.5) if request timeout
      */
-    default <T> Response<T> send(Request request, HttpContentHandler<T> contentHandler)
-            throws IOException, InterruptedException, HttpRuntimeException {
-        try {
-            return sendAsync(request, contentHandler).get();
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof IOException) {
-                throw (IOException) cause;
-            } else {
-                throw new HttpRuntimeException(cause);
-            }
-        }
-    }
+    <T> Response<T> send(Request request, HttpContentHandler<T> contentHandler)
+            throws IOException, InterruptedException, HttpRuntimeException, TimeoutException;
 
     /**
      * HTTP request.
@@ -646,9 +636,10 @@ public interface HttpClient extends AutoCloseable {
          * @throws IOException          if an I/O error occurs when sending or receiving
          * @throws InterruptedException if the operation is interrupted
          * @throws HttpRuntimeException if any other error occurs
+         * @throws TimeoutException     (since 2.5) if request timeout
          */
         default <T> Response<T> send(HttpContentHandler<T> contentHandler)
-                throws IOException, InterruptedException, HttpRuntimeException {
+                throws IOException, InterruptedException, HttpRuntimeException, TimeoutException {
             return wrappedClient().send(this, contentHandler);
         }
 
