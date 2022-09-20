@@ -112,8 +112,12 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     protected void ensureOpen() {
         if (closed) {
-            throw new ClientClosedException(toString() + " already closed");
+            throw newClientClosed();
         }
+    }
+
+    protected final ClientClosedException newClientClosed() {
+        return new ClientClosedException(toString() + " already closed");
     }
 
     protected boolean isOpen() {
@@ -122,14 +126,20 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public <T> CompletableFuture<Response<T>> sendAsync(Request request, HttpContentHandler<T> contentHandler) {
-        ensureOpen();
+        if (closed) {
+            return CompletableFuture.failedFuture(newClientClosed());
+        }
         return doSendAsync(request, contentHandler, Optional.empty());
     }
 
     @Override
     public <T> CompletableFuture<Response<T>> sendAsync(Request request, HttpContentHandler<T> contentHandler,
             Executor executor) {
-        ensureOpen();
+        if (closed) {
+            return CompletableFuture.supplyAsync(() -> {
+                throw newClientClosed();
+            }, executor);
+        }
         return doSendAsync(request, contentHandler, Optional.of(executor));
     }
 
