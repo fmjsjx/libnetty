@@ -60,8 +60,8 @@ public class Jackson2JsonLibrary implements JsonLibrary {
 
     /**
      * Creates and returns a new {@link ObjectMapper} with <b>default</b> options.
-     * <p>
-     * "<b>default</b>" means:
+     *
+     * <p>"<b>default</b>" means:</p>
      * <ul>
      *     <li>{@code NON_ABSENT}</li>
      *     <li>disable {@code FAIL_ON_UNKNOWN_PROPERTIES}</li>
@@ -69,7 +69,6 @@ public class Jackson2JsonLibrary implements JsonLibrary {
      *     <li>{@code JavaTimeModule} if available</li>
      *     <li>{@code KotlinModule} if kotlin present and module available</li>
      * </ul>
-     * </p>
      *
      * @return the created {@code ObjectMapper} instance
      */
