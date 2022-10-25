@@ -1,11 +1,13 @@
 package com.github.fmjsjx.libnetty.http.client;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.AUTHORIZATION;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -18,6 +20,7 @@ import javax.net.ssl.SSLContext;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
+import com.github.fmjsjx.libnetty.http.client.util.HttpRequestUtil;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
 import io.netty.handler.codec.compression.Brotli;
@@ -579,6 +582,34 @@ public interface HttpClient extends AutoCloseable {
 
         protected abstract Request build0();
 
+        /**
+         * Sets the "HTTP Basic Authentication" protocol.
+         * <p>Using the specified Base64 encoder.</p>
+         *
+         * @param username the username
+         * @param password the password
+         * @param encoder the Base64 encoder
+         * @return this builder
+         *
+         * @since 2.6
+         */
+        public Self authBasic(String username, String password, Base64.Encoder encoder) {
+            return setHeader(AUTHORIZATION, HttpRequestUtil.authBasic(username, password, encoder));
+        }
+
+        /**
+         * Sets the "HTTP Basic Authentication" protocol.
+         * <p>Using the basic Base64 encoder ({@code RFC 4648}).</p>
+         *
+         * @param username the username
+         * @param password the password
+         * @return this builder
+         *
+         * @since 2.6
+         */
+        public Self authBasic(String username, String password) {
+            return authBasic(username, password, Base64.getEncoder());
+        }
     }
 
     /**
