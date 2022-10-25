@@ -101,6 +101,7 @@ public class Router implements Middleware {
                     logger.trace("Try {}", method);
                     if (methodRoute.matches(method)) {
                         logger.debug("Matched Route ({} {}): {}", method, path, methodRoute);
+                        ctx.putProperty(methodRoute.matchedRoute);
                         return methodRoute.service.invoke(ctx);
                     }
                 }
@@ -265,7 +266,7 @@ public class Router implements Middleware {
         }
 
         private MethodRoute toMethodRoute() {
-            return new MethodRoute(methods, service);
+            return new MethodRoute(path, methods, service);
         }
 
         @Override
@@ -325,8 +326,9 @@ public class Router implements Middleware {
         private final String methods;
         private final MethodMatcher methodMatcher;
         private final HttpServiceInvoker service;
+        private final MatchedRoute matchedRoute;
 
-        private MethodRoute(HttpMethod[] methods, HttpServiceInvoker service) {
+        private MethodRoute(String path, HttpMethod[] methods, HttpServiceInvoker service) {
             if (methods.length == 0) {
                 this.methods = "<any>";
                 this.methodMatcher = MethodMatcher.any();
@@ -336,6 +338,7 @@ public class Router implements Middleware {
                 this.methodMatcher = MethodMatcher.in(methods);
             }
             this.service = service;
+            this.matchedRoute = new MatchedRouteImpl(path, this.methods);
         }
 
         private boolean matches(HttpMethod method) {
@@ -346,6 +349,73 @@ public class Router implements Middleware {
         public String toString() {
             return "MethodRoute(" + methods + ") -> " + service;
         }
+
+    }
+
+    /**
+     * The route matched in {@link Router}.
+     *
+     * @author MJ Fang
+     * @since 2.6
+     */
+    public interface MatchedRoute extends HttpRequestContext.PropertyKeyProvider {
+
+        /**
+         * The property key constants.
+         */
+        static final Class<MatchedRoute> KEY = MatchedRoute.class;
+
+        @Override
+        default Class<MatchedRoute> key() {
+            return KEY;
+        }
+
+        /**
+         * Returns the target methods.
+         * <p>e.g. {@code "<any>", "put", "get|post"}</p>
+         *
+         * @return the target methods
+         */
+        String methods();
+
+        /**
+         * Returns the path pattern of the matched route.
+         *
+         * @return the path pattern of the matched route
+         */
+        String path();
+
+    }
+
+    private static final class MatchedRouteImpl implements MatchedRoute {
+        private final String methods;
+        private final String path;
+
+        private MatchedRouteImpl(String methods, String path) {
+            this.methods = methods;
+            this.path = path;
+        }
+
+        @Override
+        public String methods() {
+            return methods;
+        }
+
+        @Override
+        public String path() {
+            return path;
+        }
+
+        @Override
+        public String toString() {
+            return "MatchedRouteImpl(methods=" + methods + ", path=" + path + ")";
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * methods.hashCode() + path.hashCode();
+        }
+
     }
 
 }

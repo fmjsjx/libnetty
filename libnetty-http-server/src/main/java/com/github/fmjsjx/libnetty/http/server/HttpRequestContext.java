@@ -13,6 +13,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -25,6 +26,7 @@ import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import com.github.fmjsjx.libnetty.http.server.exception.HttpFailureException;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 
+import com.github.fmjsjx.libnetty.http.server.middleware.Router;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
@@ -373,6 +375,18 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     HttpResponder property(Object key, Object value);
 
     /**
+     * Put the property value with the key already provided by itself.
+     *
+     * @param value the value of the property
+     *
+     * @return this {@code HttpRequestContext}
+     */
+    default HttpResponder putProperty(PropertyKeyProvider value) {
+        Objects.requireNonNull(value, "value must not be null");
+        return property(value.key(), value);
+    }
+
+    /**
      * Returns {@code true} if this {@link HttpRequestContext} contains a property
      * with the specified {@code key}.
      * 
@@ -419,6 +433,17 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * @since 1.3
      */
     Stream<String> propertyKeyNames();
+
+    /**
+     * Returns the matched route.
+     *
+     * @return an {@code Optional<T>} may contains the matched route
+     *
+     * @since 2.6
+     */
+    default Optional<Router.MatchedRoute> matchedRoute() {
+        return property(Router.MatchedRoute.KEY);
+    }
 
     @Override
     default int refCnt() {
@@ -664,4 +689,18 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
 
     }
 
+    /**
+     * Provides the key of the property in HTTP request context.
+     *
+     * @since 2.6
+     */
+    interface PropertyKeyProvider {
+
+        /**
+         * Returns the key.
+         * @return the key
+         */
+        Object key();
+
+    }
 }
