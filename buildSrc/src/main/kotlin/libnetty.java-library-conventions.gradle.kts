@@ -30,6 +30,7 @@ dependencies {
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
         implementation("ch.qos.logback:logback-classic:1.2.11")
         implementation("com.jcraft:jzlib:1.1.3")
+        implementation("org.brotli:dec:0.1.2")
         implementation("com.aayushatharva.brotli4j:brotli4j:1.8.0")
 	}
 

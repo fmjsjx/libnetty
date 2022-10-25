@@ -30,6 +30,7 @@ dependencies {
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "osx-x86_64")
     "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "windows-x86_64")
     implementation("com.jcraft:jzlib")
+    implementation("org.brotli:dec:0.1.2")
     "brotliSupportImplementation"("com.aayushatharva.brotli4j:brotli4j")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
