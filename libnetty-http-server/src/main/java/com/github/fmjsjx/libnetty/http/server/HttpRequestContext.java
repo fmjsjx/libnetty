@@ -62,10 +62,10 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     AsciiString TEXT_PLAIN_UTF8 = HttpCommonUtil.contentType(TEXT_PLAIN, CharsetUtil.UTF_8);
 
     /**
-     * Returns the value of the running Java Virtual Machine'shigh-resolution time
+     * Returns the value of the running Java Virtual Machine's high-resolution time
      * source, in nanoseconds, when the HTTP request just received.
      * 
-     * @return the value of the running Java Virtual Machine'shigh-resolution time
+     * @return the value of the running Java Virtual Machine's high-resolution time
      *         source, in nanoseconds
      * @see System#nanoTime()
      */
