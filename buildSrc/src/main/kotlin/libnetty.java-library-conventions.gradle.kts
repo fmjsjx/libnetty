@@ -13,7 +13,7 @@ dependencies {
     // netty-bom
     api(platform("io.netty:netty-bom:4.1.84.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:2.7.2"))
+    api(platform("com.github.fmjsjx:libcommon-bom:2.7.3"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.13.4.20221013"))
     // junit-bom
@@ -30,7 +30,6 @@ dependencies {
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
         implementation("ch.qos.logback:logback-classic:1.2.11")
         implementation("com.jcraft:jzlib:1.1.3")
-        implementation("org.brotli:dec:0.1.2")
         implementation("com.aayushatharva.brotli4j:brotli4j:1.8.0")
 	}
 
