@@ -41,7 +41,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
 
     private static final Function<Object, String> PROPERTY_KEY_ENCODER = String::valueOf;
 
-    private final long recievedNanoTime = System.nanoTime();
+    private final long receivedNanoTime = System.nanoTime();
     private final ZonedDateTime receivedTime = ZonedDateTime.now();
 
     private final Channel channel;
@@ -59,10 +59,6 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     private final HttpResponseFactoryImpl responseFactory = new HttpResponseFactoryImpl();
     private final Optional<Consumer<HttpHeaders>> addHeaders;
 
-    DefaultHttpRequestContext(Channel channel, FullHttpRequest request, Map<Class<?>, Object> components) {
-        this(channel, request, components, null);
-    }
-
     DefaultHttpRequestContext(Channel channel, FullHttpRequest request, Map<Class<?>, Object> components,
             Consumer<HttpHeaders> addHeaders) {
         this.channel = channel;
@@ -74,7 +70,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
 
     @Override
     public long receivedNanoTime() {
-        return recievedNanoTime;
+        return receivedNanoTime;
     }
 
     @Override
@@ -219,9 +215,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
         private HttpHeaders initHeaders(HttpResponse response) {
             HttpHeaders headers = response.headers();
             Optional<Consumer<HttpHeaders>> addHeaders = DefaultHttpRequestContext.this.addHeaders;
-            if (addHeaders.isPresent()) {
-                addHeaders.get().accept(headers);
-            }
+            addHeaders.ifPresent(action -> action.accept(headers));
             HttpUtil.setKeepAlive(headers, response.protocolVersion(), isKeepAlive());
             return headers;
         }
