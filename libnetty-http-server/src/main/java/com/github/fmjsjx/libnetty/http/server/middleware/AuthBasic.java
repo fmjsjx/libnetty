@@ -20,7 +20,7 @@ import io.netty.util.AsciiString;
 
 /**
  * A {@link Middleware} allows limiting access to resources by validating the
- * user name and password using the "HTTP Basic Authentication" protocol.
+ * username and password using the "HTTP Basic Authentication" protocol.
  * 
  * @since 1.1
  *
@@ -75,7 +75,7 @@ public class AuthBasic implements Middleware {
     /**
      * Constructs a new {@link AuthBasic} with the specified validator and realm.
      * 
-     * @param validator function to validating the user name and password
+     * @param validator function to validating the username and password
      * @param realm     the realm attribute
      */
     public AuthBasic(BiPredicate<String, String> validator, String realm) {
@@ -101,17 +101,16 @@ public class AuthBasic implements Middleware {
                 name = new String(auth);
                 pwd = null;
             } else {
-                int nameLength = index;
                 int pwdLength = auth.length - index - 1;
                 int pwdIndex = index + 1;
-                if (nameLength == 0) {
+                if (index == 0) {
                     name = "";
                     pwd = new String(auth, pwdIndex, pwdLength);
                 } else if (pwdLength == 0) {
-                    name = new String(auth, 0, nameLength);
+                    name = new String(auth, 0, index);
                     pwd = "";
                 } else {
-                    name = new String(auth, 0, nameLength);
+                    name = new String(auth, 0, index);
                     pwd = new String(auth, pwdIndex, pwdLength);
                 }
             }
