@@ -56,32 +56,65 @@ public class AuthBasic implements Middleware {
     private final BiPredicate<String, String> validator;
     private final CharSequence basicRealm;
 
+    private final Base64.Decoder decoder;
+
     /**
      * Constructs a new {@link AuthBasic} with the specified users and realm.
+     * <p>Using the basic type (RFC 4648) Base64 scheme decoder.</p>
      * 
      * @param users a map contains the users' name and their password
      * @param realm the realm attribute
      */
     public AuthBasic(Map<String, String> users, String realm) {
+        this(users, realm, Base64.getDecoder());
+    }
+
+    /**
+     * Constructs a new {@link AuthBasic} with the specified users and realm.
+     * <p>Using the specified Base64 decoder</p>
+     *
+     * @param users   a map contains the users' name and their password
+     * @param realm   the realm attribute
+     * @param decoder the Base64 decoder
+     *
+     * @since 2.6
+     */
+    public AuthBasic(Map<String, String> users, String realm, Base64.Decoder decoder) {
         this((n, p) -> {
             String pwd = users.get(n);
             if (pwd != null) {
                 return pwd.equals(p);
             }
             return false;
-        }, realm);
+        }, realm, decoder);
     }
 
     /**
      * Constructs a new {@link AuthBasic} with the specified validator and realm.
+     * <p>Using the basic type (RFC 4648) Base64 scheme decoder.</p>
      * 
      * @param validator function to validating the username and password
      * @param realm     the realm attribute
      */
     public AuthBasic(BiPredicate<String, String> validator, String realm) {
+        this(validator, realm, Base64.getDecoder());
+    }
+
+    /**
+     * Constructs a new {@link AuthBasic} with the specified validator and realm.
+     * <p>Using the specified Base64 decoder</p>
+     *
+     * @param validator function to validating the username and password
+     * @param realm     the realm attribute
+     * @param decoder   the Base64 decoder
+     *
+     * @since 2.6
+     */
+    public AuthBasic(BiPredicate<String, String> validator, String realm, Base64.Decoder decoder) {
         this.validator = Objects.requireNonNull(validator, "validator must not be null");
         Objects.requireNonNull(realm, "realm must not be null");
         this.basicRealm = AsciiString.cached("Basic realm=\"" + realm + "\"");
+        this.decoder = decoder;
     }
 
     @Override
@@ -89,7 +122,7 @@ public class AuthBasic implements Middleware {
         String authorization = ctx.headers().getAsString(AUTHORIZATION);
         if (authorization != null && authorization.startsWith("Basic ")) {
             String base64 = authorization.substring(6);
-            byte[] auth = Base64.getDecoder().decode(base64);
+            byte[] auth = decoder.decode(base64);
             int index = -1;
             for (int i = 0; i < auth.length; i++) {
                 if (auth[i] == ':') {
