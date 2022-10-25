@@ -338,7 +338,7 @@ public class Router implements Middleware {
                 this.methodMatcher = MethodMatcher.in(methods);
             }
             this.service = service;
-            this.matchedRoute = new MatchedRouteImpl(path, this.methods);
+            this.matchedRoute = new MatchedRouteImpl(this.methods, path);
         }
 
         private boolean matches(HttpMethod method) {
