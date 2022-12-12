@@ -13,6 +13,9 @@ java {
     registerFeature("brotliSupport") {
         usingSourceSet(sourceSets["main"])
     }
+    registerFeature("kotlinSupport") {
+        usingSourceSet(sourceSets["main"])
+    }
 }
 
 dependencies {
@@ -33,6 +36,8 @@ dependencies {
     "jsonSupportApi"("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.jcraft:jzlib")
     "brotliSupportImplementation"("com.aayushatharva.brotli4j:brotli4j")
+    "kotlinSupportImplementation"("org.jetbrains.kotlin:kotlin-reflect")
+    "kotlinSupportImplementation"("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.mockito:mockito-core")
