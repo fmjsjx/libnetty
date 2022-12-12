@@ -27,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TestDefaultServer {
 
-    private static final Map<String, String> passwds() {
+    private static final Map<String, String> passwords() {
         return Collections.singletonMap("test", "123456");
     }
 
@@ -41,15 +41,15 @@ public class TestDefaultServer {
                 .corsConfig(corsConfig) // CORS support
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
-                .supportJson() // Support JSON using Jackson2s
+                .supportJson() // Support JSON using Jackson2
                 .component(new TestExceptionHandler()) // Support test exception
                 .soBackLog(1024).tcpNoDelay() // channel options
                 .applyCompressionOptions( // compression support
-                        HttpContentCompressorProvider.defaultOptions());
+                        HttpContentCompressorProvider.defaultOptions())
         ;
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
-                .addLast("/static/auth", new AuthBasic(passwds(), "test")) // HTTP Basic Authentication
+                .addLast("/static/auth", new AuthBasic(passwords(), "test")) // HTTP Basic Authentication
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/")) // static resources
                 .addLast(new Router().register(controller).init()) // router
         ;

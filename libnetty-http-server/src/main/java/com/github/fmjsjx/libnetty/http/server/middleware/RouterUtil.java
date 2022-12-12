@@ -45,6 +45,13 @@ import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
+import com.github.fmjsjx.libcommon.util.KotlinUtil;
+import com.github.fmjsjx.libcommon.util.kotlin.KotlinReflectionUtil;
+import kotlin.coroutines.Continuation;
+import kotlinx.coroutines.CoroutineStart;
+import kotlinx.coroutines.ExecutorsKt;
+import kotlinx.coroutines.GlobalScope;
+import kotlinx.coroutines.future.FutureKt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +90,7 @@ import io.netty.util.internal.StringUtil;
 
 /**
  * Utility class for HTTP controller beans.
- * 
+ *
  * @since 1.1
  *
  * @author MJ Fang
@@ -94,10 +101,10 @@ public class RouterUtil {
 
     /**
      * Register the given controller to the specified router.
-     * 
+     *
      * @param router     the router
      * @param controller the controller object
-     * 
+     *
      * @return the count of the services just been registered
      */
     public static final int register(Router router, Object controller) {
@@ -141,8 +148,17 @@ public class RouterUtil {
     private static final void registerMethod(Router router, Object controller, Method method, String path,
             HttpMethod[] httpMethods) {
         logger.debug("Register method: {}, {}, {}, {}, {}", router, controller, method, path, httpMethods);
-        boolean blocking = !CompletionStage.class.isAssignableFrom(method.getReturnType());
         method.setAccessible(true);
+        if (KotlinUtil.isKotlinPresent()) {
+            if (KotlinUtil.isSuspendingFunction(method)) {
+                if (!KotlinUtil.isKotlinReflectPresent()) {
+                    throw new IllegalStateException("missing kotlin reflection module but reach kotlin suspending function " + method);
+                }
+                KotlinSuspendingFunctionUtil.register(router, controller, method, path, httpMethods);
+                return;
+            }
+        }
+        boolean blocking = !CompletionStage.class.isAssignableFrom(method.getReturnType());
         Parameter[] params = method.getParameters();
         if ((blocking && isVoidType(method.getReturnType()))
                 || (!blocking && isVoidType(getActualTypeArguments(method.getGenericReturnType())[0]))) {
@@ -156,8 +172,8 @@ public class RouterUtil {
             }
             return;
         }
-        JsonBody jsonResposne = method.getAnnotation(JsonBody.class);
-        if (jsonResposne != null) {
+        JsonBody jsonResponse = method.getAnnotation(JsonBody.class);
+        if (jsonResponse != null) {
             switch (params.length) {
             case 0:
                 router.add(toJsonResponseInvoker(controller, method, blocking), path, httpMethods);
@@ -192,6 +208,159 @@ public class RouterUtil {
         default:
             router.add(toParamsInvoker(controller, method, params), path, httpMethods);
             break;
+        }
+
+    }
+
+    private static final class KotlinSuspendingFunctionUtil {
+
+        private static final void register(Router router, Object controller, Method method,
+                String path, HttpMethod[] httpMethods) {
+            var params = method.getParameters();
+            var returnType = KotlinReflectionUtil.getReturnType(method);
+            if (returnType == kotlin.Unit.class) {
+                if (params.length == 1) {
+                    router.add(toUnitResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toUnitResultInvoker(controller, method, params), path, httpMethods);
+                }
+            }
+            JsonBody jsonResponse = method.getAnnotation(JsonBody.class);
+            if (jsonResponse != null) {
+                if (params.length == 1) {
+                    router.add(toJsonResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toJsonResultInvoker(controller, method, params), path, httpMethods);
+                }
+                return;
+            }
+            StringBody stringBody = method.getAnnotation(StringBody.class);
+            if (stringBody != null) {
+                if (params.length == 1) {
+                    router.add(toStringResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toStringResultInvoker(controller, method, params), path, httpMethods);
+                }
+                return;
+            }
+            // no annotation
+            // when return type is CharSequence then means using as StringBody
+            if (CharSequence.class.isAssignableFrom(returnType)) {
+                if (params.length == 1) {
+                    router.add(toStringResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toStringResultInvoker(controller, method, params), path, httpMethods);
+                }
+                return;
+            }
+            // otherwise, always try to parse JSON
+            if (params.length == 1) {
+                router.add(toJsonResultInvoker(controller, method), path, httpMethods);
+            } else {
+                router.add(toJsonResultInvoker(controller, method, params), path, httpMethods);
+            }
+
+        }
+
+        private static final HttpServiceInvoker toUnitResultInvoker(Object controller, Method method) {
+            return ctx -> FutureKt.<Void>future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            method.invoke(controller, continuation);
+                            return null;
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toUnitResultInvoker(Object controller, Method method, Parameter[] params) {
+            var parametersMapper = toParametersMapper(params);
+            return ctx -> FutureKt.<Void>future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            method.invoke(controller, parametersMapper.apply(ctx, continuation));
+                            return null;
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        @SuppressWarnings("unchecked")
+        private static final BiFunction<HttpRequestContext, Continuation<?>, Object[]> toParametersMapper(Parameter[] params) {
+            var parameterMappers = Arrays.stream(params).limit(params.length - 1).map(RouterUtil::toParameterMapper)
+                    .toArray(Function[]::new);
+            return (ctx, continuation) -> {
+                try {
+                    var args = new Object[parameterMappers.length + 1];
+                    for (int i = 0; i < parameterMappers.length; i++) {
+                        args[i] = parameterMappers[i].apply(ctx);
+                    }
+                    args[parameterMappers.length] = continuation;
+                    return args;
+                } catch (Exception e) {
+                    throw new BadRequestException(e);
+                }
+            };
+        }
+
+        private static final HttpServiceInvoker toJsonResultInvoker(Object controller, Method method) {
+            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            return method.invoke(controller, continuation);
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toJsonResultInvoker(Object controller, Method method, Parameter[] params) {
+            var parametersMapper = toParametersMapper(params);
+            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            return method.invoke(controller, parametersMapper.apply(ctx, continuation));
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toStringResultInvoker(Object controller, Method method) {
+            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            return method.invoke(controller, continuation);
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toStringResultInvoker(Object controller, Method method, Parameter[] params) {
+            var parametersMapper = toParametersMapper(params);
+            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            return method.invoke(controller, parametersMapper.apply(ctx, continuation));
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
     }
@@ -231,7 +400,7 @@ public class RouterUtil {
             try {
                 ByteBuf content = ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
                         .write(ctx.alloc(), result);
-                return ctx.simpleRespond(OK, content, ResponseContants.APPLICATION_JSON_UTF8);
+                return ctx.simpleRespond(OK, content, ResponseConstants.APPLICATION_JSON_UTF8);
             } catch (Exception e) {
                 return handleError(ctx, e);
             }
@@ -252,14 +421,14 @@ public class RouterUtil {
             }
             try {
                 ByteBuf content = ByteBufUtil.writeUtf8(ctx.alloc(), (CharSequence) result);
-                return ctx.simpleRespond(OK, content, ResponseContants.TEXT_PLAIN_UTF8);
+                return ctx.simpleRespond(OK, content, ResponseConstants.TEXT_PLAIN_UTF8);
             } catch (Exception e) {
                 return handleError(ctx, e);
             }
         };
     }
 
-    private static final class ResponseContants {
+    private static final class ResponseConstants {
 
         private static final AsciiString APPLICATION_JSON_UTF8 = contentType(APPLICATION_JSON, UTF_8);
 
@@ -279,9 +448,6 @@ public class RouterUtil {
 
         private static final Supplier<IllegalArgumentException> MISSING_WORKER_POOL = () -> MISSING_WORKER_POOL_EXCEPTION;
     }
-
-    private static final Function<CompletionStage<HttpResult>, CompletionStage<HttpResult>> resultIdentity = Function
-            .identity();
 
     private static final CompletionException fromTarget(InvocationTargetException e) {
         return valueOf(e.getTargetException());
@@ -332,7 +498,7 @@ public class RouterUtil {
                         } catch (IllegalAccessException | IllegalArgumentException e) {
                             throw valueOf(e);
                         }
-                    }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
+                    }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
                 } catch (Exception e) {
                     return handleError(ctx, e);
                 }
@@ -341,7 +507,7 @@ public class RouterUtil {
         return ctx -> {
             try {
                 return ((CompletionStage<Void>) method.invoke(controller)).handle(voidResponseHandler(ctx))
-                        .thenCompose(resultIdentity);
+                        .thenCompose(Function.identity());
             } catch (InvocationTargetException e) {
                 return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
@@ -353,7 +519,7 @@ public class RouterUtil {
     @SuppressWarnings("unchecked")
     private static HttpServiceInvoker toVoidResponseInvoker(Object controller, Method method, boolean blocking,
             Parameter[] params) {
-        Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
+        Function<HttpRequestContext, Object[]> parametersMapper = toParametersMapper(params);
         if (Modifier.isStatic(method.getModifiers())) {
             logger.warn("It is not recommended to declare a routing method as a static method! -- {}", method);
         }
@@ -364,13 +530,13 @@ public class RouterUtil {
                             .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
                     return CompletableFuture.runAsync(() -> {
                         try {
-                            method.invoke(controller, parametesMapper.apply(ctx));
+                            method.invoke(controller, parametersMapper.apply(ctx));
                         } catch (InvocationTargetException e) {
                             throw fromTarget(e);
                         } catch (Exception e) {
                             throw valueOf(e);
                         }
-                    }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
+                    }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
                 } catch (Exception e) {
                     return handleError(ctx, e);
                 }
@@ -378,8 +544,8 @@ public class RouterUtil {
         }
         return ctx -> {
             try {
-                return ((CompletionStage<Void>) method.invoke(controller, parametesMapper.apply(ctx)))
-                        .handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
+                return ((CompletionStage<Void>) method.invoke(controller, parametersMapper.apply(ctx)))
+                        .handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
             } catch (InvocationTargetException e) {
                 return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
@@ -406,7 +572,7 @@ public class RouterUtil {
                         } catch (IllegalAccessException | IllegalArgumentException e) {
                             throw valueOf(e);
                         }
-                    }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
+                    }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
                 } catch (Exception e) {
                     return handleError(ctx, e);
                 }
@@ -415,7 +581,7 @@ public class RouterUtil {
         return ctx -> {
             try {
                 return ((CompletionStage<Object>) method.invoke(controller)).handle(jsonResponseHandler(ctx))
-                        .thenCompose(resultIdentity);
+                        .thenCompose(Function.identity());
             } catch (InvocationTargetException e) {
                 return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
@@ -427,7 +593,7 @@ public class RouterUtil {
     @SuppressWarnings("unchecked")
     private static HttpServiceInvoker toJsonResponseInvoker(Object controller, Method method, boolean blocking,
             Parameter[] params) {
-        Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
+        Function<HttpRequestContext, Object[]> parametersMapper = toParametersMapper(params);
         if (Modifier.isStatic(method.getModifiers())) {
             logger.warn("It is not recommended to declare a routing method as a static method! -- {}", method);
         }
@@ -439,13 +605,13 @@ public class RouterUtil {
                                 .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
                         return CompletableFuture.runAsync(() -> {
                             try {
-                                method.invoke(controller, parametesMapper.apply(ctx));
+                                method.invoke(controller, parametersMapper.apply(ctx));
                             } catch (InvocationTargetException e) {
                                 throw fromTarget(e);
                             } catch (Exception e) {
                                 throw valueOf(e);
                             }
-                        }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
+                        }, workerPool.executor()).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
                     } catch (Exception e) {
                         return handleError(ctx, e);
                     }
@@ -457,13 +623,13 @@ public class RouterUtil {
                             .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
                     return CompletableFuture.supplyAsync(() -> {
                         try {
-                            return method.invoke(controller, parametesMapper.apply(ctx));
+                            return method.invoke(controller, parametersMapper.apply(ctx));
                         } catch (InvocationTargetException e) {
                             throw fromTarget(e);
                         } catch (Exception e) {
                             throw valueOf(e);
                         }
-                    }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
+                    }, workerPool.executor()).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
                 } catch (Exception e) {
                     return handleError(ctx, e);
                 }
@@ -472,8 +638,8 @@ public class RouterUtil {
         if (isVoidType(getActualTypeArguments(method.getGenericReturnType())[0])) {
             return ctx -> {
                 try {
-                    return ((CompletionStage<Void>) method.invoke(controller, parametesMapper.apply(ctx)))
-                            .handle(voidResponseHandler(ctx)).thenCompose(resultIdentity);
+                    return ((CompletionStage<Void>) method.invoke(controller, parametersMapper.apply(ctx)))
+                            .handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
                 } catch (InvocationTargetException e) {
                     return handleError(ctx, e.getTargetException());
                 } catch (Exception e) {
@@ -483,8 +649,8 @@ public class RouterUtil {
         }
         return ctx -> {
             try {
-                return ((CompletionStage<Object>) method.invoke(controller, parametesMapper.apply(ctx)))
-                        .handle(jsonResponseHandler(ctx)).thenCompose(resultIdentity);
+                return ((CompletionStage<Object>) method.invoke(controller, parametersMapper.apply(ctx)))
+                        .handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
             } catch (InvocationTargetException e) {
                 return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
@@ -522,7 +688,7 @@ public class RouterUtil {
                         } catch (IllegalAccessException | IllegalArgumentException e) {
                             throw valueOf(e);
                         }
-                    }, workerPool.executor()).handle(stringResponseHandler(ctx)).thenCompose(resultIdentity);
+                    }, workerPool.executor()).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
                 } catch (Exception e) {
                     return handleError(ctx, e);
                 }
@@ -535,7 +701,7 @@ public class RouterUtil {
         return ctx -> {
             try {
                 return ((CompletionStage<Object>) method.invoke(controller)).handle(stringResponseHandler(ctx))
-                        .thenCompose(resultIdentity);
+                        .thenCompose(Function.identity());
             } catch (InvocationTargetException e) {
                 return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
@@ -547,7 +713,7 @@ public class RouterUtil {
     @SuppressWarnings("unchecked")
     private static HttpServiceInvoker toStringResponseInvoker(Object controller, Method method, boolean blocking,
             Parameter[] params) {
-        Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
+        Function<HttpRequestContext, Object[]> parametersMapper = toParametersMapper(params);
         if (Modifier.isStatic(method.getModifiers())) {
             logger.warn("It is not recommended to declare a routing method as a static method! -- {}", method);
         }
@@ -562,13 +728,13 @@ public class RouterUtil {
                             .orElseThrow(WorkerPoolConstants.MISSING_WORKER_POOL);
                     return CompletableFuture.supplyAsync(() -> {
                         try {
-                            return method.invoke(controller, parametesMapper.apply(ctx));
+                            return method.invoke(controller, parametersMapper.apply(ctx));
                         } catch (InvocationTargetException e) {
                             throw fromTarget(e);
                         } catch (Exception e) {
                             throw valueOf(e);
                         }
-                    }, workerPool.executor()).handle(stringResponseHandler(ctx)).thenCompose(resultIdentity);
+                    }, workerPool.executor()).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
                 } catch (Exception e) {
                     return handleError(ctx, e);
                 }
@@ -580,8 +746,8 @@ public class RouterUtil {
         }
         return ctx -> {
             try {
-                return ((CompletionStage<Object>) method.invoke(controller, parametesMapper.apply(ctx)))
-                        .handle(stringResponseHandler(ctx)).thenCompose(resultIdentity);
+                return ((CompletionStage<Object>) method.invoke(controller, parametersMapper.apply(ctx)))
+                        .handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
             } catch (InvocationTargetException e) {
                 return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
@@ -622,11 +788,11 @@ public class RouterUtil {
 
     @SuppressWarnings("unchecked")
     private static final HttpServiceInvoker toParamsInvoker(Object controller, Method method, Parameter[] params) {
-        Function<HttpRequestContext, Object[]> parametesMapper = toParametersMapper(params);
+        Function<HttpRequestContext, Object[]> parametersMapper = toParametersMapper(params);
         if (Modifier.isStatic(method.getModifiers())) {
             return ctx -> {
                 try {
-                    return (CompletionStage<HttpResult>) method.invoke(null, parametesMapper.apply(ctx));
+                    return (CompletionStage<HttpResult>) method.invoke(null, parametersMapper.apply(ctx));
                 } catch (InvocationTargetException e) {
                     return handleError(ctx, e.getTargetException());
                 } catch (Exception e) {
@@ -636,7 +802,7 @@ public class RouterUtil {
         }
         return ctx -> {
             try {
-                return (CompletionStage<HttpResult>) method.invoke(controller, parametesMapper.apply(ctx));
+                return (CompletionStage<HttpResult>) method.invoke(controller, parametersMapper.apply(ctx));
             } catch (InvocationTargetException e) {
                 return handleError(ctx, e.getTargetException());
             } catch (Exception e) {
@@ -691,7 +857,7 @@ public class RouterUtil {
         if (remoteAddr != null) {
             if (param.getType() != String.class) {
                 throw new IllegalArgumentException(
-                        "unsupperted type " + param.getType() + " for @RemoteAddr, only support String");
+                        "unsupported type " + param.getType() + " for @RemoteAddr, only support String");
             }
             return remoteAddrMapper;
         }
@@ -737,13 +903,13 @@ public class RouterUtil {
     }
 
     private static final ConcurrentMap<String, IllegalArgumentException> illegalArgumentExceptions = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, Supplier<IllegalArgumentException>> illegalArguemntSuppliers = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Supplier<IllegalArgumentException>> illegalArgumentSuppliers = new ConcurrentHashMap<>();
 
     private static final Supplier<IllegalArgumentException> noSuchPathVariable(String name) {
         String message = "missing path variable " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
-        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
+        return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
     private static final Function<HttpRequestContext, Object> toQueryVarMapper(Parameter param, QueryVar queryVar) {
@@ -855,7 +1021,7 @@ public class RouterUtil {
         String message = "missing path query variable " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
-        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
+        return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
     private static final Map<Class<?>, Function<List<String>, Object>> queryListValueMappers;
@@ -924,7 +1090,7 @@ public class RouterUtil {
         }
     }
 
-    private static final Function<HttpRequestContext, Object> toOptionalMapper(QueryVar queryVar,
+    private static final Function<HttpRequestContext, Object> toOptionalMapper(@SuppressWarnings("unused") QueryVar queryVar,
             ParameterizedType type, String name) {
         Type atype = type.getActualTypeArguments()[0];
         Function<List<String>, Object> mapper = queryValueMappers.get(atype == Object.class ? String.class : atype);
@@ -939,7 +1105,7 @@ public class RouterUtil {
     private static final Function<HttpRequestContext, Object> contentToBytesMapper = ctx -> ByteBufUtil
             .getBytes(ctx.request().content());
 
-    private static final Function<HttpRequestContext, Object> toJsonBodyMapper(Parameter param, JsonBody jsonBody) {
+    private static final Function<HttpRequestContext, Object> toJsonBodyMapper(Parameter param, @SuppressWarnings("unused") JsonBody jsonBody) {
         Type type = param.getParameterizedType();
         if (type == String.class) {
             return contentToStringMapper;
@@ -952,7 +1118,7 @@ public class RouterUtil {
     }
 
     private static final Function<HttpRequestContext, Object> toStringBodyMapper(Parameter param,
-            StringBody strongBody) {
+            @SuppressWarnings("unused") StringBody strongBody) {
         Type type = param.getParameterizedType();
         if (type == String.class || type == CharSequence.class) {
             return contentToStringMapper;
@@ -967,7 +1133,7 @@ public class RouterUtil {
         String message = "missing header " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
-        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
+        return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
     private static final Function<HttpRequestContext, Object> toHeaderValueMapper(Parameter param,
@@ -1049,7 +1215,7 @@ public class RouterUtil {
             if (type instanceof Class<?>) {
                 Class<?> valueType = param.getType();
                 if (propertyValue.required()) {
-                    Supplier<IllegalArgumentException> noSuchPropertyValue = noSuchPropertyValue(key.toString());
+                    Supplier<IllegalArgumentException> noSuchPropertyValue = noSuchPropertyValue(key);
                     return ctx -> ctx.property(key, valueType).orElseThrow(noSuchPropertyValue);
                 } else {
                     return ctx -> ctx.property(key, valueType).orElse(null);
@@ -1067,14 +1233,14 @@ public class RouterUtil {
         String message = "missing component value " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
-        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
+        return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
     private static final Supplier<IllegalArgumentException> noSuchPropertyValue(String name) {
         String message = "missing property value " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
-        return illegalArguemntSuppliers.computeIfAbsent(message, k -> () -> error);
+        return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
     private static Function<HttpRequestContext, Object> toSimpleMapper(HeaderValue headerValue, Type type,
@@ -1207,7 +1373,7 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
     }
 
-    private static final Function<HttpRequestContext, Object> toOptionalMapper(HeaderValue headerValue,
+    private static final Function<HttpRequestContext, Object> toOptionalMapper(@SuppressWarnings("unused") HeaderValue headerValue,
             ParameterizedType type, String name) {
         Type atype = type.getActualTypeArguments()[0];
         if (atype == String.class || atype == Object.class) {

@@ -36,7 +36,7 @@ dependencies {
     "jsonSupportApi"("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.jcraft:jzlib")
     "brotliSupportImplementation"("com.aayushatharva.brotli4j:brotli4j")
-    "kotlinSupportImplementation"("org.jetbrains.kotlin:kotlin-reflect")
+    "kotlinSupportImplementation"("com.github.fmjsjx:libcommon-kotlin")
     "kotlinSupportImplementation"("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
