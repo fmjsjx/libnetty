@@ -156,6 +156,11 @@ public class RouterUtil {
                 if (!KotlinUtil.isKotlinReflectPresent()) {
                     throw new IllegalStateException("missing kotlin reflection module but reach kotlin suspending function " + method);
                 }
+                // Skip static $suspendImpl bridge methods
+                if (Modifier.isStatic(method.getModifiers()) && method.getName().endsWith("$suspendImpl")) {
+                    logger.debug("Skip static $suspendImpl bridge method! -- {}", method);
+                    return;
+                }
                 KotlinSuspendingFunctionUtil.register(router, controller, method, path, httpMethods);
                 return;
             }
@@ -210,159 +215,6 @@ public class RouterUtil {
         default:
             router.add(toParamsInvoker(controller, method, params), path, httpMethods);
             break;
-        }
-
-    }
-
-    private static final class KotlinSuspendingFunctionUtil {
-
-        private static final void register(Router router, Object controller, Method method,
-                String path, HttpMethod[] httpMethods) {
-            var params = method.getParameters();
-            var returnType = KotlinReflectionUtil.getReturnType(method);
-            if (returnType == kotlin.Unit.class) {
-                if (params.length == 1) {
-                    router.add(toUnitResultInvoker(controller, method), path, httpMethods);
-                } else {
-                    router.add(toUnitResultInvoker(controller, method, params), path, httpMethods);
-                }
-            }
-            JsonBody jsonResponse = method.getAnnotation(JsonBody.class);
-            if (jsonResponse != null) {
-                if (params.length == 1) {
-                    router.add(toJsonResultInvoker(controller, method), path, httpMethods);
-                } else {
-                    router.add(toJsonResultInvoker(controller, method, params), path, httpMethods);
-                }
-                return;
-            }
-            StringBody stringBody = method.getAnnotation(StringBody.class);
-            if (stringBody != null) {
-                if (params.length == 1) {
-                    router.add(toStringResultInvoker(controller, method), path, httpMethods);
-                } else {
-                    router.add(toStringResultInvoker(controller, method, params), path, httpMethods);
-                }
-                return;
-            }
-            // no annotation
-            // when return type is CharSequence then means using as StringBody
-            if (CharSequence.class.isAssignableFrom(returnType)) {
-                if (params.length == 1) {
-                    router.add(toStringResultInvoker(controller, method), path, httpMethods);
-                } else {
-                    router.add(toStringResultInvoker(controller, method, params), path, httpMethods);
-                }
-                return;
-            }
-            // otherwise, always try to parse JSON
-            if (params.length == 1) {
-                router.add(toJsonResultInvoker(controller, method), path, httpMethods);
-            } else {
-                router.add(toJsonResultInvoker(controller, method, params), path, httpMethods);
-            }
-
-        }
-
-        private static final HttpServiceInvoker toUnitResultInvoker(Object controller, Method method) {
-            return ctx -> FutureKt.<Void>future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
-                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
-                        try {
-                            method.invoke(controller, continuation);
-                            return null;
-                        } catch (IllegalAccessException e) {
-                            throw new CompletionException(e);
-                        } catch (InvocationTargetException e) {
-                            throw new CompletionException(e.getTargetException());
-                        }
-                    }).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
-        }
-
-        private static final HttpServiceInvoker toUnitResultInvoker(Object controller, Method method, Parameter[] params) {
-            var parametersMapper = toParametersMapper(params);
-            return ctx -> FutureKt.<Void>future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
-                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
-                        try {
-                            method.invoke(controller, parametersMapper.apply(ctx, continuation));
-                            return null;
-                        } catch (IllegalAccessException e) {
-                            throw new CompletionException(e);
-                        } catch (InvocationTargetException e) {
-                            throw new CompletionException(e.getTargetException());
-                        }
-                    }).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
-        }
-
-        @SuppressWarnings("unchecked")
-        private static final BiFunction<HttpRequestContext, Continuation<?>, Object[]> toParametersMapper(Parameter[] params) {
-            var parameterMappers = Arrays.stream(params).limit(params.length - 1).map(RouterUtil::toParameterMapper)
-                    .toArray(Function[]::new);
-            return (ctx, continuation) -> {
-                try {
-                    var args = new Object[parameterMappers.length + 1];
-                    for (int i = 0; i < parameterMappers.length; i++) {
-                        args[i] = parameterMappers[i].apply(ctx);
-                    }
-                    args[parameterMappers.length] = continuation;
-                    return args;
-                } catch (Exception e) {
-                    throw new BadRequestException(e);
-                }
-            };
-        }
-
-        private static final HttpServiceInvoker toJsonResultInvoker(Object controller, Method method) {
-            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
-                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
-                        try {
-                            return method.invoke(controller, continuation);
-                        } catch (IllegalAccessException e) {
-                            throw new CompletionException(e);
-                        } catch (InvocationTargetException e) {
-                            throw new CompletionException(e.getTargetException());
-                        }
-                    }).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
-        }
-
-        private static final HttpServiceInvoker toJsonResultInvoker(Object controller, Method method, Parameter[] params) {
-            var parametersMapper = toParametersMapper(params);
-            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
-                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
-                        try {
-                            return method.invoke(controller, parametersMapper.apply(ctx, continuation));
-                        } catch (IllegalAccessException e) {
-                            throw new CompletionException(e);
-                        } catch (InvocationTargetException e) {
-                            throw new CompletionException(e.getTargetException());
-                        }
-                    }).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
-        }
-
-        private static final HttpServiceInvoker toStringResultInvoker(Object controller, Method method) {
-            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
-                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
-                        try {
-                            return method.invoke(controller, continuation);
-                        } catch (IllegalAccessException e) {
-                            throw new CompletionException(e);
-                        } catch (InvocationTargetException e) {
-                            throw new CompletionException(e.getTargetException());
-                        }
-                    }).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
-        }
-
-        private static final HttpServiceInvoker toStringResultInvoker(Object controller, Method method, Parameter[] params) {
-            var parametersMapper = toParametersMapper(params);
-            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
-                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
-                        try {
-                            return method.invoke(controller, parametersMapper.apply(ctx, continuation));
-                        } catch (IllegalAccessException e) {
-                            throw new CompletionException(e);
-                        } catch (InvocationTargetException e) {
-                            throw new CompletionException(e.getTargetException());
-                        }
-                    }).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
     }
@@ -1547,6 +1399,159 @@ public class RouterUtil {
      */
     public static final <T> int register(Router router, T controller, Class<T> clazz) {
         return register0(router, controller, clazz);
+    }
+
+    private static final class KotlinSuspendingFunctionUtil {
+
+        private static final void register(Router router, Object controller, Method method,
+                                           String path, HttpMethod[] httpMethods) {
+            var params = method.getParameters();
+            var returnType = KotlinReflectionUtil.getReturnType(method);
+            if (returnType == kotlin.Unit.class) {
+                if (params.length == 1) {
+                    router.add(toUnitResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toUnitResultInvoker(controller, method, params), path, httpMethods);
+                }
+            }
+            JsonBody jsonResponse = method.getAnnotation(JsonBody.class);
+            if (jsonResponse != null) {
+                if (params.length == 1) {
+                    router.add(toJsonResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toJsonResultInvoker(controller, method, params), path, httpMethods);
+                }
+                return;
+            }
+            StringBody stringBody = method.getAnnotation(StringBody.class);
+            if (stringBody != null) {
+                if (params.length == 1) {
+                    router.add(toStringResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toStringResultInvoker(controller, method, params), path, httpMethods);
+                }
+                return;
+            }
+            // no annotation
+            // when return type is CharSequence then means using as StringBody
+            if (CharSequence.class.isAssignableFrom(returnType)) {
+                if (params.length == 1) {
+                    router.add(toStringResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toStringResultInvoker(controller, method, params), path, httpMethods);
+                }
+                return;
+            }
+            // otherwise, always try to parse JSON
+            if (params.length == 1) {
+                router.add(toJsonResultInvoker(controller, method), path, httpMethods);
+            } else {
+                router.add(toJsonResultInvoker(controller, method, params), path, httpMethods);
+            }
+
+        }
+
+        private static final HttpServiceInvoker toUnitResultInvoker(Object controller, Method method) {
+            return ctx -> FutureKt.<Void>future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            method.invoke(controller, continuation);
+                            return null;
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toUnitResultInvoker(Object controller, Method method, Parameter[] params) {
+            var parametersMapper = toParametersMapper(params);
+            return ctx -> FutureKt.<Void>future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            method.invoke(controller, parametersMapper.apply(ctx, continuation));
+                            return null;
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        @SuppressWarnings("unchecked")
+        private static final BiFunction<HttpRequestContext, Continuation<?>, Object[]> toParametersMapper(Parameter[] params) {
+            var parameterMappers = Arrays.stream(params).limit(params.length - 1).map(RouterUtil::toParameterMapper)
+                    .toArray(Function[]::new);
+            return (ctx, continuation) -> {
+                try {
+                    var args = new Object[parameterMappers.length + 1];
+                    for (int i = 0; i < parameterMappers.length; i++) {
+                        args[i] = parameterMappers[i].apply(ctx);
+                    }
+                    args[parameterMappers.length] = continuation;
+                    return args;
+                } catch (Exception e) {
+                    throw new BadRequestException(e);
+                }
+            };
+        }
+
+        private static final HttpServiceInvoker toJsonResultInvoker(Object controller, Method method) {
+            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            return method.invoke(controller, continuation);
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toJsonResultInvoker(Object controller, Method method, Parameter[] params) {
+            var parametersMapper = toParametersMapper(params);
+            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            return method.invoke(controller, parametersMapper.apply(ctx, continuation));
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toStringResultInvoker(Object controller, Method method) {
+            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            return method.invoke(controller, continuation);
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toStringResultInvoker(Object controller, Method method, Parameter[] params) {
+            var parametersMapper = toParametersMapper(params);
+            return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
+                        try {
+                            return method.invoke(controller, parametersMapper.apply(ctx, continuation));
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
     }
 
 }
