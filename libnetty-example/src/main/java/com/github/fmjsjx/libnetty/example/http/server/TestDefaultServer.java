@@ -33,6 +33,7 @@ public class TestDefaultServer {
 
     public static void main(String[] args) throws Exception {
         TestController controller = new TestController();
+        KotlinController kotlinController = new KotlinController();
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
         DefaultHttpServer server = new DefaultHttpServer("test", 8443) // server name and port
@@ -51,7 +52,7 @@ public class TestDefaultServer {
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
                 .addLast("/static/auth", new AuthBasic(passwords(), "test")) // HTTP Basic Authentication
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/")) // static resources
-                .addLast(new Router().register(controller).init()) // router
+                .addLast(new Router().register(controller).register(kotlinController).init()) // router
         ;
         try {
             server.startup();
