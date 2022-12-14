@@ -36,12 +36,15 @@ import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCounted;
@@ -443,6 +446,43 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      */
     default Optional<Router.MatchedRoute> matchedRoute() {
         return property(Router.MatchedRoute.KEY);
+    }
+
+    /**
+     * {@code "_cookies"}. The key of the {@link Cookie}s used in HTTP request context properties.
+     */
+    Object PROPERTY_KEY_COOKIES = "_cookies";
+    /**
+     * Returns the list contains all {@link Cookie}s.
+     *
+     * @return a {@code Optional<List<Cookie>>}
+     * @since 2.7
+     */
+    default List<Cookie> cookies() {
+        return cookies(true);
+    }
+
+    /**
+     * Returns the list contains all {@link Cookie}s.
+     *
+     * @param strict if {@code true} then validate name and value chars are in the valid scope defined in {@code RFC6265}
+     * @return a {@code Optional<List<Cookie>>}
+     * @since 2.7
+     */
+    default List<Cookie> cookies(boolean strict) {
+        Optional<List<Cookie>> cookiesValue = property(PROPERTY_KEY_COOKIES);
+        if (cookiesValue.isPresent()) {
+            return cookiesValue.get();
+        }
+        List<Cookie> cookies;
+        var cookie = headers().get(HttpHeaderNames.COOKIE);
+        if (cookie == null) {
+            cookies = List.of();
+        } else {
+            cookies = (strict ? ServerCookieDecoder.STRICT : ServerCookieDecoder.LAX).decodeAll(cookie);
+        }
+        property(PROPERTY_KEY_COOKIES, cookies);
+        return cookies;
     }
 
     @Override
