@@ -485,6 +485,17 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
         return cookies;
     }
 
+    /**
+     * Returns the {@link Cookie} with the specified {@code name} given.
+     *
+     * @param name the name of the cookie
+     * @return an {@code Optional<Cookie>}
+     * @since 2.7
+     */
+    default Optional<Cookie> cookie(String name) {
+        return cookies().stream().filter(c -> c.name().equals(name)).findFirst();
+    }
+
     @Override
     default int refCnt() {
         return request().refCnt();
