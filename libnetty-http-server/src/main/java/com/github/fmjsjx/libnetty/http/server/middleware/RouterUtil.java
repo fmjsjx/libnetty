@@ -62,6 +62,7 @@ import com.github.fmjsjx.libnetty.http.server.HttpResponder;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServiceInvoker;
 import com.github.fmjsjx.libnetty.http.server.annotation.ComponentValue;
+import com.github.fmjsjx.libnetty.http.server.annotation.CookieValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpRoute;
@@ -85,6 +86,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.util.AsciiString;
 import io.netty.util.internal.StringUtil;
 
@@ -853,6 +855,10 @@ public class RouterUtil {
         if (headerValue != null) {
             return toHeaderValueMapper(param, headerValue);
         }
+        var cookieValue = param.getAnnotation(CookieValue.class);
+        if (cookieValue != null) {
+            return toCookieValueMapper(param, cookieValue);
+        }
         RemoteAddr remoteAddr = param.getAnnotation(RemoteAddr.class);
         if (remoteAddr != null) {
             if (param.getType() != String.class) {
@@ -1149,6 +1155,26 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
     }
 
+    private static final Supplier<IllegalArgumentException> noSuchCookie(String name) {
+        String message = "missing cookie " + name;
+        IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
+                IllegalArgumentException::new);
+        return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
+    }
+
+    private static final Function<HttpRequestContext, Object> toCookieValueMapper(Parameter param,
+            CookieValue cookieValue) {
+        Type type = param.getParameterizedType();
+        String name = cookieValue.value();
+        if (type instanceof Class<?>) {
+            return toSimpleMapper(cookieValue, type, name);
+        }
+        if (Optional.class == param.getType()) {
+            return toOptionalMapper(cookieValue, (ParameterizedType) type, name);
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @CookieValue");
+    }
+
     @SuppressWarnings("unchecked")
     private static final Function<HttpRequestContext, Object> toComponentValueMapper(Parameter param,
             ComponentValue componentValue) {
@@ -1373,8 +1399,8 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
     }
 
-    private static final Function<HttpRequestContext, Object> toOptionalMapper(@SuppressWarnings("unused") HeaderValue headerValue,
-            ParameterizedType type, String name) {
+    private static final Function<HttpRequestContext, Object> toOptionalMapper(
+            @SuppressWarnings("unused") HeaderValue headerValue, ParameterizedType type, String name) {
         Type atype = type.getActualTypeArguments()[0];
         if (atype == String.class || atype == Object.class) {
             return ctx -> Optional.ofNullable(ctx.headers().get(name));
@@ -1409,6 +1435,35 @@ public class RouterUtil {
                     .map(i -> i.atZone(ZoneId.systemDefault()).toOffsetDateTime());
         }
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
+    }
+
+    private static Function<HttpRequestContext, Object> toSimpleMapper(CookieValue cookieValue, Type type,
+                   String name) {
+        if (type == Cookie.class) {
+            if (cookieValue.required()) {
+                return ctx -> ctx.cookie(name).orElseThrow(noSuchCookie(name));
+            } else {
+                return ctx -> ctx.cookie(name).orElse(null);
+            }
+        } else if (type == String.class || type == CharSequence.class || type == Object.class) {
+            if (cookieValue.required()) {
+                return ctx -> ctx.cookie(name).orElseThrow(noSuchCookie(name)).value();
+            } else {
+                return ctx -> ctx.cookie(name).map(Cookie::value).orElse(null);
+            }
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @CookieValue");
+    }
+
+    private static final Function<HttpRequestContext, Object> toOptionalMapper(
+            @SuppressWarnings("unused") CookieValue cookieValue, ParameterizedType type, String name) {
+        Type atype = type.getActualTypeArguments()[0];
+        if (atype == Cookie.class) {
+            return ctx -> ctx.cookie(name);
+        } else if (atype == String.class || atype == CharSequence.class || atype == Object.class) {
+            return ctx -> ctx.cookie(name).map(Cookie::value);
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @CookieValue");
     }
 
     private static final Map<Class<?>, Function<HttpRequestContext, Object>> zeroValueMappers;
