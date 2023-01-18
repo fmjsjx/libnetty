@@ -41,21 +41,25 @@ dependencies {
 
 }
 
+val javaVersion = 17
+
 java {
     withSourcesJar()
     withJavadocJar()
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion.set(JavaLanguageVersion.of(javaVersion))
     }
 }
 
 tasks.compileJava {
     options.encoding = "UTF-8"
-    options.release.set(11)
+    options.release.set(javaVersion)
 }
 
 tasks.javadoc {
     if (JavaVersion.current().isJava9Compatible) {
         (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
     }
+    options.memberLevel = JavadocMemberLevel.PUBLIC
 }
+
