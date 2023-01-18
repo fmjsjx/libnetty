@@ -38,11 +38,20 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
+/**
+ * Test controller
+ */
 @HttpPath("/api")
 public class TestController {
 
     static final AsciiString ASCII_OK = AsciiString.cached("OK");
 
+    /**
+     * GET /api/test
+     *
+     * @param ctx request context
+     * @return result
+     */
     @HttpGet("/test")
     public CompletionStage<HttpResult> getTest(HttpRequestContext ctx) {
         // GET /api/test
@@ -53,9 +62,18 @@ public class TestController {
         return ctx.simpleRespond(OK, body, TEXT_PLAIN);
     }
 
+    /**
+     * GET /api/errors/{code}
+     *
+     * @param ctx       http request context
+     * @param code      code
+     * @param clientIp  client IP
+     * @param userAgent user-agent in header
+     * @return result
+     */
     @HttpGet("/errors/{code}")
     public CompletionStage<HttpResult> getErrors(HttpRequestContext ctx, @PathVar("code") int code,
-            @RemoteAddr String clientIp, @HeaderValue("user-agent") Optional<String> userAgent) {
+                                                 @RemoteAddr String clientIp, @HeaderValue("user-agent") Optional<String> userAgent) {
         // GET /api/errors/{code}
         System.out.println("-- errors --");
         System.out.println("client IP ==> " + clientIp);
@@ -65,6 +83,13 @@ public class TestController {
         return ctx.simpleRespond(status);
     }
 
+    /**
+     * GET /api/jsons
+     *
+     * @param query     query
+     * @param eventLoop current eventLoop
+     * @return result
+     */
     @HttpGet("/jsons")
     @JsonBody
     public CompletableFuture<?> getJsons(QueryStringDecoder query, EventLoop eventLoop) {
@@ -89,6 +114,13 @@ public class TestController {
         }, eventLoop);
     }
 
+    /**
+     * POST /api/echo
+     *
+     * @param ctx   http request context
+     * @param value json body value
+     * @return result
+     */
     @HttpPost("/echo")
     public CompletionStage<HttpResult> postEcho(HttpRequestContext ctx, @JsonBody JsonNode value) {
         // POST /api/echo
@@ -100,6 +132,13 @@ public class TestController {
         return ctx.simpleRespond(OK, content.retain(), contentType);
     }
 
+    /**
+     * GET /api/no-content
+     *
+     * @param query    query
+     * @param executor current executor (eventLoop actually)
+     * @return result
+     */
     @HttpGet("/no-content")
     public CompletionStage<Void> getNoContent(QueryStringDecoder query, Executor executor) {
         return CompletableFuture.runAsync(() -> {
@@ -109,6 +148,12 @@ public class TestController {
         }, executor);
     }
 
+    /**
+     * GET /api/ok
+     *
+     * @param query query
+     * @return result
+     */
     @HttpGet("/ok")
     @StringBody
     public CompletionStage<CharSequence> getOK(QueryStringDecoder query) {
@@ -117,6 +162,13 @@ public class TestController {
         return CompletableFuture.completedFuture(ASCII_OK);
     }
 
+    /**
+     * GET /api/error
+     *
+     * @param test     query parameter test
+     * @param executor current executor (eventLoop actually)
+     * @return result
+     */
     @HttpGet("/error")
     public CompletionStage<Void> getError(@QueryVar("test") OptionalInt test, Executor executor) {
         System.err.println("-- error --");

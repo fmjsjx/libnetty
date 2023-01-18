@@ -30,7 +30,7 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
 
     private MiddlewareChain lastChain = DEFAULT_LAST_CHAIN;
 
-    private LinkedList<Middleware> middlewares = new LinkedList<Middleware>();
+    private final LinkedList<Middleware> middlewares = new LinkedList<>();
 
     private BiConsumer<ChannelHandlerContext, Throwable> exceptionHandler = DEFAULT_EXCEPTION_HANDLER;
 
@@ -66,11 +66,23 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
         return new DefaultHttpServerHandler(middlewares, lastChain, exceptionHandler);
     }
 
+    /**
+     * Sets the last {@link MiddlewareChain}.
+     *
+     * @param lastChain the lastChain
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider lastChain(MiddlewareChain lastChain) {
         this.lastChain = Objects.requireNonNull(lastChain, "lastChain must not be null");
         return this;
     }
 
+    /**
+     * Sets the exception handler.
+     *
+     * @param exceptionHandler the exception handler
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider exceptionHandler(
             BiConsumer<ChannelHandlerContext, Throwable> exceptionHandler) {
         this.exceptionHandler = Objects.requireNonNull(exceptionHandler, "exceptionHandler must not be null")
@@ -78,26 +90,84 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
         return this;
     }
 
+    /**
+     * Add the specified {@link Middleware} at the end of the middleware list.
+     * <p>
+     * This method is equivalent to:
+     *
+     * <pre>
+     * {@code addLast(middleware);}
+     * </pre>
+     *
+     * @param middleware the middleware
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider add(Middleware middleware) {
         return addLast(middleware);
     }
 
+    /**
+     * Add the specified {@link Middleware} at the end of the middleware list.
+     * <p>
+     * This method is equivalent to:
+     *
+     * <pre>
+     * {@code addLast(pathFilter, middleware);}
+     * </pre>
+     *
+     * @param pathFilter the path filter
+     * @param middleware the middleware
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider add(Predicate<String> pathFilter, Middleware middleware) {
         return addLast(pathFilter, middleware);
     }
 
+    /**
+     * Add the specified {@link Middleware} at the end of the middleware list.
+     * <p>
+     * This method is equivalent to:
+     *
+     * <pre>
+     * {@code addLast(path, middleware);}
+     * </pre>
+     *
+     * @param path the path
+     * @param middleware the middleware
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider add(String path, Middleware middleware) {
         return addLast(path, middleware);
     }
 
+    /**
+     * Add the specified {@link Middleware} at the end of the middleware list.
+     * 
+     * @param pathFilter the path filter
+     * @param middleware the middleware
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider addLast(Predicate<String> pathFilter, Middleware middleware) {
         return addLast(new PathFilterMiddleware(pathFilter, middleware));
     }
 
+    /**
+     * Add the specified {@link Middleware} at the end of the middleware list.
+     *
+     * @param path the path
+     * @param middleware the middleware
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider addLast(String path, Middleware middleware) {
         return add(toFilter(path), middleware);
     }
 
+    /**
+     * Add the specified {@link Middleware}s at the end of the middleware list.
+     *
+     * @param middlewares the middleware array
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider addLast(Middleware... middlewares) {
         LinkedList<Middleware> m = this.middlewares;
         for (Middleware middleware : middlewares) {
@@ -106,15 +176,35 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
         return this;
     }
 
+    /**
+     * Add the specified {@link Middleware} at the beginning of the middleware list.
+     *
+     * @param middleware the middleware
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider addFirst(Middleware middleware) {
         middlewares.addFirst(Objects.requireNonNull(middleware, "middleware must not be null"));
         return this;
     }
 
+    /**
+     * Add the specified {@link Middleware} at the beginning of the middleware list.
+     *
+     * @param pathFilter the path filter
+     * @param middleware the middleware
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider addFirst(Predicate<String> pathFilter, Middleware middleware) {
         return addFirst(new PathFilterMiddleware(pathFilter, middleware));
     }
 
+    /**
+     * Add the specified {@link Middleware} at the beginning of the middleware list.
+     *
+     * @param path       the path
+     * @param middleware the middleware
+     * @return this provider
+     */
     public DefaultHttpServerHandlerProvider addFirst(String path, Middleware middleware) {
         return addFirst(toFilter(path), middleware);
     }

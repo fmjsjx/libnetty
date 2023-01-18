@@ -22,10 +22,19 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 
+/**
+ * Test server.
+ */
 public class TestServer {
 
     static final String JAVA_VERSION = System.getProperty("java.version").split("_")[0];
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         FcgiMessageEncoder encoder = new FcgiMessageEncoder();
         NioEventLoopGroup group = new NioEventLoopGroup();
@@ -33,7 +42,7 @@ public class TestServer {
 
             ServerBootstrap b = new ServerBootstrap().group(group).channel(NioServerSocketChannel.class)
                     .option(ChannelOption.SO_BACKLOG, 512).childOption(ChannelOption.TCP_NODELAY, true)
-                    .childHandler(new ChannelInitializer<Channel>() {
+                    .childHandler(new ChannelInitializer<>() {
                         protected void initChannel(Channel ch) throws Exception {
                             ch.pipeline().addLast(new ReadTimeoutHandler(60)).addLast(encoder)
                                     .addLast(new FcgiMessageDecoder()).addLast(new TestServerHandler());
@@ -41,6 +50,7 @@ public class TestServer {
                     });
             b.bind(9000).sync();
             System.out.println("TestServer started!");
+            //noinspection ResultOfMethodCallIgnored
             System.in.read();
 
         } finally {
@@ -72,8 +82,7 @@ class TestServerHandler extends SimpleChannelInboundHandler<FcgiMessage> {
     protected void channelRead0(ChannelHandlerContext ctx, FcgiMessage msg) throws Exception {
         System.out.println("-- message received --");
         System.out.println(msg);
-        if (msg instanceof FcgiRequest) {
-            FcgiRequest req = (FcgiRequest) msg;
+        if (msg instanceof FcgiRequest req) {
             String value = "X-Powered-By: JAVA/" + TestServer.JAVA_VERSION + "\r\n" // CRLF
                     + "content-type: text/html;charset=UTF-8\r\n" // CRLF
                     + "\r\n" // CRLF

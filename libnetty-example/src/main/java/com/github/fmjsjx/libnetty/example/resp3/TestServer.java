@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
-import com.github.fmjsjx.libnetty.http.client.HttpClient;
 import com.github.fmjsjx.libnetty.http.client.SimpleHttpClient;
 import com.github.fmjsjx.libnetty.resp.CachedBulkStringMessage;
 import com.github.fmjsjx.libnetty.resp.CachedErrorMessage;
@@ -45,15 +44,24 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.CharsetUtil;
 
+/**
+ * Test server.
+ */
 public class TestServer {
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         RespMessageEncoder respMessageEncoder = new RespMessageEncoder();
         NioEventLoopGroup group = new NioEventLoopGroup();
         try {
             ServerBootstrap b = new ServerBootstrap().group(group).channel(NioServerSocketChannel.class)
                     .option(ChannelOption.SO_BACKLOG, 512).childOption(ChannelOption.TCP_NODELAY, true)
-                    .childOption(ChannelOption.AUTO_READ, false).childHandler(new ChannelInitializer<Channel>() {
+                    .childOption(ChannelOption.AUTO_READ, false).childHandler(new ChannelInitializer<>() {
                         protected void initChannel(Channel ch) throws Exception {
                             ch.pipeline().addLast(respMessageEncoder).addLast(new RedisRequestDecoder())
                                     .addLast(new TestServerHandler());
@@ -61,6 +69,7 @@ public class TestServer {
                     });
             b.bind(6379).sync();
             System.out.println("TestServer started!");
+            //noinspection ResultOfMethodCallIgnored
             System.in.read();
 
         } finally {
@@ -138,25 +147,24 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
             try {
                 int version = msg.argument(1).intValue();
                 switch (version) {
-                case 2:
-                    DefaultArrayMessage<RespMessage> array = new DefaultArrayMessage<>(SERVER_KEY, SERVER_VALUE,
-                            VERSION_KEY, VERSION_VALUE, PROTO_KEY, RespMessages.integer(2));
-                    ctx.writeAndFlush(array).addListener(READ_NEXT);
-                    break;
-                case 3:
-                    supportResp3 = true;
-                    DefaultMapMessage<RespBulkStringMessage, RespMessage> map = new DefaultMapMessage<>();
-                    map.put(SERVER_KEY, SERVER_VALUE);
-                    map.put(VERSION_KEY, VERSION_VALUE);
-                    map.put(PROTO_KEY, RespMessages.integer(3));
-                    map.put(DefaultBulkStringMessage.createAscii(ctx.alloc(), "testMode"), CachedBooleanMessage.TRUE);
-                    ZonedDateTime now = ZonedDateTime.now();
-                    String unixTime = now.toEpochSecond() + "." + now.getNano() / 1_000_000;
-                    map.put(DefaultBulkStringMessage.createAscii(ctx.alloc(), "unixTime"), new DefaultDoubleMessage(unixTime));
-                    ctx.writeAndFlush(map).addListener(READ_NEXT);
-                    break;
-                default:
-                    throw new Exception(); // protocol version error
+                    case 2 -> {
+                        DefaultArrayMessage<RespMessage> array = new DefaultArrayMessage<>(SERVER_KEY, SERVER_VALUE,
+                                VERSION_KEY, VERSION_VALUE, PROTO_KEY, RespMessages.integer(2));
+                        ctx.writeAndFlush(array).addListener(READ_NEXT);
+                    }
+                    case 3 -> {
+                        supportResp3 = true;
+                        DefaultMapMessage<RespBulkStringMessage, RespMessage> map = new DefaultMapMessage<>();
+                        map.put(SERVER_KEY, SERVER_VALUE);
+                        map.put(VERSION_KEY, VERSION_VALUE);
+                        map.put(PROTO_KEY, RespMessages.integer(3));
+                        map.put(DefaultBulkStringMessage.createAscii(ctx.alloc(), "testMode"), CachedBooleanMessage.TRUE);
+                        ZonedDateTime now = ZonedDateTime.now();
+                        String unixTime = now.toEpochSecond() + "." + now.getNano() / 1_000_000;
+                        map.put(DefaultBulkStringMessage.createAscii(ctx.alloc(), "unixTime"), new DefaultDoubleMessage(unixTime));
+                        ctx.writeAndFlush(map).addListener(READ_NEXT);
+                    }
+                    default -> throw new Exception(); // protocol version error
                 }
             } catch (Exception e) {
                 ctx.writeAndFlush(PROTO_ERROR).addListener(READ_NEXT);
@@ -229,9 +237,9 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
     }
 
     private void get(ChannelHandlerContext ctx, RedisRequest msg) {
-        Channel channel = ctx.channel();
-        String path = msg.argument(1).textValue(CharsetUtil.UTF_8);
-        try (HttpClient client = SimpleHttpClient.builder().sslContextProvider(INSECURE_FOR_CLIENT)
+        var channel = ctx.channel();
+        var path = msg.argument(1).textValue(CharsetUtil.UTF_8);
+        try (var client = SimpleHttpClient.builder().sslContextProvider(INSECURE_FOR_CLIENT)
                 .build(channel.eventLoop(), channel.getClass())) {
             client.request(URI.create(path)).get().sendAsync(ByteBuf::retainedDuplicate).thenAccept(r -> {
                 if (r.statusCode() >= 400) {

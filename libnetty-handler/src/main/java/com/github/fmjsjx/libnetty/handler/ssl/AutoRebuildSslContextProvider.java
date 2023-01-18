@@ -23,7 +23,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
@@ -47,8 +46,8 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
 
     private static final Logger log = LoggerFactory.getLogger(AutoRebuildSslContextProvider.class);
 
-    private WatchService watchService;
-    private ExecutorService executor;
+    private final WatchService watchService;
+    private final ExecutorService executor;
 
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicReference<SslContext> sslContextRef = new AtomicReference<>();
@@ -106,7 +105,7 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
 
     private void refreshFiles() {
         Map<String, FileInfo> files = this.watchingFiles;
-        List<String> fileNames = files.keySet().stream().collect(Collectors.toList());
+        List<String> fileNames = files.keySet().stream().toList();
         for (String fileName : fileNames) {
             files.put(fileName, new FileInfo(dir.resolve(fileName)));
         }
@@ -144,6 +143,11 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
         return sslContextRef.get();
     }
 
+    /**
+     * Returns whether this provider is closed or not.
+     *
+     * @return {@code true} if this provider is closed, {@code false} otherwise
+     */
     public boolean isClosed() {
         return closed.get();
     }
@@ -190,7 +194,7 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
                             List<WatchEvent<?>> events = watchKey.pollEvents();
                             for (WatchEvent<?> watchEvent : events) {
                                 String fileName = watchEvent.context().toString();
-                                log.debug("Polled event {} {} ==> {}", watchEvent.kind(), fileName);
+                                log.debug("Polled event {} ==> {}", watchEvent.kind(), fileName);
                                 FileInfo old = watchingFiles.get(fileName);
                                 if (watchEvent.count() == 1 && old != null) {
                                     FileInfo current = new FileInfo(dir.resolve(fileName));
@@ -238,8 +242,7 @@ public abstract class AutoRebuildSslContextProvider implements SslContextProvide
 
         @Override
         public boolean equals(Object obj) {
-            if (obj instanceof FileInfo) {
-                FileInfo o = (FileInfo) obj;
+            if (obj instanceof FileInfo o) {
                 return length == o.length && lastModified == o.lastModified;
             }
             return false;

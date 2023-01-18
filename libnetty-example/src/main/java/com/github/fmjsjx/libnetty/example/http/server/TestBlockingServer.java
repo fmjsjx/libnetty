@@ -6,6 +6,7 @@ import static io.netty.handler.codec.http.HttpMethod.PATCH;
 import static io.netty.handler.codec.http.HttpMethod.POST;
 import static io.netty.handler.codec.http.HttpMethod.PUT;
 
+import java.io.Serial;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
@@ -32,6 +33,9 @@ import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Test blocking server
+ */
 @Slf4j
 public class TestBlockingServer {
 
@@ -39,6 +43,12 @@ public class TestBlockingServer {
         return Collections.singletonMap("test", "123456");
     }
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         BlockingTestController controller = new BlockingTestController();
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
@@ -49,8 +59,8 @@ public class TestBlockingServer {
                 .corsConfig(corsConfig) // CORS support
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
-                .supportJson() // Support JSON using Jackson2s
-                .component(new DefaultWorkerPool(1, 1)) // support blocking APIs
+                .supportJson() // Support JSON using Jackson2
+                .component(new DefaultWorkerPool(1)) // support blocking APIs
                 .component(new TestExceptionHandler()) // support test error handler
                 .soBackLog(1024).tcpNoDelay() // channel options
                 .applyCompressionOptions( // compression support
@@ -64,6 +74,7 @@ public class TestBlockingServer {
         try {
             server.startup();
             log.info("Server {} started.", server);
+            //noinspection ResultOfMethodCallIgnored
             System.in.read();
         } catch (Exception e) {
             log.error("Unexpected error occurs when startup {}", server, e);
@@ -79,6 +90,7 @@ public class TestBlockingServer {
 
 class TestException extends RuntimeException {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     public TestException() {
@@ -104,6 +116,7 @@ class TestExceptionHandler extends SimpleExceptionHandler<TestException> {
     @Override
     protected CompletionStage<HttpResult> handle0(HttpRequestContext ctx, TestException cause) {
         var obj = Map.of("error", cause.toString());
+        //noinspection OptionalGetWithoutIsPresent
         var content = ctx.component(JsonLibrary.class).get().write(ctx.alloc(), obj);
         return ctx.simpleRespond(HttpResponseStatus.OK, content, HttpHeaderValues.APPLICATION_JSON);
     }

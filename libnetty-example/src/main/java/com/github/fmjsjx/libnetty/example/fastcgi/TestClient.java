@@ -20,14 +20,23 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 
+/**
+ * Test client.
+ */
 public class TestClient {
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         FcgiMessageEncoder encoder = new FcgiMessageEncoder();
         NioEventLoopGroup group = new NioEventLoopGroup(1);
         try {
             Bootstrap b = new Bootstrap().group(group).channel(NioSocketChannel.class)
-                    .option(ChannelOption.TCP_NODELAY, true).handler(new ChannelInitializer<Channel>() {
+                    .option(ChannelOption.TCP_NODELAY, true).handler(new ChannelInitializer<>() {
                         protected void initChannel(Channel ch) throws Exception {
                             ch.pipeline().addLast(new ReadTimeoutHandler(60)).addLast(encoder)
                                     .addLast(new FcgiMessageDecoder()).addLast(new TestClientHandler());

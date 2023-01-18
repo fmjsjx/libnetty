@@ -6,6 +6,13 @@ import java.lang.annotation.Target;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
+/**
+ * Annotation that indicates method parameter should be bound to some cookie value of the HTTP request.
+ *
+ * @since 2.7
+ *
+ * @author MJ Fang
+ */
 @Target(PARAMETER)
 @Retention(RUNTIME)
 public @interface CookieValue {

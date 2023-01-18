@@ -19,14 +19,23 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
+/**
+ * Test client.
+ */
 public class TestClient {
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         RespMessageEncoder respMessageEncoder = new RespMessageEncoder();
         EventLoopGroup group = new NioEventLoopGroup();
         try {
             Bootstrap b = new Bootstrap().group(group).channel(NioSocketChannel.class)
-                    .option(ChannelOption.TCP_NODELAY, true).handler(new ChannelInitializer<Channel>() {
+                    .option(ChannelOption.TCP_NODELAY, true).handler(new ChannelInitializer<>() {
                         @Override
                         protected void initChannel(Channel ch) throws Exception {
                             ch.pipeline().addLast(respMessageEncoder).addLast(new Resp3MessageDecoder())
@@ -62,31 +71,17 @@ class TestClientHandler extends SimpleChannelInboundHandler<RespMessage> {
             return;
         }
         switch (count++) {
-        case 0:
-            ctx.writeAndFlush(command(ctx.alloc(), "ECHO", "Hello World!"));
-            break;
-        case 1:
-            ctx.writeAndFlush(command(ctx.alloc(), "SMEMBERS", "any key for test"));
-            break;
-        case 2:
-            ctx.writeAndFlush(command(ctx.alloc(), "SMEMBERS", "12"));
-            break;
-        case 3:
-            ctx.writeAndFlush(command(ctx.alloc(), "HGETALL", "any key for test"));
-            break;
-        case 4:
-            ctx.writeAndFlush(command(ctx.alloc(), "PING", "PING may same with ECHO"));
-            break;
-        case 5:
-            ctx.writeAndFlush(command(ctx.alloc(), "GET", "https://www.baidu.com/"));
-            break;
-        case 6:
-            ctx.writeAndFlush(command(ctx.alloc(), "GET", "https://www.sogou.com/"));
-            break;
-        default:
-            quited = true;
-            ctx.writeAndFlush(command(ctx.alloc(), "QUIT"));
-            break;
+            case 0 -> ctx.writeAndFlush(command(ctx.alloc(), "ECHO", "Hello World!"));
+            case 1 -> ctx.writeAndFlush(command(ctx.alloc(), "SMEMBERS", "any key for test"));
+            case 2 -> ctx.writeAndFlush(command(ctx.alloc(), "SMEMBERS", "12"));
+            case 3 -> ctx.writeAndFlush(command(ctx.alloc(), "HGETALL", "any key for test"));
+            case 4 -> ctx.writeAndFlush(command(ctx.alloc(), "PING", "PING may same with ECHO"));
+            case 5 -> ctx.writeAndFlush(command(ctx.alloc(), "GET", "https://www.baidu.com/"));
+            case 6 -> ctx.writeAndFlush(command(ctx.alloc(), "GET", "https://www.sogou.com/"));
+            default -> {
+                quited = true;
+                ctx.writeAndFlush(command(ctx.alloc(), "QUIT"));
+            }
         }
     }
 

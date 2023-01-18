@@ -676,6 +676,11 @@ public interface HttpClient extends AutoCloseable {
 
     }
 
+    /**
+     * Abstract implementation for {@link RequestBuilder} with wrapped {@link HttpClient}.
+     *
+     * @param <Self> self type
+     */
     abstract class ClientWrappedRequestBuilder<Self extends ClientWrappedRequestBuilder<?>>
             extends RequestBuilder<Self> {
 

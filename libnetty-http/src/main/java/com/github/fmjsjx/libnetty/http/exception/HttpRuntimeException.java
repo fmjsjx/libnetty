@@ -1,5 +1,7 @@
 package com.github.fmjsjx.libnetty.http.exception;
 
+import java.io.Serial;
+
 /**
  * Base HTTP runtime exception.
  * 
@@ -9,6 +11,7 @@ package com.github.fmjsjx.libnetty.http.exception;
  */
 public class HttpRuntimeException extends RuntimeException {
 
+    @Serial
     private static final long serialVersionUID = -1551443950470402372L;
 
     /**

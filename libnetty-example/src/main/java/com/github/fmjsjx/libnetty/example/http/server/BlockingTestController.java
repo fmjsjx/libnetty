@@ -19,9 +19,18 @@ import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureExcepti
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.QueryStringDecoder;
 
+/**
+ * Blocking test controller
+ */
 @HttpPath("/api")
 public class BlockingTestController {
 
+    /**
+     * GET /api/jsons
+     *
+     * @param query query
+     * @return result
+     */
     @HttpGet("/jsons")
     @JsonBody
     public Object getJsons(QueryStringDecoder query) {
@@ -44,6 +53,13 @@ public class BlockingTestController {
         }
     }
 
+    /**
+     * POST /api/echo
+     *
+     * @param ctx   the request context
+     * @param value the JSON body value
+     * @return the result
+     */
     @HttpPost("/echo")
     @JsonBody
     public Object postEcho(HttpRequestContext ctx, @JsonBody JsonNode value) {
@@ -54,6 +70,11 @@ public class BlockingTestController {
         return value;
     }
 
+    /**
+     * GET /api/no-content
+     *
+     * @param query query
+     */
     @HttpGet("/no-content")
     public void getNoContent(QueryStringDecoder query) {
         // GET /no-content
@@ -61,6 +82,12 @@ public class BlockingTestController {
         System.out.println(query.uri());
     }
 
+    /**
+     * GET /api/ok
+     *
+     * @param query query
+     * @return result
+     */
     @HttpGet("/ok")
     @StringBody
     public CharSequence getOK(QueryStringDecoder query) {
@@ -69,6 +96,12 @@ public class BlockingTestController {
         return TestController.ASCII_OK;
     }
 
+    /**
+     * GET /api/error
+     *
+     * @param test query parameter test
+     * @throws Exception any error occurs
+     */
     @HttpGet("/error")
     @JsonBody
     public void getError(@QueryVar("test") OptionalInt test) throws Exception {

@@ -9,6 +9,13 @@ import com.github.fmjsjx.libnetty.resp.RespCodecUtil;
 import com.github.fmjsjx.libnetty.resp.RespMessage;
 import com.github.fmjsjx.libnetty.resp.RespMessageType;
 
+/**
+ * The cached unbound aggregate header message.
+ *
+ * @since 1.1
+ *
+ * @author MJ Fang
+ */
 public class CachedUnboundAggregateHeaderMessage extends CachedRespMessage implements RespMessage {
 
     /**

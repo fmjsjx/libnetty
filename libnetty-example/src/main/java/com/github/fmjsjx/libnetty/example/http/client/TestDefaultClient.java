@@ -12,8 +12,17 @@ import com.github.fmjsjx.libnetty.http.client.HttpClient.Response;
 import com.github.fmjsjx.libnetty.http.client.HttpContentHandlers;
 import com.github.fmjsjx.libnetty.http.client.HttpContentHolders;
 
+/**
+ * Test class for default client.
+ */
 public class TestDefaultClient {
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         try (HttpClient client = DefaultHttpClient.builder().enableCompression().maxCachedSizeEachDomain(32).build()) {
             // Synchronous API

@@ -8,8 +8,17 @@ import com.github.fmjsjx.libnetty.http.client.HttpContentHandlers;
 import com.github.fmjsjx.libnetty.http.client.ProxyHandlerFactories;
 import com.github.fmjsjx.libnetty.http.client.SimpleHttpClient;
 
+/**
+ * Test http proxy.
+ */
 public class TestHttpProxy {
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         var userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36";
         try (HttpClient client = DefaultHttpClient.builder()
