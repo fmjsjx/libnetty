@@ -19,6 +19,11 @@ description = "libnetty/Handler"
 tasks.test {
     // Use junit platform for unit tests.
     useJUnitPlatform()
+    // Fix for java 17
+    jvmArgs = listOf(
+        "--add-exports=java.base/sun.security.x509=ALL-UNNAMED",
+        "--add-exports=java.base/sun.security.pkcs=ALL-UNNAMED",
+    )
 }
 
 publishing {
