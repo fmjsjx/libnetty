@@ -14,6 +14,9 @@ public class MultiErrorsException extends HttpRuntimeException {
     @Serial
     private static final long serialVersionUID = -920326062016826505L;
 
+    /**
+     * The errors.
+     */
     private final Throwable[] errors;
 
     /**
