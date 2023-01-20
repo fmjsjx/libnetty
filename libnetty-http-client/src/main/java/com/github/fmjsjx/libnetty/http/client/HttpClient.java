@@ -355,6 +355,17 @@ public interface HttpClient extends AutoCloseable {
         /**
          * Returns a new HTTP DELETE request built from the current state of this
          * builder.
+         *
+         * @return this builder
+         * @since 3.0
+         */
+        public Request delete() {
+            return method(HttpMethod.DELETE, null).build();
+        }
+
+        /**
+         * Returns a new HTTP DELETE request built from the current state of this
+         * builder.
          * 
          * @param contentHolder the {@code HttpContentHolder}
          * @return this builder
@@ -723,6 +734,11 @@ public interface HttpClient extends AutoCloseable {
         @Override
         public ClientWrappedRequest patch(HttpContentHolder<?> contentHolder) {
             return (ClientWrappedRequest) super.patch(contentHolder);
+        }
+
+        @Override
+        public ClientWrappedRequest delete() {
+            return (ClientWrappedRequest) super.delete();
         }
 
         @Override
