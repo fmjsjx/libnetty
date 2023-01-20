@@ -3,6 +3,8 @@ package com.github.fmjsjx.libnetty.http.client.exception;
 import com.github.fmjsjx.libnetty.http.client.HttpClient;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
+import java.io.Serial;
+
 /**
  * This exception is thrown when invoke a closed {@link HttpClient}.
  * 
@@ -12,6 +14,7 @@ import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
  */
 public class ClientClosedException extends HttpRuntimeException {
 
+    @Serial
     private static final long serialVersionUID = 2583991732362352884L;
 
     /**
