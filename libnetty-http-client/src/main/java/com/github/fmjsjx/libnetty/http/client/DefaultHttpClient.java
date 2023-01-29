@@ -1,16 +1,5 @@
 package com.github.fmjsjx.libnetty.http.client;
 
-import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
-import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT_ENCODING;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
-import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
-import static io.netty.handler.codec.http.HttpHeaderValues.GZIP_DEFLATE;
-import static io.netty.handler.codec.http.HttpMethod.DELETE;
-import static io.netty.handler.codec.http.HttpMethod.PATCH;
-import static io.netty.handler.codec.http.HttpMethod.POST;
-import static io.netty.handler.codec.http.HttpMethod.PUT;
 import static java.net.InetSocketAddress.createUnresolved;
 
 import java.net.InetSocketAddress;
@@ -27,6 +16,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.function.IntFunction;
 
+import io.netty.handler.codec.http.*;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,17 +39,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.compression.Brotli;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpClientCodec;
-import io.netty.handler.codec.http.HttpContentDecompressor;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.proxy.ProxyConnectionEvent;
 import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.timeout.IdleState;
@@ -172,10 +152,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                             pipeline.addLast(
                                                     sslContextProvider.get().newHandler(ctx.alloc(), host, port));
                                         }
-                                        pipeline.addLast(new HttpClientCodec());
-                                        pipeline.addLast(new HttpContentDecompressor());
-                                        pipeline.addLast(new HttpObjectAggregator(maxContentLength));
-                                        pipeline.addLast(handler);
+                                        addHttpHandlers(pipeline, handler);
                                         handler.sendAsnyc(requestContext);
                                     } else {
                                         future.completeExceptionally(
@@ -200,10 +177,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                 if (ssl) {
                                     cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
                                 }
-                                cp.addLast(new HttpClientCodec());
-                                cp.addLast(new HttpContentDecompressor());
-                                cp.addLast(new HttpObjectAggregator(maxContentLength));
-                                cp.addLast(handler);
+                                addHttpHandlers(cp, handler);
                             }
                         });
                 b.connect(handler.address()).addListener((ChannelFuture cf) -> {
@@ -216,6 +190,14 @@ public class DefaultHttpClient extends AbstractHttpClient {
             }
         }
         return future;
+    }
+
+    private void addHttpHandlers(ChannelPipeline pipeline, InternalHttpClientHandler handler) {
+        pipeline.addLast(new HttpClientCodec());
+        pipeline.addLast(new HttpContentDecompressor());
+        pipeline.addLast(new ChunkedWriteHandler());
+        pipeline.addLast(new HttpObjectAggregator(maxContentLength));
+        pipeline.addLast(handler);
     }
 
     private CachedPool<HttpConnection> getCachedConnectionPool(String addressKey) {
@@ -386,31 +368,12 @@ public class DefaultHttpClient extends AbstractHttpClient {
                     Request request = requestContext.request;
                     if (channel.isActive()) {
                         this.requestContext = requestContext;
-                        HttpMethod method = request.method();
-                        HttpHeaders headers = request.headers();
                         URI uri = request.uri();
                         String path = uri.getRawPath();
                         String query = uri.getRawQuery();
                         String requestUri = query == null ? path : path + "?" + query;
-                        ByteBuf content = request.contentHolder().content(channel.alloc());
-                        DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method,
-                                requestUri, content, headers, request.trailingHeaders());
-                        headers.set(HOST, headerHost);
-                        if (method == POST || method == PUT || method == PATCH || method == DELETE) {
-                            int contentLength = content.readableBytes();
-                            headers.setInt(CONTENT_LENGTH, contentLength);
-                            if (!headers.contains(CONTENT_TYPE)) {
-                                headers.set(CONTENT_TYPE, contentType(APPLICATION_X_WWW_FORM_URLENCODED));
-                            }
-                        }
-                        if (compressionEnabled) {
-                            headers.set(ACCEPT_ENCODING, Brotli.isAvailable() ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
-                        } else {
-                            headers.remove(ACCEPT_ENCODING);
-                        }
-                        HttpUtil.setKeepAlive(req, true);
-                        log.debug("Send HTTP request async: {}", req);
-                        channel.writeAndFlush(req);
+                        var req = createHttpRequest(channel, request, requestUri);
+                        sendHttpRequest(req, channel, request);
                     } else {
                         requestContext.future.completeExceptionally(new ClosedChannelException());
                     }
@@ -418,6 +381,10 @@ public class DefaultHttpClient extends AbstractHttpClient {
             } else {
                 requestContext.future.completeExceptionally(new ClosedChannelException());
             }
+        }
+
+        private HttpRequest createHttpRequest(Channel channel, Request request, String requestUri) {
+            return DefaultHttpClient.this.createHttpRequest(channel.alloc(), request, headerHost, requestUri);
         }
 
     }

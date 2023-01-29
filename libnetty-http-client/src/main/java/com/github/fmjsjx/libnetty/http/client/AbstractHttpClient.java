@@ -1,6 +1,15 @@
 package com.github.fmjsjx.libnetty.http.client;
 
+import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT_ENCODING;
+import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
+import static io.netty.handler.codec.http.HttpHeaderValues.GZIP_DEFLATE;
+import static io.netty.handler.codec.http.HttpMethod.*;
+import static io.netty.handler.codec.http.HttpMethod.DELETE;
+
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -11,24 +20,34 @@ import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.client.exception.ClientClosedException;
 
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.compression.Brotli;
+import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import io.netty.handler.codec.http.multipart.FileUpload;
+import io.netty.handler.codec.http.multipart.HttpDataFactory;
+import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
+import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEncoderException;
 import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.NettyRuntime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Abstract implementation of {@link HttpClient}.
  *
- * @since 1.0
- *
  * @author MJ Fang
- *
  * @see DefaultHttpClient
  * @see SimpleHttpClient
+ * @since 1.0
  */
 public abstract class AbstractHttpClient implements HttpClient {
+
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
     /**
      * Default is 60 seconds.
@@ -50,9 +69,10 @@ public abstract class AbstractHttpClient implements HttpClient {
     private final Object closeLock = new Object();
     protected volatile boolean closed;
 
-    protected AbstractHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass,
-            SslContextProvider sslContextProvider, boolean compressionEnabled,
-            ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory, Duration defaultRequestTimeout) {
+    protected AbstractHttpClient(
+            EventLoopGroup group, Class<? extends Channel> channelClass, SslContextProvider sslContextProvider,
+            boolean compressionEnabled, ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory,
+            Duration defaultRequestTimeout) {
         this.group = Objects.requireNonNull(group, "group must not be null");
         this.channelClass = Objects.requireNonNull(channelClass, "channelClass must not be null");
         this.sslContextProvider = Objects.requireNonNull(sslContextProvider, "sslContextProvider must not be null");
@@ -134,7 +154,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public <T> CompletableFuture<Response<T>> sendAsync(Request request, HttpContentHandler<T> contentHandler,
-            Executor executor) {
+                                                        Executor executor) {
         if (closed) {
             return CompletableFuture.supplyAsync(() -> {
                 throw newClientClosed();
@@ -153,8 +173,8 @@ public abstract class AbstractHttpClient implements HttpClient {
         return future.orTimeout(requestTimeout.get().toNanos(), TimeUnit.NANOSECONDS);
     }
 
-    protected abstract <T> CompletableFuture<Response<T>> sendAsync0(Request request,
-            HttpContentHandler<T> contentHandler, Optional<Executor> executor);
+    protected abstract <T> CompletableFuture<Response<T>> sendAsync0(
+            Request request, HttpContentHandler<T> contentHandler, Optional<Executor> executor);
 
     protected Optional<Duration> requestTimeout(Request request) {
         return request.timeout().or(this::defaultRequestTimeout);
@@ -181,12 +201,107 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
     }
 
+    protected HttpRequest createHttpRequest(ByteBufAllocator alloc, Request request, CharSequence headerHost,
+                                            String requestUri) {
+        HttpMethod method = request.method();
+        HttpHeaders headers = request.headers();
+        headers.set(HOST, headerHost);
+        HttpRequest req;
+        if (request.multipartBody().isPresent()) {
+            req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, method, requestUri, headers);
+        } else {
+            var content = request.contentHolder().content(alloc);
+            req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, requestUri, content,
+                    headers, request.trailingHeaders());
+            if (method == POST || method == PUT || method == PATCH || (method == DELETE && content.isReadable())) {
+                int contentLength = content.readableBytes();
+                headers.setInt(CONTENT_LENGTH, contentLength);
+                if (!headers.contains(CONTENT_TYPE)) {
+                    headers.set(CONTENT_TYPE, contentType(APPLICATION_X_WWW_FORM_URLENCODED));
+                }
+            }
+        }
+        if (compressionEnabled) {
+            headers.set(ACCEPT_ENCODING, Brotli.isAvailable() ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
+        } else {
+            headers.remove(ACCEPT_ENCODING);
+        }
+        HttpUtil.setKeepAlive(req, false);
+        return req;
+    }
+
+    protected HttpPostRequestEncoder createHttpPostRequestEncoder(
+            HttpDataFactory factory, HttpRequest request, MultipartBody body) {
+        var entries = body.entries();
+        try {
+            return new HttpPostRequestEncoder(factory, request, true);
+        } catch (ErrorDataEncoderException e) {
+            throw new HttpRuntimeException(e);
+        }
+    }
+
+    protected HttpDataFactory createHttpDataFactory(MultipartBody body) {
+        HttpDataFactory factory;
+        if (body.entries().stream().anyMatch(e -> e instanceof FileUploadEntry)) {
+            factory = new DefaultHttpDataFactory(body.charset());
+        } else {
+            factory = new DefaultHttpDataFactory(false, body.charset());
+        }
+        return factory;
+    }
+
+    protected FileUpload createFileUpload(
+            HttpRequest request, HttpDataFactory factory, Charset charset, ContentFileUploadEntry entry) {
+        var content = entry.content();
+        var fileUpload = factory.createFileUpload(request, entry.name(), entry.filename(), entry.contentType(),
+                "binary", charset, content.readableBytes());
+        try {
+            fileUpload.setContent(content);
+        } catch (IOException e) {
+            // Can't reach this line commonly
+            throw new HttpRuntimeException(e);
+        }
+        return fileUpload;
+    }
+
+    protected void sendHttpRequest(HttpRequest req, ChannelOutboundInvoker channel, Request request) {
+        if (request.multipartBody().isPresent()) {
+            var body = request.multipartBody().get();
+            var factory = createHttpDataFactory(body);
+            var encoder = createHttpPostRequestEncoder(factory, req, body);
+            try {
+                for (var entry : body.entries()) {
+                    if (entry instanceof ContentFileUploadEntry contentFileUploadEntry) {
+                        encoder.addBodyHttpData(createFileUpload(req, factory, body.charset(), contentFileUploadEntry));
+                    } else {
+                        entry.addBody(encoder);
+                    }
+                }
+                var freq = encoder.finalizeRequest();
+                log.debug("Send HTTP request async: {}", req);
+                log.debug("-- headers : {}", freq.headers());
+                channel.write(freq);
+                channel.write(encoder).addListener(cf -> {
+                    if (cf.isDone()) {
+                        encoder.cleanFiles();
+                    }
+                });
+                channel.flush();
+            } catch (ErrorDataEncoderException e) {
+                encoder.cleanFiles();
+                throw new HttpRuntimeException(e);
+            }
+        } else {
+            log.debug("Send HTTP request async: {}", req);
+            channel.writeAndFlush(req);
+        }
+    }
+
     /**
      * The abstract implementation of {@link HttpClient.Builder}.
      *
-     * @since 1.0
-     *
      * @author MJ Fang
+     * @since 1.0
      */
     protected abstract static class AbstractBuilder<C extends HttpClient, Self extends AbstractBuilder<C, ?>>
             implements HttpClient.Builder {
@@ -395,7 +510,6 @@ public abstract class AbstractHttpClient implements HttpClient {
          * Returns the factory of {@link ProxyHandler}.
          *
          * @return the factory of {@code ProxyHandler}
-         *
          * @since 1.2
          */
         public ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory() {

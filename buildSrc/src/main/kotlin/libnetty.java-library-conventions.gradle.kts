@@ -37,6 +37,7 @@ dependencies {
         val kotlinVersion = "1.7.22"
         implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
         implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+        implementation("org.bouncycastle:bcpkix-jdk15to18:1.72")
 	}
 
 }

@@ -1,17 +1,5 @@
 package com.github.fmjsjx.libnetty.http.client;
 
-import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
-import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT_ENCODING;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
-import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
-import static io.netty.handler.codec.http.HttpHeaderValues.GZIP_DEFLATE;
-import static io.netty.handler.codec.http.HttpMethod.DELETE;
-import static io.netty.handler.codec.http.HttpMethod.PATCH;
-import static io.netty.handler.codec.http.HttpMethod.POST;
-import static io.netty.handler.codec.http.HttpMethod.PUT;
-
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Duration;
@@ -20,6 +8,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 
+import io.netty.channel.*;
+import io.netty.handler.codec.http.*;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,27 +19,8 @@ import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.transport.TransportLibrary;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.compression.Brotli;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpClientCodec;
-import io.netty.handler.codec.http.HttpContentDecompressor;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.proxy.ProxyConnectionEvent;
 import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
@@ -60,13 +32,11 @@ import lombok.NoArgsConstructor;
 /**
  * Simple implementation of {@link HttpClient} uses short connections (create
  * and close channel for each request).
- * 
- * @since 1.0
- * 
+ *
  * @author MJ Fang
- * 
  * @see AbstractHttpClient
  * @see DefaultHttpClient
+ * @since 1.0
  */
 public class SimpleHttpClient extends AbstractHttpClient {
 
@@ -74,10 +44,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
     /**
      * Builder of {@link SimpleHttpClient}.
-     * 
-     * @since 1.0
-     * 
+     *
      * @author MJ Fang
+     * @since 1.0
      */
     @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Builder extends AbstractBuilder<SimpleHttpClient, Builder> {
@@ -85,7 +54,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
         /**
          * Returns a new {@link SimpleHttpClient} built from the current state of this
          * builder with internal {@link EventLoopGroup}.
-         * 
+         *
          * @return a new {@code SimpleHttpClient}
          */
         @Override
@@ -103,7 +72,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
          * builder with given {@link EventLoopGroup}.
          * <p>
          * In this solution, the builder option {@code ioThreads} will be ignored
-         * 
+         *
          * @param group the {@link EventLoopGroup}
          * @return a new {@code SimpleHttpClient}
          */
@@ -117,7 +86,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
          * builder with given {@link EventLoopGroup}.
          * <p>
          * In this solution, the builder option {@code ioThreads} will be ignored
-         * 
+         *
          * @param group        the {@link EventLoopGroup}
          * @param channelClass the {@link Class} of {@link Channel}
          * @return a new {@code SimpleHttpClient}
@@ -132,7 +101,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
     /**
      * Returns a new {@link Builder} with default settings.
-     * 
+     *
      * @return a {@code Builder}.
      */
     public static final Builder builder() {
@@ -141,7 +110,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
     /**
      * Returns a new {@link SimpleHttpClient} with default settings.
-     * 
+     *
      * @return a {@code SimpleHttpClient}
      */
     public static final SimpleHttpClient build() {
@@ -172,7 +141,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
     @Override
     protected <T> CompletableFuture<Response<T>> sendAsync0(Request request, HttpContentHandler<T> contentHandler,
-            Optional<Executor> executor) {
+                                                            Optional<Executor> executor) {
         URI uri = request.uri();
         boolean ssl = "https".equalsIgnoreCase(uri.getScheme());
         boolean defaultPort = uri.getPort() == -1;
@@ -196,18 +165,14 @@ public class SimpleHttpClient extends AbstractHttpClient {
                         if (obj instanceof Throwable) {
                             future.completeExceptionally((Throwable) obj);
                         } else if (obj instanceof ProxyConnectionEvent) {
-                            ChannelPipeline pipeline = ctx.pipeline();
+                            var pipeline = ctx.pipeline();
                             pipeline.addLast(new ReadTimeoutHandler(connectionTimeoutSeconds));
                             if (ssl) {
                                 pipeline.addLast(sslContextProvider.get().newHandler(ctx.alloc(), host, port));
                             }
-                            pipeline.addLast(new HttpClientCodec());
-                            pipeline.addLast(new HttpContentDecompressor());
-                            pipeline.addLast(new HttpObjectAggregator(maxContentLength));
-                            pipeline.addLast(new SimpleHttpClientHandler<>(future, contentHandler, executor));
-                            DefaultFullHttpRequest req = createHttpRequest(ctx.alloc(), request, defaultPort, port,
-                                    host, requestUri);
-                            ctx.channel().writeAndFlush(req);
+                            addHttpHandlers(pipeline, future, contentHandler, executor);
+                            var req = createHttpRequest(ctx.alloc(), request, defaultPort, port, host, requestUri);
+                            sendHttpRequest(req, ctx.channel(), request);
                         } else {
                             future.completeExceptionally(
                                     new HttpRuntimeException("unknown event type " + obj.getClass()));
@@ -229,17 +194,14 @@ public class SimpleHttpClient extends AbstractHttpClient {
                     if (ssl) {
                         cp.addLast(sslContextProvider.get().newHandler(ch.alloc(), host, port));
                     }
-                    cp.addLast(new HttpClientCodec());
-                    cp.addLast(new HttpContentDecompressor());
-                    cp.addLast(new HttpObjectAggregator(maxContentLength));
-                    cp.addLast(new SimpleHttpClientHandler<>(future, contentHandler, executor));
+                    addHttpHandlers(cp, future, contentHandler, executor);
                 }
             });
             b.connect(address).addListener((ChannelFuture cf) -> {
                 if (cf.isSuccess()) {
-                    DefaultFullHttpRequest req = createHttpRequest(cf.channel().alloc(), request, defaultPort, port,
+                    var req = createHttpRequest(cf.channel().alloc(), request, defaultPort, port,
                             host, requestUri);
-                    cf.channel().writeAndFlush(req);
+                    sendHttpRequest(req, cf.channel(), request);
                 } else {
                     future.completeExceptionally(cf.cause());
                 }
@@ -248,28 +210,19 @@ public class SimpleHttpClient extends AbstractHttpClient {
         return future;
     }
 
-    private DefaultFullHttpRequest createHttpRequest(ByteBufAllocator alloc, Request request, boolean defaultPort,
-            int port, String host, String requestUri) {
-        HttpMethod method = request.method();
-        HttpHeaders headers = request.headers();
-        ByteBuf content = request.contentHolder().content(alloc);
-        DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, requestUri, content,
-                headers, request.trailingHeaders());
-        headers.set(HOST, defaultPort ? host : host + ":" + port);
-        if (method == POST || method == PUT || method == PATCH || method == DELETE) {
-            int contentLength = content.readableBytes();
-            headers.setInt(CONTENT_LENGTH, contentLength);
-            if (!headers.contains(CONTENT_TYPE)) {
-                headers.set(CONTENT_TYPE, contentType(APPLICATION_X_WWW_FORM_URLENCODED));
-            }
-        }
-        if (compressionEnabled) {
-            headers.set(ACCEPT_ENCODING, Brotli.isAvailable() ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
-        } else {
-            headers.remove(ACCEPT_ENCODING);
-        }
-        HttpUtil.setKeepAlive(req, false);
-        return req;
+    private <T> void addHttpHandlers(ChannelPipeline pipeline, CompletableFuture<Response<T>> future,
+                                     HttpContentHandler<T> contentHandler, Optional<Executor> executor) {
+        pipeline.addLast(new HttpClientCodec());
+        pipeline.addLast(new HttpContentDecompressor());
+        pipeline.addLast(new HttpObjectAggregator(maxContentLength));
+        pipeline.addLast(new ChunkedWriteHandler());
+        pipeline.addLast(new SimpleHttpClientHandler<>(future, contentHandler, executor));
+    }
+
+    private HttpRequest createHttpRequest(ByteBufAllocator alloc, Request request, boolean defaultPort,
+                                          int port, String host, String requestUri) {
+        var headerHost = defaultPort ? host : host + ":" + port;
+        return createHttpRequest(alloc, request, headerHost, requestUri);
     }
 
     private static final class SimpleHttpClientHandler<T> extends SimpleChannelInboundHandler<FullHttpResponse> {
@@ -279,7 +232,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
         private final Optional<Executor> executor;
 
         private SimpleHttpClientHandler(CompletableFuture<Response<T>> future, HttpContentHandler<T> contentHandler,
-                Optional<Executor> executor) {
+                                        Optional<Executor> executor) {
             this.future = future;
             this.contentHandler = contentHandler;
             this.executor = executor;
