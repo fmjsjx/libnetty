@@ -123,6 +123,7 @@ public class TestController {
      *
      * @param ctx http request context
      * @return result
+     * @throws Exception any error occurs
      */
     @HttpPost("/jsons/form")
     @JsonBody
@@ -223,6 +224,7 @@ public class TestController {
      *
      * @param ctx http request context
      * @return result
+     * @throws Exception any error occurs
      */
     @HttpPost("/upload")
     @StringBody
