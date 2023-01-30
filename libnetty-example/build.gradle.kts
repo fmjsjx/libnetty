@@ -9,7 +9,8 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     implementation("org.slf4j:slf4j-api")
-    implementation("org.apache.logging.log4j:log4j-slf4j-impl")
+    implementation("org.apache.logging.log4j:log4j-slf4j2-impl")
+    runtimeOnly("org.apache.logging.log4j:log4j-core")
     implementation(project(":libnetty-fastcgi"))
     implementation(project(":libnetty-http"))
     implementation(project(":libnetty-http-client"))
@@ -31,6 +32,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+    implementation("org.bouncycastle:bcpkix-jdk15to18")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.mockito:mockito-core")

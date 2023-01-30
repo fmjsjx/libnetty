@@ -24,6 +24,9 @@ import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Test class for default server.
+ */
 @Slf4j
 public class TestDefaultServer {
 
@@ -31,6 +34,12 @@ public class TestDefaultServer {
         return Collections.singletonMap("test", "123456");
     }
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         TestController controller = new TestController();
         KotlinController kotlinController = new KotlinController();
@@ -57,6 +66,7 @@ public class TestDefaultServer {
         try {
             server.startup();
             log.info("Server {} started.", server);
+            //noinspection ResultOfMethodCallIgnored
             System.in.read();
         } catch (Exception e) {
             log.error("Unexpected error occurs when startup {}", server, e);

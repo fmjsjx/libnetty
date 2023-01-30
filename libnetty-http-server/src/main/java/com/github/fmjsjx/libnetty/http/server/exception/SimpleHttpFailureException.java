@@ -2,6 +2,8 @@ package com.github.fmjsjx.libnetty.http.server.exception;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.io.Serial;
+
 /**
  * The default implementation of {@link HttpFailureException}.
  * 
@@ -11,8 +13,12 @@ import io.netty.handler.codec.http.HttpResponseStatus;
  */
 public class SimpleHttpFailureException extends HttpFailureException {
 
+    @Serial
     private static final long serialVersionUID = 5524273483668587550L;
 
+    /**
+     * The response status.
+     */
     private final HttpResponseStatus status;
 
     /**

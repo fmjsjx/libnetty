@@ -155,10 +155,10 @@ public final class IgnoredCaseAsciiKeyMap<V> {
 
         private SingleValue<V> next() {
             if (remainingKeyBytes.length == 1) {
-                return new SingleValue<V>(value);
+                return new SingleValue<>(value);
             } else {
                 byte[] nextKeyBytes = Arrays.copyOfRange(remainingKeyBytes, 1, remainingKeyBytes.length);
-                return new SingleValue<V>(nextKeyBytes, value);
+                return new SingleValue<>(nextKeyBytes, value);
             }
         }
 
@@ -233,7 +233,7 @@ public final class IgnoredCaseAsciiKeyMap<V> {
                     node.put(VALUE, sv.value);
                 } else {
                     byte nextByte = sv.remainingKeyBytes[0];
-                    if (i == array.length) {
+                    if (i == array.length - 1) {
                         node = new NodeImpl();
                         node.put(VALUE, value);
                         node.put(nextByte, sv.next());
@@ -273,10 +273,20 @@ public final class IgnoredCaseAsciiKeyMap<V> {
         }
     }
 
+    /**
+     * Check whether the part of some byte array is "equal to" another one
+     *
+     * @param a          the first array
+     * @param aFromIndex the fromIndex of the first array
+     * @param aToIndex   the toIndex of the first array
+     * @param b          the second array
+     * @param bFromIndex the fromIndex of the second array
+     * @param bToIndex   the toIndex of the second array
+     * @return {@code true} if the part of some byte array is "equal to" another one, {@code false} otherwise
+     */
     public static boolean equals(byte[] a, int aFromIndex, int aToIndex, byte[] b, int bFromIndex, int bToIndex) {
         rangeCheck(a.length, aFromIndex, aToIndex);
         rangeCheck(b.length, bFromIndex, bToIndex);
-
         int aLength = aToIndex - aFromIndex;
         int bLength = bToIndex - bFromIndex;
         if (aLength != bLength) {
@@ -329,8 +339,7 @@ public final class IgnoredCaseAsciiKeyMap<V> {
         int index = key.forEachByte(p);
         if (index == -1) {
             if (p.mode == NODE) {
-                V v = (V) p.cur.get(VALUE);
-                return v;
+                return (V) p.cur.get(VALUE);
             } else {
                 SingleValue<V> sv = p.sv;
                 if (sv != null) {

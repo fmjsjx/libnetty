@@ -2,6 +2,8 @@ package com.github.fmjsjx.libnetty.http.server.exception;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.io.Serial;
+
 /**
  * An {@link HttpFailureException} with manual response contents.
  * 
@@ -11,10 +13,20 @@ import io.netty.handler.codec.http.HttpResponseStatus;
  */
 public class ManualHttpFailureException extends HttpFailureException {
 
+    @Serial
     private static final long serialVersionUID = -7247664259899283220L;
 
+    /**
+     * The response status.
+     */
     private final HttpResponseStatus status;
+    /**
+     * The response content string.
+     */
     private final String content;
+    /**
+     * The response content type.
+     */
     private final CharSequence contentType;
 
     /**

@@ -22,13 +22,23 @@ import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.util.DomainWildcardMappingBuilder;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Test class for server with SNI feature.
+ */
 @Slf4j
 public class TestSniServer {
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         TestController controller = new TestController();
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
+        //noinspection resource
         var mappingBuilder = new DomainWildcardMappingBuilder<>(SslContextProviders.selfSignedForServer().get());
         var sniHandlerProvider = SniHandlerProviders.permutable(mappingBuilder.build());
         DefaultHttpServer server = new DefaultHttpServer("test", 8443) // server name and port
@@ -42,7 +52,6 @@ public class TestSniServer {
                 .soBackLog(1024).tcpNoDelay() // channel options
                 .applyCompressionOptions( // compression support
                         HttpContentCompressorProvider.defaultOptions());
-        ;
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/")) // static resources
@@ -51,6 +60,7 @@ public class TestSniServer {
         try {
             server.startup();
             log.info("Server {} started.", server);
+            //noinspection ResultOfMethodCallIgnored
             System.in.read();
         } catch (Exception e) {
             log.error("Unexpected error occurs when startup {}", server, e);

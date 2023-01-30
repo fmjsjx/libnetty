@@ -35,6 +35,11 @@ public abstract class HttpContentHolder<T> {
         return content;
     }
 
+    /**
+     * Returns the base data.
+     *
+     * @return the base data
+     */
     public T base() {
         return base;
     }

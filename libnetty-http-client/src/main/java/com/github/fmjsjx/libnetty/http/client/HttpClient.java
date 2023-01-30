@@ -240,6 +240,13 @@ public interface HttpClient extends AutoCloseable {
          */
         Optional<Duration> timeout();
 
+        /**
+         * Returns the {@link MultipartBody}.
+         *
+         * @return an {@code Optional<MultipartBody>}
+         * @since 3.0
+         */
+        Optional<MultipartBody> multipartBody();
     }
 
     /**
@@ -258,6 +265,12 @@ public interface HttpClient extends AutoCloseable {
         protected HttpHeaders trailingHeaders;
         protected HttpContentHolder<?> contentHolder;
         protected Duration timeout;
+        /**
+         * Stores {@link MultipartBody} value.
+         *
+         * @since 3.0
+         */
+        protected MultipartBody multipartBody;
 
         /**
          * Sets the {@code URI} for this request.
@@ -272,7 +285,7 @@ public interface HttpClient extends AutoCloseable {
 
         /**
          * Sets the HTTP method and content for this request.
-         * 
+         *
          * @param method        the {@code HttpMethod}
          * @param contentHolder the {@code HttpContentHolder}
          * @return this builder
@@ -284,12 +297,39 @@ public interface HttpClient extends AutoCloseable {
         }
 
         /**
+         * Sets the HTTP method for this request.
+         *
+         * @param method the {@code HttpMethod}
+         * @return this builder
+         * @since 3.0
+         */
+        protected Self method(HttpMethod method) {
+            this.method = Objects.requireNonNull(method, "method must not be null");
+            this.contentHolder = HttpContentHolders.ofEmpty();
+            return (Self) this;
+        }
+
+        /**
+         * Sets the HTTP method and request body (as content type multipart/form-data) for this request.
+         *
+         * @param method        the {@code HttpMethod}
+         * @param multipartBody the {@code MultipartBody}
+         * @return this builder
+         * @since 3.0
+         */
+        protected Self method(HttpMethod method, MultipartBody multipartBody) {
+            method(method);
+            this.multipartBody = multipartBody;
+            return (Self) this;
+        }
+
+        /**
          * Returns a new HTTP GET request built from the current state of this builder.
          * 
          * @return a {@link Request}
          */
         public Request get() {
-            return method(HttpMethod.GET, null).build();
+            return method(HttpMethod.GET).build();
         }
 
         /**
@@ -299,7 +339,7 @@ public interface HttpClient extends AutoCloseable {
          * @return this builder
          */
         public Request options() {
-            return method(HttpMethod.OPTIONS, null).build();
+            return method(HttpMethod.OPTIONS).build();
         }
 
         /**
@@ -308,7 +348,7 @@ public interface HttpClient extends AutoCloseable {
          * @return this builder
          */
         public Request head() {
-            return method(HttpMethod.HEAD, null).build();
+            return method(HttpMethod.HEAD).build();
         }
 
         /**
@@ -318,17 +358,28 @@ public interface HttpClient extends AutoCloseable {
          * @return this builder
          */
         public Request trace() {
-            return method(HttpMethod.TRACE, null).build();
+            return method(HttpMethod.TRACE).build();
         }
 
         /**
          * Returns a new HTTP POST request built from the current state of this builder.
-         * 
+         *
          * @param contentHolder the {@code HttpContentHolder}
          * @return this builder
          */
         public Request post(HttpContentHolder<?> contentHolder) {
             return method(HttpMethod.POST, contentHolder).build();
+        }
+
+        /**
+         * Returns a new HTTP POST request built from the current state of this builder.
+         *
+         * @param multipartBody the {@code MultipartBody}
+         * @return this builder
+         * @since 3.0
+         */
+        public Request post(MultipartBody multipartBody) {
+            return method(HttpMethod.POST, multipartBody).build();
         }
 
         /**
@@ -342,6 +393,17 @@ public interface HttpClient extends AutoCloseable {
         }
 
         /**
+         * Returns a new HTTP PUT request built from the current state of this builder.
+         *
+         * @param multipartBody the {@code MultipartBody}
+         * @return this builder
+         * @since 3.0
+         */
+        public Request put(MultipartBody multipartBody) {
+            return method(HttpMethod.PUT, contentHolder).build();
+        }
+
+        /**
          * Returns a new HTTP PATCH request built from the current state of this
          * builder.
          * 
@@ -350,6 +412,29 @@ public interface HttpClient extends AutoCloseable {
          */
         public Request patch(HttpContentHolder<?> contentHolder) {
             return method(HttpMethod.PATCH, contentHolder).build();
+        }
+
+        /**
+         * Returns a new HTTP PATCH request built from the current state of this
+         * builder.
+         *
+         * @param multipartBody the {@code MultipartBody}
+         * @return this builder
+         * @since 3.0
+         */
+        public Request patch(MultipartBody multipartBody) {
+            return method(HttpMethod.PATCH, contentHolder).build();
+        }
+
+        /**
+         * Returns a new HTTP DELETE request built from the current state of this
+         * builder.
+         *
+         * @return this builder
+         * @since 3.0
+         */
+        public Request delete() {
+            return method(HttpMethod.DELETE).build();
         }
 
         /**
@@ -676,6 +761,11 @@ public interface HttpClient extends AutoCloseable {
 
     }
 
+    /**
+     * Abstract implementation for {@link RequestBuilder} with wrapped {@link HttpClient}.
+     *
+     * @param <Self> self type
+     */
     abstract class ClientWrappedRequestBuilder<Self extends ClientWrappedRequestBuilder<?>>
             extends RequestBuilder<Self> {
 
@@ -711,13 +801,33 @@ public interface HttpClient extends AutoCloseable {
         }
 
         @Override
+        public ClientWrappedRequest post(MultipartBody multipartBody) {
+            return (ClientWrappedRequest) super.post(multipartBody);
+        }
+
+        @Override
         public ClientWrappedRequest put(HttpContentHolder<?> contentHolder) {
             return (ClientWrappedRequest) super.put(contentHolder);
         }
 
         @Override
+        public ClientWrappedRequest put(MultipartBody multipartBody) {
+            return (ClientWrappedRequest) super.put(multipartBody);
+        }
+
+        @Override
         public ClientWrappedRequest patch(HttpContentHolder<?> contentHolder) {
             return (ClientWrappedRequest) super.patch(contentHolder);
+        }
+
+        @Override
+        public ClientWrappedRequest patch(MultipartBody multipartBody) {
+            return (ClientWrappedRequest) super.patch(multipartBody);
+        }
+
+        @Override
+        public ClientWrappedRequest delete() {
+            return (ClientWrappedRequest) super.delete();
         }
 
         @Override

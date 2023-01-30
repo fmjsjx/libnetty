@@ -25,6 +25,7 @@ class DefaultRequest implements ClientWrappedRequest {
     private final HttpHeaders trailingHeaders;
     private final HttpContentHolder<?> contentHolder;
     private final Optional<Duration> timeout;
+    private final Optional<MultipartBody> multipartBody;
 
     @Override
     public HttpMethod method() {
@@ -61,6 +62,11 @@ class DefaultRequest implements ClientWrappedRequest {
         return timeout;
     }
 
+    @Override
+    public Optional<MultipartBody> multipartBody() {
+        return multipartBody;
+    }
+
     static final class Builder extends ClientWrappedRequestBuilder<Builder> {
 
         Builder(HttpClient wrappedClient) {
@@ -73,7 +79,8 @@ class DefaultRequest implements ClientWrappedRequest {
 
         @Override
         protected ClientWrappedRequest build0() {
-            return new DefaultRequest(wrappedClient, method, uri, headers, trailingHeaders, contentHolder, Optional.ofNullable(timeout));
+            return new DefaultRequest(wrappedClient, method, uri, headers, trailingHeaders, contentHolder,
+                    Optional.ofNullable(timeout), Optional.ofNullable(multipartBody));
         }
 
     }

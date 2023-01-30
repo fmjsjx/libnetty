@@ -26,7 +26,7 @@ import io.netty.util.CharsetUtil;
 
 /**
  * A {@link Middleware} logging HTTP access logs.
- * 
+ *
  * @since 1.1
  *
  * @author MJ Fang
@@ -37,55 +37,105 @@ public class AccessLogger implements Middleware {
 
     private static final BigDecimal T6 = BigDecimal.valueOf(1_000_000L);
 
+    /**
+     * A logger wrapper.
+     */
     @FunctionalInterface
     public interface LoggerWrapper {
 
+        /**
+         * Log content.
+         *
+         * @param content the content
+         */
         void log(String content);
 
+        /**
+         * Returns whether this logger wrapper is enabled or not.
+         *
+         * @return {@code true} if this logger wrapper is enabled, {@code false} otherwise
+         */
         default boolean isEnabled() {
             return true;
         }
 
     }
 
+    /**
+     * The stdout implementation of {@link LoggerWrapper}.
+     */
     public static final class StdoutLoggerWrapper extends FunctionalLoggerWrapper {
 
         private static final StdoutLoggerWrapper INSTANCE = new StdoutLoggerWrapper();
 
+        /**
+         * Returns the global singleton {@link StdoutLoggerWrapper} instance.
+         *
+         * @return the global singleton {@code StdoutLoggerWrapper} instance
+         */
         public static final StdoutLoggerWrapper getInstance() {
             return INSTANCE;
         }
 
+        /**
+         * Constructs a new {@link StdoutLoggerWrapper} instance.
+         */
         public StdoutLoggerWrapper() {
             super(System.out::println);
         }
 
     }
 
+    /**
+     * The stderr implementation of {@link LoggerWrapper}.
+     */
     public static final class StderrLoggerWrapper extends FunctionalLoggerWrapper {
 
         private static final StderrLoggerWrapper INSTANCE = new StderrLoggerWrapper();
 
+        /**
+         * Returns the global singleton {@link StderrLoggerWrapper} instance.
+         *
+         * @return the global singleton {@code StderrLoggerWrapper} instance
+         */
         public static final StderrLoggerWrapper getInstance() {
             return INSTANCE;
         }
 
+        /**
+         * Constructs a new {@link StderrLoggerWrapper} instance.
+         */
         public StderrLoggerWrapper() {
             super(System.err::println);
         }
 
     }
 
+    /**
+     * Functional implementation of {@link LoggerWrapper}.
+     */
     public static class FunctionalLoggerWrapper implements LoggerWrapper {
 
         private final Consumer<String> logAction;
         private final BooleanSupplier enabledChecker;
 
+        /**
+         * Constructs a new {@link FunctionalLoggerWrapper} instance with the specified {@code logAction} and the
+         * specified {@code enabledChecker} given.
+         *
+         * @param logAction the log action
+         * @param enabledChecker the enabled state checker
+         */
         public FunctionalLoggerWrapper(Consumer<String> logAction, BooleanSupplier enabledChecker) {
             this.logAction = Objects.requireNonNull(logAction, "logAction must not be null");
             this.enabledChecker = Objects.requireNonNull(enabledChecker, "enabledChecker must not be null");
         }
 
+        /**
+         * Constructs a new {@link FunctionalLoggerWrapper} instance with the specified {@code logAction} given.
+         *
+         * @param logAction the log action
+         */
         public FunctionalLoggerWrapper(Consumer<String> logAction) {
             this(logAction, Boolean.TRUE::booleanValue);
         }
@@ -102,60 +152,71 @@ public class AccessLogger implements Middleware {
 
     }
 
+    /**
+     * The {@code slf4j} implementation of {@link LoggerWrapper}.
+     */
     public static final class Slf4jLoggerWrapper extends FunctionalLoggerWrapper {
 
         private static final Consumer<String> logAction(Logger logger, Level level) {
             Objects.requireNonNull(logger, "logger must not be null");
             Objects.requireNonNull(level, "level must not be null");
-            switch (level) {
-            case DEBUG:
-                return logger::debug;
-            case ERROR:
-                return logger::error;
-            case INFO:
-                return logger::info;
-            case TRACE:
-                return logger::trace;
-            case WARN:
-                return logger::warn;
-            default:
-                // can't reach this line
-                return logger::info;
-            }
+            return switch (level) {
+                case DEBUG -> logger::debug;
+                case ERROR -> logger::error;
+                case INFO -> logger::info;
+                case TRACE -> logger::trace;
+                case WARN -> logger::warn;
+            };
         }
 
         private static final BooleanSupplier enabledChecker(Logger logger, Level level) {
             Objects.requireNonNull(logger, "logger must not be null");
             Objects.requireNonNull(level, "level must not be null");
-            switch (level) {
-            case DEBUG:
-                return logger::isDebugEnabled;
-            case ERROR:
-                return logger::isErrorEnabled;
-            case INFO:
-                return logger::isInfoEnabled;
-            case TRACE:
-                return logger::isTraceEnabled;
-            case WARN:
-                return logger::isWarnEnabled;
-            default:
-                // can't reach this line
-                return logger::isInfoEnabled;
-            }
+            return switch (level) {
+                case DEBUG -> logger::isDebugEnabled;
+                case ERROR -> logger::isErrorEnabled;
+                case INFO -> logger::isInfoEnabled;
+                case TRACE -> logger::isTraceEnabled;
+                case WARN -> logger::isWarnEnabled;
+            };
         }
 
+        /**
+         * Constructs a new {@link Slf4jLoggerWrapper} instance with the specified {@code logger} and the specified
+         * {@code level} given.
+         *
+         * @param logger the logger
+         * @param level the level
+         */
         public Slf4jLoggerWrapper(Logger logger, Level level) {
             super(logAction(logger, level), enabledChecker(logger, level));
         }
 
+        /**
+         * Constructs a new {@link Slf4jLoggerWrapper} instance with the specified {@code logger} given.
+         *
+         * @param logger the logger
+         */
         public Slf4jLoggerWrapper(Logger logger) {
             this(logger, Level.INFO);
         }
 
+        /**
+         * Constructs a new {@link Slf4jLoggerWrapper} instance with the specified {@code name} and the specified
+         * {@code level} given.
+         *
+         * @param name the logger name
+         * @param level the level
+         */
         public Slf4jLoggerWrapper(String name, Level level) {
             this(LoggerFactory.getLogger(name), level);
         }
 
+        /**
+         * Constructs a new {@link Slf4jLoggerWrapper} instance with the specified {@code name} given.
+         *
+         * @param name the logger name
+         */
         public Slf4jLoggerWrapper(String name) {
             this(name, Level.INFO);
         }
@@ -164,7 +225,7 @@ public class AccessLogger implements Middleware {
 
     /**
      * Some pre-defined log formats.
-     * 
+     *
      * @since 1.1
      *
      * @author MJ Fang
@@ -173,7 +234,7 @@ public class AccessLogger implements Middleware {
 
         /**
          * The minimal output.
-         * 
+         *
          * <pre>
          * :method :path :status :result-length - :response-time ms
          * </pre>
@@ -182,7 +243,7 @@ public class AccessLogger implements Middleware {
 
         /**
          * Shorter than default, also including response time.
-         * 
+         *
          * <pre>
          * :remote-addr :remote-user :method :path :http-version :status :result-length - :response-time ms
          * </pre>
@@ -194,7 +255,7 @@ public class AccessLogger implements Middleware {
          * token will be colored green for success codes, red for server error codes,
          * yellow for client error codes, cyan for redirection codes, and uncolored for
          * information codes.
-         * 
+         *
          * <pre>
          * :method :path :status :response-time ms - :result-length
          * </pre>
@@ -203,7 +264,7 @@ public class AccessLogger implements Middleware {
 
         /**
          * Standard Apache common log output.
-         * 
+         *
          * <pre>
          * :remote-addr - :remote-user [:datetime] \":method :path :http-version\" :status :result-length
          * </pre>
@@ -212,7 +273,7 @@ public class AccessLogger implements Middleware {
 
         /**
          * Standard Apache combined log output.
-         * 
+         *
          * <pre>
          * :remote-addr - :remote-user [:datetime] ":method :path :http-version" :status :result-length ":referrer" ":user-agent"
          * </pre>
@@ -222,16 +283,16 @@ public class AccessLogger implements Middleware {
 
         /**
          * Basic log output.
-         * 
+         *
          * <pre>
          * :datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length
          * </pre>
          */
         BASIC(":datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length"),
-        
+
         /**
          * Another basic log output, make result length human readable.
-         * 
+         *
          * <pre>
          * :datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length-humanreadable
          * </pre>
@@ -255,8 +316,8 @@ public class AccessLogger implements Middleware {
 
     private static final Function<HttpResult, String> generateMapperFromPattern(String pattern) {
         Matcher m = SYMBOL_PATTERN.matcher(pattern);
-        List<String> txts = new ArrayList<String>();
-        List<String> symbols = new ArrayList<String>();
+        List<String> txts = new ArrayList<>();
+        List<String> symbols = new ArrayList<>();
         int start = 0;
         for (; m.find(start); start = m.end()) {
             symbols.add(m.group());
@@ -269,7 +330,7 @@ public class AccessLogger implements Middleware {
         if (symbols.isEmpty()) {
             return r -> pattern;
         }
-        String[] atxt = txts.toArray(new String[txts.size()]);
+        var atxt = txts.toArray(String[]::new);
         @SuppressWarnings("unchecked")
         Function<HttpResult, Object>[] symbolMappers = symbols.stream().map(AccessLogger::symbolMapper)
                 .toArray(Function[]::new);
@@ -294,28 +355,16 @@ public class AccessLogger implements Middleware {
     }
 
     private static final Function<HttpResult, Object> symbolMapper(String symbol) {
-        switch (symbol) {
-        case ":version":
-        case ":http-version":
-            return result -> result.requestContext().version();
-        case ":method":
-        case ":http-method":
-            return result -> result.requestContext().method();
-        case ":uri":
-            return result -> result.requestContext().uri();
-        case ":url":
-        case ":path":
-            return result -> result.requestContext().path();
-        case ":raw-path":
-            return result -> result.requestContext().rawPath();
-        case ":query":
-            return result -> result.requestContext().rawQuery();
-        case ":host":
-            return result -> result.requestContext().headers().get(HttpHeaderNames.HOST, "-");
-        case ":content-length":
-            return result -> result.requestContext().contentLength();
-        case ":content":
-            return result -> {
+        return switch (symbol) {
+            case ":version", ":http-version" -> result -> result.requestContext().version();
+            case ":method", ":http-method" -> result -> result.requestContext().method();
+            case ":uri" -> result -> result.requestContext().uri();
+            case ":url", ":path" -> result -> result.requestContext().path();
+            case ":raw-path" -> result -> result.requestContext().rawPath();
+            case ":query" -> result -> result.requestContext().rawQuery();
+            case ":host" -> result -> result.requestContext().headers().get(HttpHeaderNames.HOST, "-");
+            case ":content-length" -> result -> result.requestContext().contentLength();
+            case ":content" -> result -> {
                 try {
                     return result.requestContext().body().toString(CharsetUtil.UTF_8);
                 } catch (Exception e) {
@@ -323,13 +372,9 @@ public class AccessLogger implements Middleware {
                     return "-";
                 }
             };
-        case ":content-type":
-            return result -> result.requestContext().contentType().orElse("-");
-        case ":remote-addr":
-        case ":remote-address":
-            return result -> result.requestContext().remoteAddress();
-        case ":remote-user":
-            return result -> {
+            case ":content-type" -> result -> result.requestContext().contentType().orElse("-");
+            case ":remote-addr", ":remote-address" -> result -> result.requestContext().remoteAddress();
+            case ":remote-user" -> result -> {
                 String auth = result.requestContext().headers().get(HttpHeaderNames.AUTHORIZATION);
                 if (auth == null || !auth.startsWith("Basic ")) {
                     return "-";
@@ -339,37 +384,27 @@ public class AccessLogger implements Middleware {
                         CharsetUtil.UTF_8);
                 return basic.split(":")[0];
             };
-        case ":user-agent":
-            return result -> result.requestContext().headers().get(HttpHeaderNames.USER_AGENT, "-");
-        case ":referrer":
-            return result -> result.requestContext().headers().get(HttpHeaderNames.REFERER, "-");
-        case ":accept":
-            return result -> result.requestContext().headers().get(HttpHeaderNames.ACCEPT, "-");
-        case ":status":
-            return result -> result.responseStatus();
-        case ":status-code":
-            return result -> result.responseStatus().codeAsText();
-        case ":status-reason":
-            return result -> result.responseStatus().reasonPhrase();
-        case ":result-length":
-            return HttpResult::resultLength;
-        case ":result-length-humanreadable":
-            return result -> toHumanReadableSize(result.resultLength());
-        case ":iso-local-datetime":
-            return result -> result.respondedTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        case ":datetime":
-            return result -> result.respondedTime().format(DEFAULT_DATE_TIME);
-        case ":iso-local-date":
-            return result -> result.respondedTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
-        case ":basic-iso-date":
-            return result -> result.respondedTime().toLocalDate().format(DateTimeFormatter.BASIC_ISO_DATE);
-        case ":iso-local-time":
-            return result -> result.respondedTime().toLocalTime().format(DateTimeFormatter.ISO_LOCAL_TIME);
-        case ":response-time":
-            return result -> BigDecimal.valueOf(result.nanoUsed()).divide(T6, 3, RoundingMode.HALF_EVEN);
-        default:
-            return result -> symbol;
-        }
+            case ":user-agent" -> result -> result.requestContext().headers().get(HttpHeaderNames.USER_AGENT, "-");
+            case ":referrer" -> result -> result.requestContext().headers().get(HttpHeaderNames.REFERER, "-");
+            case ":accept" -> result -> result.requestContext().headers().get(HttpHeaderNames.ACCEPT, "-");
+            case ":status" -> HttpResult::responseStatus;
+            case ":status-code" -> result -> result.responseStatus().codeAsText();
+            case ":status-reason" -> result -> result.responseStatus().reasonPhrase();
+            case ":result-length" -> HttpResult::resultLength;
+            case ":result-length-humanreadable" -> result -> toHumanReadableSize(result.resultLength());
+            case ":iso-local-datetime" ->
+                    result -> result.respondedTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            case ":datetime" -> result -> result.respondedTime().format(DEFAULT_DATE_TIME);
+            case ":iso-local-date" ->
+                    result -> result.respondedTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
+            case ":basic-iso-date" ->
+                    result -> result.respondedTime().toLocalDate().format(DateTimeFormatter.BASIC_ISO_DATE);
+            case ":iso-local-time" ->
+                    result -> result.respondedTime().toLocalTime().format(DateTimeFormatter.ISO_LOCAL_TIME);
+            case ":response-time" ->
+                    result -> BigDecimal.valueOf(result.nanoUsed()).divide(T6, 3, RoundingMode.HALF_EVEN);
+            default -> result -> symbol;
+        };
     }
 
     private static final String toHumanReadableSize(long length) {
@@ -387,9 +422,9 @@ public class AccessLogger implements Middleware {
             return String.format("%.1fM", length / (1024 * 1024.0));
         } else if (length < 1024 * 1024 * 1024) {
             return (length / (1024 * 1024)) + "M";
-        } else if (length < 1024 * 1024 * 1024 * 10) {
+        } else if (length < 1024L * 1024 * 1024 * 10) {
             return String.format("%.2fG", length / (1024 * 1024 * 1024.0));
-        } else if (length < 1024 * 1024 * 1024 * 100) {
+        } else if (length < 1024L * 1024 * 1024 * 100) {
             return String.format("%.1fG", length / (1024 * 1024 * 1024.0));
         } else {
             return (length / (1024 * 1024 * 1024)) + "G";
@@ -399,26 +434,63 @@ public class AccessLogger implements Middleware {
     private final LoggerWrapper loggerWrapper;
     private final Function<HttpResult, String> logMapper;
 
+    /**
+     * Constructs a new {@link AccessLogger} instance with the {@link StdoutLoggerWrapper} and the {@code BASIC} log
+     * format.
+     */
     public AccessLogger() {
         this(LogFormat.BASIC);
     }
 
+    /**
+     * Constructs a new {@link AccessLogger} instance with the {@link StdoutLoggerWrapper} and the specified
+     * {@code format} given.
+     *
+     * @param format the log format
+     */
     public AccessLogger(LogFormat format) {
         this(StdoutLoggerWrapper.INSTANCE, format);
     }
 
+    /**
+     * Constructs a new {@link AccessLogger} instance with the specified {@link LoggerWrapper} and the specified
+     * {@code format} given.
+     *
+     * @param loggerWrapper the logger wrapper
+     * @param format        the log format
+     */
     public AccessLogger(LoggerWrapper loggerWrapper, LogFormat format) {
         this(loggerWrapper, Objects.requireNonNull(format, "format must not be null").pattern);
     }
 
+    /**
+     * Constructs a new {@link AccessLogger} instance with the {@link StdoutLoggerWrapper} and the specified
+     * {@code pattern} given.
+     *
+     * @param pattern the log format pattern
+     */
     public AccessLogger(String pattern) {
         this(StdoutLoggerWrapper.INSTANCE, pattern);
     }
 
+    /**
+     * Constructs a new {@link AccessLogger} instance with the specified {@link LoggerWrapper} and the specified
+     * {@code pattern} given.
+     *
+     * @param loggerWrapper the logger wrapper
+     * @param pattern       the log format pattern
+     */
     public AccessLogger(LoggerWrapper loggerWrapper, String pattern) {
         this(loggerWrapper, generateMapperFromPattern(pattern));
     }
 
+    /**
+     * Constructs a new {@link AccessLogger} instance with the specified {@link LoggerWrapper} and the specified
+     * {@code logMapper} given.
+     *
+     * @param loggerWrapper the logger wrapper
+     * @param logMapper     the log mapper
+     */
     private AccessLogger(LoggerWrapper loggerWrapper, Function<HttpResult, String> logMapper) {
         this.loggerWrapper = loggerWrapper;
         this.logMapper = logMapper;

@@ -33,12 +33,21 @@ import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.util.CharsetUtil;
 
+/**
+ * Test server with watching SSL.
+ */
 public class TestWatchingSslServer {
 
     private static final String sslCertPath = System.getProperty("ssl.certFile",
             "src/main/resources/ssl/localhost.crt");
     private static final String sslKeyFile = System.getProperty("ssl.keyFile", "src/main/resources/ssl/localhost.key");
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
         File keyCertChainFile = new File(sslCertPath);
         File keyFile = new File(sslKeyFile);
@@ -51,6 +60,7 @@ public class TestWatchingSslServer {
             server.handler(new TestHandler());
             try {
                 server.startup();
+                //noinspection ResultOfMethodCallIgnored
                 System.in.read();
             } catch (Exception e) {
                 System.err.println("Unexpected error occurs when startup " + server);

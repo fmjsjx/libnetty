@@ -4,6 +4,8 @@ import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.io.Serial;
+
 /**
  * Abstract implementation of {@link HttpRuntimeException} with a
  * {@link HttpResponseStatus}.
@@ -14,6 +16,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
  */
 public abstract class HttpFailureException extends HttpRuntimeException {
 
+    @Serial
     private static final long serialVersionUID = -1392803129128681473L;
 
     protected HttpFailureException(String message, Throwable cause) {

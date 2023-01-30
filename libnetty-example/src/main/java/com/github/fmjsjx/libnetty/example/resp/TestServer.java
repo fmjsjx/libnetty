@@ -37,15 +37,24 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.CharsetUtil;
 
+/**
+ * Test server
+ */
 public class TestServer {
 
+    /**
+     * Main method.
+     *
+     * @param args main arguments
+     * @throws Exception any error occurs
+     */
     public static void main(String[] args) throws Exception {
-        RespMessageEncoder respMessageEncoder = new RespMessageEncoder();
-        NioEventLoopGroup group = new NioEventLoopGroup();
+        var respMessageEncoder = new RespMessageEncoder();
+        var group = new NioEventLoopGroup();
         try {
-            ServerBootstrap b = new ServerBootstrap().group(group).channel(NioServerSocketChannel.class)
+            var b = new ServerBootstrap().group(group).channel(NioServerSocketChannel.class)
                     .option(ChannelOption.SO_BACKLOG, 512).childOption(ChannelOption.TCP_NODELAY, true)
-                    .childOption(ChannelOption.AUTO_READ, false).childHandler(new ChannelInitializer<Channel>() {
+                    .childOption(ChannelOption.AUTO_READ, false).childHandler(new ChannelInitializer<>() {
                         protected void initChannel(Channel ch) throws Exception {
                             ch.pipeline().addLast(respMessageEncoder).addLast(new RedisRequestDecoder())
                                     .addLast(new TestServerHandler());
@@ -53,6 +62,7 @@ public class TestServer {
                     });
             b.bind(6379).sync();
             System.out.println("TestServer started!");
+            //noinspection ResultOfMethodCallIgnored
             System.in.read();
 
         } finally {
