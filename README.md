@@ -9,22 +9,19 @@ A set of some useful libraries based on netty4.1.x.
 ### Add Maven Dependencies
 `pom.xml`
 ```xml
-...
+<pom>
   <dependencyManagement>
     <dependencies>
-      ...
       <!-- BOM -->
       <dependency>
         <groupId>com.github.fmjsjx</groupId>
         <artifactId>libnetty-bom</artifactId>
-        <version>3.0.0</version>
+        <version>3.1.0-M1</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      ...
     </dependencies>
   </dependencyManagement>
-...
   <dependencies>
     ...
     <!-- HTTP server -->
@@ -34,42 +31,37 @@ A set of some useful libraries based on netty4.1.x.
     </dependency>
     ...
   </dependencies>
-...
+</pom>
 ```
 
 ### Add Gradle Dependencies
 
 #### Groovy DSL
 ```groovy
-...
 repositories {
     mavenCentral
 }
 
 dependencies {
     // BOM
-    implementation platform('com.github.fmjsjx:libnetty-bom:3.0.0')
+    implementation platform('com.github.fmjsjx:libnetty-bom:3.1.0-M1')
     // HTTP server
     implementation 'com.github.fmjsjx:libnetty-http-server'
-    ...
 }
-...
 ```
 #### Kotlin DSL
 ```kotlin
-...
 repositories {
     mavenCentral()
 }
 
 dependencies {
     // BOM
-    implementation(platform("com.github.fmjsjx:libnetty-bom:3.0.0"))
+    implementation(platform("com.github.fmjsjx:libnetty-bom:3.1.0-M1"))
     // HTTP server
     implementation("com.github.fmjsjx:libnetty-http-server")
-    ...
 }
-...
+
 ```
 
 ## Modules
