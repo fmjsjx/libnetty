@@ -45,6 +45,7 @@ import io.netty.util.CharsetUtil;
  * Test controller
  */
 @HttpPath("/api")
+@HttpPath("/api_dup")
 public class TestController {
 
     static final AsciiString ASCII_OK = AsciiString.cached("OK");
