@@ -23,11 +23,20 @@ public class Fastjson2JsonLibrary implements JsonLibrary {
     private final JSONReader.Feature[] readerFeatures;
     private final JSONWriter.Feature[] writerFeatures;
 
+    /**
+     * Constructs a new {@link Fastjson2JsonLibrary} with the specified features.
+     *
+     * @param readerFeatures the reader features
+     * @param writerFeatures the writer features
+     */
     public Fastjson2JsonLibrary(JSONReader.Feature[] readerFeatures, JSONWriter.Feature[] writerFeatures) {
         this.readerFeatures = Arrays.copyOf(readerFeatures, readerFeatures.length);
         this.writerFeatures = Arrays.copyOf(writerFeatures, writerFeatures.length);
     }
 
+    /**
+     * Constructs a new {@link Fastjson2JsonLibrary} with the default features.
+     */
     public Fastjson2JsonLibrary() {
         this(new JSONReader.Feature[0], new JSONWriter.Feature[0]);
     }
