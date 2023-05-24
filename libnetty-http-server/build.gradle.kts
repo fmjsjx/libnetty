@@ -38,6 +38,8 @@ dependencies {
     "brotliSupportImplementation"("com.aayushatharva.brotli4j:brotli4j")
     "kotlinSupportImplementation"("com.github.fmjsjx:libcommon-kotlin")
     "kotlinSupportImplementation"("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
+    "jsonSupportApi"("com.alibaba.fastjson2:fastjson2")
+    "kotlinSupportImplementation"("com.alibaba.fastjson2:fastjson2-kotlin")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.mockito:mockito-core")
