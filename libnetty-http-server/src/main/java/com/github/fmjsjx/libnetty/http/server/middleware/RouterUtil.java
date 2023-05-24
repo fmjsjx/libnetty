@@ -47,6 +47,7 @@ import java.util.stream.Collectors;
 
 import com.github.fmjsjx.libcommon.util.KotlinUtil;
 import com.github.fmjsjx.libcommon.util.kotlin.KotlinReflectionUtil;
+import com.github.fmjsjx.libnetty.http.server.annotation.*;
 import kotlin.coroutines.Continuation;
 import kotlinx.coroutines.CoroutineStart;
 import kotlinx.coroutines.ExecutorsKt;
@@ -61,17 +62,6 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext.HttpResponseFac
 import com.github.fmjsjx.libnetty.http.server.HttpResponder;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServiceInvoker;
-import com.github.fmjsjx.libnetty.http.server.annotation.ComponentValue;
-import com.github.fmjsjx.libnetty.http.server.annotation.CookieValue;
-import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
-import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
-import com.github.fmjsjx.libnetty.http.server.annotation.HttpRoute;
-import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
-import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
-import com.github.fmjsjx.libnetty.http.server.annotation.PropertyValue;
-import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
-import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
-import com.github.fmjsjx.libnetty.http.server.annotation.StringBody;
 import com.github.fmjsjx.libnetty.http.server.component.ExceptionHandler;
 import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
@@ -114,28 +104,33 @@ public class RouterUtil {
     }
 
     private static int register0(Router router, Object controller, Class<?> clazz) {
-        String pathPrefix = getPathPrefix(clazz);
+        var pathPrefixes = getPathPrefixes(clazz);
         Method[] methods = clazz.getDeclaredMethods();
         int num = 0;
-        METHODS_LOOP: for (Method method : methods) {
+        METHODS_LOOP:
+        for (Method method : methods) {
             HttpRoute route = method.getAnnotation(HttpRoute.class);
             if (route != null) {
-                String path = httpPathJoin(pathPrefix, route.value());
-                HttpMethod[] httpMethods = Arrays.stream(route.method()).map(HttpMethodWrapper::wrapped)
-                        .toArray(HttpMethod[]::new);
-                registerMethod(router, controller, method, path, httpMethods);
-                num++;
+                for (var pathPrefix : pathPrefixes) {
+                    String path = httpPathJoin(pathPrefix, route.value());
+                    HttpMethod[] httpMethods = Arrays.stream(route.method()).map(HttpMethodWrapper::wrapped)
+                            .toArray(HttpMethod[]::new);
+                    registerMethod(router, controller, method, path, httpMethods);
+                    num++;
+                }
                 continue METHODS_LOOP;
             }
             Annotation[] mas = method.getAnnotations();
             for (Annotation ma : mas) {
                 HttpRoute methodRoute = ma.annotationType().getAnnotation(HttpRoute.class);
                 if (methodRoute != null) {
-                    HttpMethod[] httpMethods = Arrays.stream(methodRoute.method()).map(HttpMethodWrapper::wrapped)
-                            .toArray(HttpMethod[]::new);
-                    String path = httpPathJoin(pathPrefix, routeValue(ma));
-                    registerMethod(router, controller, method, path, httpMethods);
-                    num++;
+                    for (var pathPrefix : pathPrefixes) {
+                        HttpMethod[] httpMethods = Arrays.stream(methodRoute.method()).map(HttpMethodWrapper::wrapped)
+                                .toArray(HttpMethod[]::new);
+                        String path = httpPathJoin(pathPrefix, routeValue(ma));
+                        registerMethod(router, controller, method, path, httpMethods);
+                        num++;
+                    }
                     continue METHODS_LOOP;
                 }
             }
@@ -797,7 +792,7 @@ public class RouterUtil {
     static {
         Map<Class<?>, Function<List<String>, Object>> map = new HashMap<>();
         // arrays
-        map.put(String[].class, values -> values.stream().toArray(String[]::new));
+        map.put(String[].class, values -> values.toArray(String[]::new));
         map.put(int[].class, values -> values.stream().mapToInt(Integer::parseInt).toArray());
         map.put(long[].class, values -> values.stream().mapToLong(Long::parseLong).toArray());
         map.put(Integer[].class, values -> values.stream().map(Integer::valueOf).toArray(Integer[]::new));
@@ -829,7 +824,7 @@ public class RouterUtil {
             Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
             return ctx -> ctx.queryParameter(name).map(mapper).orElseThrow(noSuchQueryVariable);
         } else {
-            return ctx -> ctx.queryParameter(name).map(mapper).orElseGet(null);
+            return ctx -> ctx.queryParameter(name).map(mapper).orElse(null);
         }
     }
 
@@ -1082,8 +1077,7 @@ public class RouterUtil {
             }
             if (Optional.class == param.getType()) {
                 Type atype = ((ParameterizedType) type).getActualTypeArguments()[0];
-                if (atype instanceof Class<?>) {
-                    Class<?> key = (Class<?>) atype;
+                if (atype instanceof Class<?> key) {
                     // skip required check
                     return ctx -> ctx.property(key);
                 }
@@ -1385,6 +1379,17 @@ public class RouterUtil {
             return "/" + String.join("/", path.value());
         }
         return "/";
+    }
+
+    private static final List<String> getPathPrefixes(Class<?> clazz) {
+        var httpPaths = clazz.getAnnotation(HttpPaths.class);
+        if (httpPaths != null) {
+            var paths = Arrays.stream(httpPaths.value()).map(path -> "/" + String.join("/", path.value())).toList();
+            if (paths.size() > 0) {
+                return paths;
+            }
+        }
+        return List.of(getPathPrefix(clazz));
     }
 
     /**
