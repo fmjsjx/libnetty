@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.http.server.component;
 
+import java.io.Serial;
 import java.lang.reflect.Type;
 
 import org.slf4j.Logger;
@@ -62,6 +63,7 @@ public interface JsonLibrary extends HttpServerComponent {
      */
     public static class JsonException extends RuntimeException {
 
+        @Serial
         private static final long serialVersionUID = 4697052174693197902L;
 
         /**
@@ -117,7 +119,13 @@ final class JsonLibraries {
             Class.forName("com.fasterxml.jackson.databind.ObjectMapper");
             return new Jackson2JsonLibrary();
         } catch (ClassNotFoundException e) {
-            throw new IllegalArgumentException("Can't find any available JsonLibrary in class path.", e);
+            logger.debug("Lookup fastjson2 in classpath.");
+            try {
+                Class.forName("com.alibaba.fastjson2.JSON");
+                return new Fastjson2JsonLibrary();
+            } catch (ClassNotFoundException ex) {
+                throw new IllegalArgumentException("Can't find any available JsonLibrary in class path.", e);
+            }
         }
     }
 
