@@ -13,7 +13,7 @@ dependencies {
     // netty-bom
     api(platform("io.netty:netty-bom:4.1.92.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:3.4.0-RC1"))
+    api(platform("com.github.fmjsjx:libcommon-bom:3.4.0"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.15.1"))
     // junit-bom
@@ -38,7 +38,7 @@ dependencies {
         implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
         implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
         implementation("org.bouncycastle:bcpkix-jdk15to18:1.73")
-        val fastjson2Version = "2.0.32"
+        val fastjson2Version = "2.0.33"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
 	}
