@@ -1,5 +1,7 @@
 package com.github.fmjsjx.libnetty.http.server.component;
 
+import static com.alibaba.fastjson2.JSONWriter.Feature.WriteNonStringKeyAsString;
+
 import com.alibaba.fastjson2.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -36,9 +38,14 @@ public class Fastjson2JsonLibrary implements JsonLibrary {
 
     /**
      * Constructs a new {@link Fastjson2JsonLibrary} with the default features.
+     * <p>
+     * Default write features:
+     * <pre>
+     * - {@code WriteNonStringKeyAsString}
+     * </pre>
      */
     public Fastjson2JsonLibrary() {
-        this(new JSONReader.Feature[0], new JSONWriter.Feature[0]);
+        this(new JSONReader.Feature[0], new JSONWriter.Feature[]{WriteNonStringKeyAsString});
     }
 
     @Override
