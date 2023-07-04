@@ -11,11 +11,11 @@ repositories {
 
 dependencies {
     // netty-bom
-    api(platform("io.netty:netty-bom:4.1.92.Final"))
+    api(platform("io.netty:netty-bom:4.1.94.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:3.4.0"))
+    api(platform("com.github.fmjsjx:libcommon-bom:3.5.0"))
     // jackson2-bom
-    api(platform("com.fasterxml.jackson:jackson-bom:2.15.1"))
+    api(platform("com.fasterxml.jackson:jackson-bom:2.15.2"))
     // junit-bom
     testImplementation(platform("org.junit:junit-bom:5.9.3"))
     // mockito
@@ -27,18 +27,18 @@ dependencies {
 
     constraints {
         api("org.slf4j:slf4j-api:2.0.7")
-        val lombokVersion = "1.18.24"
+        val lombokVersion = "1.18.28"
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-        implementation("ch.qos.logback:logback-classic:1.4.5")
+        implementation("ch.qos.logback:logback-classic:1.4.8")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
-        implementation("com.aayushatharva.brotli4j:brotli4j:1.11.0")
+        implementation("com.aayushatharva.brotli4j:brotli4j:1.12.0")
         val kotlinVersion = "1.8.21"
         implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
         implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
         implementation("org.bouncycastle:bcpkix-jdk15to18:1.73")
-        val fastjson2Version = "2.0.33"
+        val fastjson2Version = "2.0.34"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
 	}
