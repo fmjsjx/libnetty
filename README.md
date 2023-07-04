@@ -16,20 +16,18 @@ A set of some useful libraries based on netty4.1.x.
       <dependency>
         <groupId>com.github.fmjsjx</groupId>
         <artifactId>libnetty-bom</artifactId>
-        <version>3.1.0</version>
+        <version>3.2.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
   <dependencies>
-    ...
     <!-- HTTP server -->
     <dependency>
       <groupId>com.github.fmjsjx</groupId>
       <artifactId>libnetty-http-server</artifactId>
     </dependency>
-    ...
   </dependencies>
 </pom>
 ```
@@ -44,11 +42,12 @@ repositories {
 
 dependencies {
     // BOM
-    implementation platform('com.github.fmjsjx:libnetty-bom:3.1.0')
+    implementation platform('com.github.fmjsjx:libnetty-bom:3.2.0')
     // HTTP server
     implementation 'com.github.fmjsjx:libnetty-http-server'
 }
 ```
+
 #### Kotlin DSL
 ```kotlin
 repositories {
@@ -57,11 +56,10 @@ repositories {
 
 dependencies {
     // BOM
-    implementation(platform("com.github.fmjsjx:libnetty-bom:3.1.0"))
+    implementation(platform("com.github.fmjsjx:libnetty-bom:3.2.0"))
     // HTTP server
     implementation("com.github.fmjsjx:libnetty-http-server")
 }
-
 ```
 
 ## Modules
