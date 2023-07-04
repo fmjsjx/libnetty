@@ -56,7 +56,7 @@ public interface JsonLibrary extends HttpServerComponent {
 
     /**
      * A runtime exception threw by a JSON encoder/decoder.
-     * 
+     *
      * @since 1.3
      *
      * @author MJ Fang
@@ -68,21 +68,99 @@ public interface JsonLibrary extends HttpServerComponent {
 
         /**
          * Constructs a new JSON exception with the specified detail message and cause.
-         * 
+         *
          * @param message the detail message
          * @param cause   the cause
+         * @deprecated please use {@link JsonReadException} or {@link JsonWriteException} instead
          */
+        @Deprecated
         public JsonException(String message, Throwable cause) {
+            this(message, cause, null);
+        }
+
+        /*
+         * Package private constructor.  Trailing Void argument is there for
+         * disambiguating it against other (public) constructors.
+         */
+        JsonException(String message, Throwable cause, @SuppressWarnings("unused") Void sig) {
             super(message, cause);
         }
 
         /**
          * Constructs a new JSON exception with the specified cause.
-         * 
+         *
+         * @param cause the cause
+         * @deprecated please use {@link JsonReadException} or {@link JsonWriteException} instead
+         */
+        @Deprecated
+        public JsonException(Throwable cause) {
+            this(cause, null);
+        }
+
+        /*
+         * Package private constructor.  Trailing Void argument is there for
+         * disambiguating it against other (public) constructors.
+         */
+        JsonException(Throwable cause, @SuppressWarnings("unused") Void sig) {
+            super(cause);
+        }
+
+    }
+
+    /**
+     * A runtime exception threw by a JSON reader.
+     *
+     * @author MJ Fang
+     * @since 3.2
+     */
+    public static class JsonReadException extends JsonException {
+
+        /**
+         * Constructs a new {@link JsonReadException} with the specified detail message and cause.
+         *
+         * @param message the detail message
+         * @param cause   the cause
+         */
+        public JsonReadException(String message, Throwable cause) {
+            super(message, cause, null);
+        }
+
+        /**
+         * Constructs a new {@link JsonReadException} with the specified cause.
+         *
          * @param cause the cause
          */
-        public JsonException(Throwable cause) {
-            super(cause);
+        public JsonReadException(Throwable cause) {
+            super(cause, null);
+        }
+
+    }
+
+    /**
+     * A runtime exception threw by a JSON writer.
+     *
+     * @author MJ Fang
+     * @since 3.2
+     */
+    public static class JsonWriteException extends JsonException {
+
+        /**
+         * Constructs a new {@link JsonWriteException} with the specified detail message and cause.
+         *
+         * @param message the detail message
+         * @param cause   the cause
+         */
+        public JsonWriteException(String message, Throwable cause) {
+            super(message, cause, null);
+        }
+
+        /**
+         * Constructs a new {@link JsonWriteException} with the specified cause.
+         *
+         * @param cause the cause
+         */
+        public JsonWriteException(Throwable cause) {
+            super(cause, null);
         }
 
     }
