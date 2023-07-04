@@ -172,7 +172,7 @@ public class Jackson2JsonLibrary implements JsonLibrary {
             JavaType javaType = cachedJavaTypes.computeIfAbsent(valueType, objectMapper::constructType);
             return objectMapper.readValue(src, javaType);
         } catch (IOException e) {
-            throw new JsonException(e.getMessage(), e);
+            throw new JsonReadException(e.getMessage(), e);
         }
     }
 
@@ -184,7 +184,7 @@ public class Jackson2JsonLibrary implements JsonLibrary {
             return buf;
         } catch (IOException e) {
             buf.release();
-            throw new JsonException(e.getMessage(), e);
+            throw new JsonWriteException(e.getMessage(), e);
         }
     }
 
