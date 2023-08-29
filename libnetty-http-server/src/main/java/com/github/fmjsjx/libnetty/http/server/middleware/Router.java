@@ -39,7 +39,9 @@ public class Router implements Middleware {
 
     private static final int RUNNING = 1;
 
-    private List<RouteDefinition> routeDefinitions = new ArrayList<>();
+    private final List<RouteDefinition> routeDefinitions = new ArrayList<>();
+
+    private final List<RouteDefinition> placeholderRouteDefinitions = new ArrayList<>();
 
     private volatile PathRoute[] pathRoutes;
 
@@ -68,6 +70,7 @@ public class Router implements Middleware {
 
     private void init0() {
         List<RouteDefinition> definitions = routeDefinitions;
+        definitions.addAll(placeholderRouteDefinitions);
         logger.debug("Initial router by definitions: {}", definitions);
         PathRoute[] pathRoutes = definitions.stream()
                 .collect(Collectors.groupingBy(RouteDefinition::path, LinkedHashMap::new, Collectors.toList()))
@@ -127,7 +130,12 @@ public class Router implements Middleware {
         if (state == RUNNING) {
             throw new IllegalStateException("router is already initialized");
         }
-        routeDefinitions.add(new RouteDefinition(path, methods, service));
+        var routeDefinition = new RouteDefinition(path, methods, service);
+        if (path.contains("{")) {
+            placeholderRouteDefinitions.add(routeDefinition);
+        } else {
+            routeDefinitions.add(routeDefinition);
+        }
         return this;
     }
 
