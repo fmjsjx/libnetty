@@ -1,7 +1,7 @@
 plugins {
     id("libnetty.java-library-conventions")
     id("libnetty.publish-conventions")
-    kotlin("jvm") version "1.7.22"
+    kotlin("jvm") version "1.9.10"
 }
 
 dependencies {
