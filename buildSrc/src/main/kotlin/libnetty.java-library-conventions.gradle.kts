@@ -34,11 +34,11 @@ dependencies {
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
         implementation("com.aayushatharva.brotli4j:brotli4j:1.12.0")
-        val kotlinVersion = "1.9.10"
+        val kotlinVersion = "1.9.0"
         implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
         implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
         implementation("org.bouncycastle:bcpkix-jdk15to18:1.76")
-        val fastjson2Version = "2.0.39"
+        val fastjson2Version = "2.0.40"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
 	}
