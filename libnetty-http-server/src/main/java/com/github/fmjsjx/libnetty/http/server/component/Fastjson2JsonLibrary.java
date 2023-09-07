@@ -8,7 +8,6 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
@@ -72,7 +71,7 @@ public class Fastjson2JsonLibrary implements JsonLibrary {
         try (OutputStream out = new ByteBufOutputStream(buf)) {
             JSON.writeTo(out, value, writerFeatures);
             return buf;
-        } catch (IOException e) {
+        } catch (Exception e) {
             buf.release();
             throw new JsonWriteException(e.getMessage(), e);
         }
