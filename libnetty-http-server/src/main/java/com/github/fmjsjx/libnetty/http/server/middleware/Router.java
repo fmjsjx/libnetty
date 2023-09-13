@@ -701,13 +701,16 @@ public class Router implements Middleware {
                         }
                     }
                 } else {
-                    var child = children.get(pathKey);
-                    if (child != null) {
-                        var childResult = child.routing(ctx, paths);
-                        if (childResult.hit().isPresent()) {
-                            return childResult;
+                    var children = this.children;
+                    if (children != null) {
+                        var child = children.get(pathKey);
+                        if (child != null) {
+                            var childResult = child.routing(ctx, paths);
+                            if (childResult.hit().isPresent()) {
+                                return childResult;
+                            }
+                            pathMatchedCount += childResult.pathMatchedCount;
                         }
-                        pathMatchedCount += childResult.pathMatchedCount;
                     }
                 }
                 var method = ctx.method();
