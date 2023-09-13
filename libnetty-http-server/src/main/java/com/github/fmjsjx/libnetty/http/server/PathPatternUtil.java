@@ -26,6 +26,16 @@ public class PathPatternUtil {
     private static final Pattern anyPathVariablePattern = Pattern.compile("\\{.+\\}");
 
     /**
+     * Returns the any path variable pattern.
+     *
+     * @return the any path variable pattern
+     * @since 3.3
+     */
+    public static final Pattern anyPathVariablePattern() {
+        return anyPathVariablePattern;
+    }
+
+    /**
      * Build a new {@link PathPattern} from HTTP path pattern.
      * 
      * @param pathPattern        the pattern of HTTP path
@@ -37,8 +47,8 @@ public class PathPatternUtil {
      */
     public static final PathPattern build(String pathPattern, boolean threadLocalMatcher)
             throws IllegalArgumentException {
-        ArrayList<String> pathVariableNames = new ArrayList<String>();
-        Pattern pattern = toPattern(pathPattern, pathVariableNames);
+        var pathVariableNames = new ArrayList<String>();
+        var pattern = toPattern(pathPattern, pathVariableNames);
         return threadLocalMatcher ? new ThreadLocalMatcherPathPattern(pattern, pathVariableNames)
                 : new BasicPathPattern(pattern, pathVariableNames);
     }
@@ -68,7 +78,7 @@ public class PathPatternUtil {
         StringBuilder regexBuilder = new StringBuilder().append("^");
         int start = 0;
         for (; m.find(start); start = m.end()) {
-            regexBuilder.append(base.substring(start, m.start()));
+            regexBuilder.append(base, start, m.start());
             String g = m.group();
             String name = g.substring(1, g.length() - 1);
             pathVariableNames.add(name);
@@ -86,8 +96,7 @@ public class PathPatternUtil {
         if (cm.find()) {
             throw new IllegalArgumentException("illegal path variable " + cm.group());
         }
-        Pattern pattern = Pattern.compile(regex);
-        return pattern;
+        return Pattern.compile(regex);
     }
 
     private static final class BasicPathPattern implements PathPattern {
