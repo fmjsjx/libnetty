@@ -9,6 +9,7 @@ dependencies {
     api(project(":libnetty-resp"))
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl")
     testImplementation("org.apache.logging.log4j:log4j-core")
