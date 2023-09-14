@@ -555,7 +555,7 @@ public class Router implements Middleware {
         public CompletionStage<HttpResult> routing(HttpRequestContext ctx, MiddlewareChain next) {
             String path = ctx.path();
             logger.trace("Routing: {} {}", ctx.method(), path);
-            var paths = Arrays.stream(path.split("/+")).filter(p -> !p.isEmpty()).toList();
+            var paths = Arrays.asList(Arrays.stream(path.split("/+")).filter(StringUtil::isNotEmpty).toArray(String[]::new));
             var size = paths.size();
             if (size == 0) {
                 return routeRoot(ctx, next);
@@ -717,11 +717,11 @@ public class Router implements Middleware {
                 var patternRouteEnds = this.patternRouteEnds;
                 if (patternRouteEnds != null) {
                     for (PathRoute pathRoute : patternRouteEnds) {
-                        logger.warn("Try {}", pathRoute);
+                        logger.trace("Try {}", pathRoute);
                         if (pathRoute.matches(ctx)) {
                             pathMatchedCount++;
                             for (MethodRoute methodRoute : pathRoute.methodRoutes) {
-                                logger.warn("Try {}", method);
+                                logger.trace("Try {}", method);
                                 if (methodRoute.matches(method)) {
                                     return new RoutingResult(pathMatchedCount, Optional.of(methodRoute));
                                 }
