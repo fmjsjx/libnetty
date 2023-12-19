@@ -255,6 +255,8 @@ public class TestController {
      * GET /api/array
      *
      * @param ctx request context
+     * @param names names
+     * @param ids ids
      * @return result
      */
     @HttpGet("/array")
