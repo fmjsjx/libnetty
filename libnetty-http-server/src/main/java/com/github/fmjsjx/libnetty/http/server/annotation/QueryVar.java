@@ -38,4 +38,17 @@ public @interface QueryVar {
      */
     boolean required() default true;
 
+    /**
+     * Returns whether the query name is compatible with array style.
+     * <p>
+     * If {@code true} then the query name "name" or "name[]" will
+     * be treated as the same parameter.
+     * <p>
+     * The default is {@code true}.
+     *
+     * @return whether the query name is compatible with array style.
+     * @since 3.4
+     */
+    boolean compatibleWithArray() default true;
+
 }

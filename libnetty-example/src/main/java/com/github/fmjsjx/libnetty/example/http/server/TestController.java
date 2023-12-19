@@ -251,4 +251,23 @@ public class TestController {
         }
     }
 
+    /**
+     * GET /api/array
+     *
+     * @param ctx request context
+     * @return result
+     */
+    @HttpGet("/array")
+    public CompletionStage<HttpResult> getArray(HttpRequestContext ctx, @QueryVar("name[]") List<String> names, @QueryVar("id[]") int[] ids) {
+        // GET /api/test
+        System.out.println("-- array --");
+        System.out.println("query --- " + ctx.rawQuery());
+        System.out.println("names --- " + names);
+        System.out.println("ids --- " + Arrays.toString(ids));
+        // always returns 200 OK
+        ByteBuf body = ByteBufUtil.writeAscii(ctx.alloc(), "200 OK");
+        System.out.println(body.toString(CharsetUtil.UTF_8));
+        return ctx.simpleRespond(OK, body, TEXT_PLAIN);
+    }
+
 }

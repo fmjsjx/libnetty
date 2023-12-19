@@ -822,9 +822,9 @@ public class RouterUtil {
         }
         if (queryVar.required()) {
             Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
-            return ctx -> ctx.queryParameter(name).map(mapper).orElseThrow(noSuchQueryVariable);
+            return ctx -> ctx.queryParameter(name, queryVar.compatibleWithArray()).map(mapper).orElseThrow(noSuchQueryVariable);
         } else {
-            return ctx -> ctx.queryParameter(name).map(mapper).orElse(null);
+            return ctx -> ctx.queryParameter(name, queryVar.compatibleWithArray()).map(mapper).orElse(null);
         }
     }
 
@@ -904,9 +904,9 @@ public class RouterUtil {
         }
         if (queryVar.required()) {
             Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
-            return ctx -> ctx.queryParameter(name).map(mapper).orElseThrow(noSuchQueryVariable);
+            return ctx -> ctx.queryParameter(name, queryVar.compatibleWithArray()).map(mapper).orElseThrow(noSuchQueryVariable);
         } else {
-            return ctx -> ctx.queryParameter(name).map(mapper).orElse(null);
+            return ctx -> ctx.queryParameter(name, queryVar.compatibleWithArray()).map(mapper).orElse(null);
         }
     }
 
@@ -937,9 +937,9 @@ public class RouterUtil {
         }
         if (queryVar.required()) {
             Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
-            return ctx -> ctx.queryParameter(name).map(mapper).orElseThrow(noSuchQueryVariable);
+            return ctx -> ctx.queryParameter(name, queryVar.compatibleWithArray()).map(mapper).orElseThrow(noSuchQueryVariable);
         } else {
-            return ctx -> ctx.queryParameter(name).map(mapper).orElse(null);
+            return ctx -> ctx.queryParameter(name, queryVar.compatibleWithArray()).map(mapper).orElse(null);
         }
     }
 
@@ -949,6 +949,9 @@ public class RouterUtil {
         Function<List<String>, Object> mapper = queryValueMappers.get(atype == Object.class ? String.class : atype);
         if (mapper == null) {
             throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
+        }
+        if (atype instanceof Class<?> clazz && clazz.isArray()) {
+            return ctx -> ctx.queryParameter(name, queryVar.compatibleWithArray()).map(mapper);
         }
         return ctx -> ctx.queryParameter(name).map(mapper);
     }
