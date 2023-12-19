@@ -277,8 +277,29 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * @return an {@code Optional<List<String>>}
      */
     default Optional<List<String>> queryParameter(String name) {
+        return queryParameter(name, false);
+    }
+
+    /**
+     * Returns the value of the specified name belongs to the decoded key-value
+     * parameter pairs of the HTTP request {@code URI}
+     *
+     * @param name                the name of the query parameter
+     * @param compatibleWithArray whether the query name is compatible with array style
+     * @return an {@code Optional<List<String>>}
+     * @since 3.4
+     */
+    default Optional<List<String>> queryParameter(String name, boolean compatibleWithArray) {
+        if (compatibleWithArray) {
+            var values = queryParameters().get(name);
+            if (values == null) {
+                values = queryParameters().get(name.endsWith("[]") ? name.substring(0, name.length() - 2) : name + "[]");
+            }
+            return Optional.ofNullable(values);
+        }
         return Optional.ofNullable(queryParameters().get(name));
     }
+
 
     /**
      * Returns the path variables.
