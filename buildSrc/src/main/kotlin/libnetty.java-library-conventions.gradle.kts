@@ -13,32 +13,32 @@ dependencies {
     // netty-bom
     api(platform("io.netty:netty-bom:4.1.104.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:3.6.0"))
+    api(platform("com.github.fmjsjx:libcommon-bom:3.6.1"))
     // jackson2-bom
-    api(platform("com.fasterxml.jackson:jackson-bom:2.15.2"))
+    api(platform("com.fasterxml.jackson:jackson-bom:2.16.0"))
     // junit-bom
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation(platform("org.junit:junit-bom:5.10.1"))
     // mockito
-    testImplementation(platform("org.mockito:mockito-bom:5.5.0"))
+    testImplementation(platform("org.mockito:mockito-bom:5.8.0"))
     // log4j2
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.20.0"))
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.22.0"))
     // kotlin coroutines
     implementation(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.7.3"))
 
     constraints {
-        api("org.slf4j:slf4j-api:2.0.7")
+        api("org.slf4j:slf4j-api:2.0.9")
         val lombokVersion = "1.18.28"
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-        implementation("ch.qos.logback:logback-classic:1.4.11")
+        implementation("ch.qos.logback:logback-classic:1.4.14")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
-        implementation("com.aayushatharva.brotli4j:brotli4j:1.12.0")
+        implementation("com.aayushatharva.brotli4j:brotli4j:1.13.0")
         val kotlinVersion = "1.9.0"
         implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
         implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
         implementation("org.bouncycastle:bcpkix-jdk15to18:1.76")
-        val fastjson2Version = "2.0.40"
+        val fastjson2Version = "2.0.43"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
 	}
@@ -66,4 +66,3 @@ tasks.javadoc {
     }
     options.memberLevel = JavadocMemberLevel.PUBLIC
 }
-
