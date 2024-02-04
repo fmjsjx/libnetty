@@ -100,7 +100,13 @@ public class RouterUtil {
      * @return the count of the services just been registered
      */
     public static final int register(Router router, Object controller) {
-        return register0(router, controller, controller.getClass());
+        // Support Spring AOP (CGLIB) for controllers.
+        // Issue: https://github.com/fmjsjx/libnetty/issues/65
+        var controllerClass = controller.getClass();
+        if (controllerClass.getName().contains("$$SpringCGLIB$$")) {
+            controllerClass = controllerClass.getSuperclass();
+        }
+        return register0(router, controller, controllerClass);
     }
 
     private static int register0(Router router, Object controller, Class<?> clazz) {
@@ -118,7 +124,7 @@ public class RouterUtil {
                     registerMethod(router, controller, method, path, httpMethods);
                     num++;
                 }
-                continue METHODS_LOOP;
+                continue;
             }
             Annotation[] mas = method.getAnnotations();
             for (Annotation ma : mas) {
@@ -164,37 +170,28 @@ public class RouterUtil {
         Parameter[] params = method.getParameters();
         if ((blocking && isVoidType(method.getReturnType()))
                 || (!blocking && isVoidType(getActualTypeArguments(method.getGenericReturnType())[0]))) {
-            switch (params.length) {
-            case 0:
+            if (params.length == 0) {
                 router.add(toVoidResponseInvoker(controller, method, blocking), path, httpMethods);
-                break;
-            default:
+            } else {
                 router.add(toVoidResponseInvoker(controller, method, blocking, params), path, httpMethods);
-                break;
             }
             return;
         }
         JsonBody jsonResponse = method.getAnnotation(JsonBody.class);
         if (jsonResponse != null) {
-            switch (params.length) {
-            case 0:
+            if (params.length == 0) {
                 router.add(toJsonResponseInvoker(controller, method, blocking), path, httpMethods);
-                break;
-            default:
+            } else {
                 router.add(toJsonResponseInvoker(controller, method, blocking, params), path, httpMethods);
-                break;
             }
             return;
         }
         StringBody stringBody = method.getAnnotation(StringBody.class);
         if (stringBody != null) {
-            switch (params.length) {
-            case 0:
+            if (params.length == 0) {
                 router.add(toStringResponseInvoker(controller, method, blocking), path, httpMethods);
-                break;
-            default:
+            } else {
                 router.add(toStringResponseInvoker(controller, method, blocking, params), path, httpMethods);
-                break;
             }
             return;
         }
@@ -203,13 +200,10 @@ public class RouterUtil {
         }
         checkReturnType(method);
         requireContext(params);
-        switch (params.length) {
-        case 1:
+        if (params.length == 1) {
             router.add(toSimpleInvoker(controller, method), path, httpMethods);
-            break;
-        default:
+        } else {
             router.add(toParamsInvoker(controller, method, params), path, httpMethods);
-            break;
         }
 
     }
@@ -1388,7 +1382,7 @@ public class RouterUtil {
         var httpPaths = clazz.getAnnotation(HttpPaths.class);
         if (httpPaths != null) {
             var paths = Arrays.stream(httpPaths.value()).map(path -> "/" + String.join("/", path.value())).toList();
-            if (paths.size() > 0) {
+            if (!paths.isEmpty()) {
                 return paths;
             }
         }
