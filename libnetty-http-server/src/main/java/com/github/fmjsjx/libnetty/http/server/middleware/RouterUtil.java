@@ -101,7 +101,7 @@ public class RouterUtil {
      */
     public static final int register(Router router, Object controller) {
         // Support Spring AOP (CGLIB) for controllers.
-        // Issue: https://github.com/fmjsjx/libnetty/issues/65
+        // See: https://github.com/fmjsjx/libnetty/issues/65
         var controllerClass = controller.getClass();
         if (controllerClass.getName().contains("$$SpringCGLIB$$")) {
             controllerClass = controllerClass.getSuperclass();
@@ -1401,6 +1401,24 @@ public class RouterUtil {
      */
     public static final <T> int register(Router router, T controller, Class<T> clazz) {
         return register0(router, controller, clazz);
+    }
+
+    /**
+     * Register the given controller to the specified router.
+     *
+     * @param router     the router
+     * @param controller the controller object
+     * @param type       the class of the controller
+     *
+     * @return the count of the services just been registered
+     * @since 3.5
+     */
+    public static final int registerUnsafe(Router router, Object controller, Class<?> type) {
+        if (!type.isInstance(controller)) {
+            throw new ClassCastException("instance of class " + controller.getClass().getName()
+                    + " cannot be cast to class" + type.getName());
+        }
+        return register0(router, controller, type);
     }
 
     private static final class KotlinSuspendingFunctionUtil {
