@@ -5,6 +5,7 @@ import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpMethod.PATCH;
 import static io.netty.handler.codec.http.HttpMethod.POST;
 import static io.netty.handler.codec.http.HttpMethod.PUT;
+import static io.netty.handler.codec.http.websocketx.WebSocketCloseStatus.INVALID_MESSAGE_TYPE;
 
 import java.util.Collections;
 import java.util.Map;
@@ -13,6 +14,7 @@ import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpServer;
+import com.github.fmjsjx.libnetty.http.server.component.WebSocketSupport;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLoggerWrapper;
@@ -20,8 +22,12 @@ import com.github.fmjsjx.libnetty.http.server.middleware.AuthBasic;
 import com.github.fmjsjx.libnetty.http.server.middleware.Router;
 import com.github.fmjsjx.libnetty.http.server.middleware.ServeStatic;
 
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
+import io.netty.handler.codec.http.websocketx.*;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -53,10 +59,15 @@ public class TestDefaultServer {
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
                 .supportJson() // Support JSON using Jackson2
                 .component(new TestExceptionHandler()) // Support test exception
+                .component(WebSocketSupport.build(
+                        WebSocketServerProtocolConfig.newBuilder().websocketPath("/ws").subprotocols("sp1,sp2").checkStartsWith(true).allowExtensions(true).build(),
+                        EchoWebSocketFrameHandler::new
+                )) // Support web socket
                 .soBackLog(1024).tcpNoDelay() // channel options
                 .applyCompressionOptions( // compression support
                         HttpContentCompressorProvider.defaultOptions())
         ;
+        //noinspection resource
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
                 .addLast("/static/auth", new AuthBasic(passwords(), "test")) // HTTP Basic Authentication
@@ -75,6 +86,31 @@ public class TestDefaultServer {
                 server.shutdown();
                 log.info("Server {} stopped.", server);
             }
+        }
+    }
+
+}
+
+class EchoWebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
+
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, WebSocketFrame msg) {
+        System.out.println("-- echo --");
+        System.out.println(msg);
+        if (msg instanceof TextWebSocketFrame text) {
+            System.out.println(text.text());
+            ctx.writeAndFlush(new TextWebSocketFrame(text.text()));
+        } else {
+            ctx.writeAndFlush(new CloseWebSocketFrame(INVALID_MESSAGE_TYPE)).addListener(ChannelFutureListener.CLOSE);
+        }
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+        if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete handshakeComplete) {
+            ctx.pipeline().forEach(e -> System.err.println(e.getKey() + " => " + e.getValue()));
+            ctx.channel().config().setAutoRead(true);
+            System.err.println("sub-protocol: " + handshakeComplete.selectedSubprotocol());
         }
     }
 
