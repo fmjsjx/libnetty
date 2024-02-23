@@ -37,8 +37,7 @@ public class AutoReadNextHandler extends ChannelOutboundHandlerAdapter {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof FullHttpResponse) {
-            FullHttpResponse resp = (FullHttpResponse) msg;
+        if (msg instanceof FullHttpResponse resp) {
             if (isKeepAlive(resp)) {
                 promise.addListener(HttpServerHandler.READ_NEXT);
             }

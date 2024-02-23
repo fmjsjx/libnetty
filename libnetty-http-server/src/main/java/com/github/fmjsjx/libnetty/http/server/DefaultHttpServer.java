@@ -88,17 +88,17 @@ public class DefaultHttpServer implements HttpServer {
 
     private ServerBootstrap bootstrap = new ServerBootstrap();
 
-    private List<Consumer<HttpContentCompressorProvider.Builder>> compressionOptionsListeners = new ArrayList<>();
+    private final List<Consumer<HttpContentCompressorProvider.Builder>> compressionOptionsListeners = new ArrayList<>();
 
     private HttpContentCompressorProvider httpContentCompressorProvider;
 
     @SuppressWarnings("DeprecatedIsStillUsed")
     @Deprecated
-    private List<Consumer<HttpContentCompressorFactory.Builder>> compressionSettingsListeners = new ArrayList<>();
+    private final List<Consumer<HttpContentCompressorFactory.Builder>> compressionSettingsListeners = new ArrayList<>();
 
     private HttpServerHandlerProvider handlerProvider;
 
-    private Map<Class<?>, HttpServerComponent> components = new LinkedHashMap<>();
+    private final Map<Class<?>, HttpServerComponent> components = new LinkedHashMap<>();
     private Consumer<HttpHeaders> addHeaders = defaultAddHeaders;
 
     /**
@@ -839,6 +839,7 @@ public class DefaultHttpServer implements HttpServer {
 
         handlerProvider = null;
 
+        components.clear();
         addHeaders = defaultAddHeaders;
         return this;
     }
@@ -903,12 +904,12 @@ public class DefaultHttpServer implements HttpServer {
         // always set AUTO_READ to false
         // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
         bootstrap.childOption(AUTO_READ, false);
-        if (compressionOptionsListeners.size() > 0) {
+        if (!compressionOptionsListeners.isEmpty()) {
             var builder = HttpContentCompressorProvider.builder();
             compressionOptionsListeners.forEach(a -> a.accept(builder));
             httpContentCompressorProvider = builder.build();
         }
-        if (compressionSettingsListeners.size() > 0 && httpContentCompressorProvider == null) {
+        if (!compressionSettingsListeners.isEmpty() && httpContentCompressorProvider == null) {
             var legacyBuilder = HttpContentCompressorFactory.builder();
             compressionSettingsListeners.forEach(a -> a.accept(legacyBuilder));
             var factory = legacyBuilder.build();
