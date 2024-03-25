@@ -684,7 +684,8 @@ public interface HttpClient extends AutoCloseable {
 
         /**
          * Sets the "HTTP Basic Authentication" protocol.
-         * <p>Using the basic Base64 encoder ({@code RFC 4648}).</p>
+         * <p>Using the {@linkplain Base64 URL and Filename safe} type Base64
+         * encoder ({@code RFC 4648}).
          *
          * @param username the username
          * @param password the password
@@ -693,8 +694,12 @@ public interface HttpClient extends AutoCloseable {
          * @since 2.6
          */
         public Self authBasic(String username, String password) {
-            return authBasic(username, password, Base64.getEncoder());
+            // Since 3.5.1, using the URL and Filename safe type base64 encoder
+            // instead of the basic one.
+            // See https://github.com/fmjsjx/libnetty/issues/70
+            return authBasic(username, password, Base64.getUrlEncoder());
         }
+
     }
 
     /**

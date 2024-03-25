@@ -53,6 +53,15 @@ public class AuthBasic implements Middleware {
 
     }
 
+    /**
+     * The default {@code Base64} decoder.
+     * <p>Using the {@linkplain Base64 URL and Filename safe} type Base64
+     * {@code (RFC 4648)} decoder.
+     *
+     * @since 3.5.1
+     */
+    public static final Base64.Decoder DEFAULT_BASE64_DECODER = Base64.getUrlDecoder();
+
     private final BiPredicate<String, String> validator;
     private final CharSequence basicRealm;
 
@@ -60,13 +69,17 @@ public class AuthBasic implements Middleware {
 
     /**
      * Constructs a new {@link AuthBasic} with the specified users and realm.
-     * <p>Using the basic type (RFC 4648) Base64 scheme decoder.</p>
+     * <p>Using the {@linkplain Base64 URL and Filename safe} type Base64
+     * {@code (RFC 4648)} decoder.
      * 
      * @param users a map contains the users' name and their password
      * @param realm the realm attribute
      */
     public AuthBasic(Map<String, String> users, String realm) {
-        this(users, realm, Base64.getDecoder());
+        // Since 3.5.1, using the URL and Filename safe type base64 encoder
+        // instead of the basic one.
+        // See https://github.com/fmjsjx/libnetty/issues/70
+        this(users, realm, DEFAULT_BASE64_DECODER);
     }
 
     /**
@@ -97,7 +110,10 @@ public class AuthBasic implements Middleware {
      * @param realm     the realm attribute
      */
     public AuthBasic(BiPredicate<String, String> validator, String realm) {
-        this(validator, realm, Base64.getDecoder());
+        // Since 3.5.1, using the URL and Filename safe type base64 encoder
+        // instead of the basic one.
+        // See https://github.com/fmjsjx/libnetty/issues/70
+        this(validator, realm, DEFAULT_BASE64_DECODER);
     }
 
     /**
