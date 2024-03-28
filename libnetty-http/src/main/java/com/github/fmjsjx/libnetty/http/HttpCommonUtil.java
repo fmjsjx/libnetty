@@ -38,6 +38,13 @@ public final class HttpCommonUtil {
         if (address == null) {
             return ((InetSocketAddress) channel.remoteAddress()).getHostString();
         }
+        // Value of header "x-forwarded-for" may have more than one address.
+        // Always take the first address.
+        // See: https://github.com/fmjsjx/libnetty/issues/74
+        var index = address.indexOf(",");
+        if (index > 0) {
+            return address.substring(0, index);
+        }
         return address;
     }
 
