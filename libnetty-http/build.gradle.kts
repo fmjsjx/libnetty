@@ -8,6 +8,7 @@ dependencies {
     implementation("org.slf4j:slf4j-api")
     api("io.netty:netty-codec-http")
 
+    testImplementation("org.mockito:mockito-core")
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
