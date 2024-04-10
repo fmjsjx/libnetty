@@ -468,7 +468,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
          * 
          * @since 2.1
          */
-        public Builder cachedPoolFactory(IntFunction<CachedPool<HttpConnection>> cachedPoolFactory) {
+        Builder cachedPoolFactory(IntFunction<CachedPool<HttpConnection>> cachedPoolFactory) {
             this.cachedPoolFactory = Objects.requireNonNull(cachedPoolFactory, "cachedPoolFactory must not be null");
             return this;
         }

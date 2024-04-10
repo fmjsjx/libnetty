@@ -137,6 +137,7 @@ public abstract class AbstractHttpClient implements HttpClient {
     }
 
     protected final ClientClosedException newClientClosed() {
+        //noinspection UnnecessaryToStringCall
         return new ClientClosedException(toString() + " already closed");
     }
 
@@ -205,7 +206,9 @@ public abstract class AbstractHttpClient implements HttpClient {
                                             String requestUri) {
         HttpMethod method = request.method();
         HttpHeaders headers = request.headers();
-        headers.set(HOST, headerHost);
+        if (!headers.contains(HOST)) {
+            headers.set(HOST, headerHost);
+        }
         HttpRequest req;
         if (request.multipartBody().isPresent()) {
             req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, method, requestUri, headers);
@@ -232,7 +235,6 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     protected HttpPostRequestEncoder createHttpPostRequestEncoder(
             HttpDataFactory factory, HttpRequest request, MultipartBody body) {
-        var entries = body.entries();
         try {
             return new HttpPostRequestEncoder(factory, request, true);
         } catch (ErrorDataEncoderException e) {
@@ -250,7 +252,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         return factory;
     }
 
-    protected FileUpload createFileUpload(
+    FileUpload createFileUpload(
             HttpRequest request, HttpDataFactory factory, Charset charset, ContentFileUploadEntry entry) {
         var content = entry.content();
         var fileUpload = factory.createFileUpload(request, entry.name(), entry.filename(), entry.contentType(),

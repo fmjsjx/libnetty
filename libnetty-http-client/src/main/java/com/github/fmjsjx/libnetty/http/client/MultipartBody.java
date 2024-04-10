@@ -78,7 +78,7 @@ public final class MultipartBody {
          * @param entry the entry
          * @return this builder
          */
-        public Builder addEntry(DataEntry entry) {
+        Builder addEntry(DataEntry entry) {
             entries.add(entry);
             return this;
         }
