@@ -63,6 +63,7 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected final Class<? extends Channel> channelClass;
     protected final SslContextProvider sslContextProvider;
     protected final boolean compressionEnabled;
+    protected final boolean autoDecompression;
     protected final Optional<ProxyHandlerFactory<? extends ProxyHandler>> proxyHandlerFactory;
     protected final Optional<Duration> defaultRequestTimeout;
 
@@ -77,6 +78,8 @@ public abstract class AbstractHttpClient implements HttpClient {
         this.channelClass = Objects.requireNonNull(channelClass, "channelClass must not be null");
         this.sslContextProvider = Objects.requireNonNull(sslContextProvider, "sslContextProvider must not be null");
         this.compressionEnabled = compressionEnabled;
+        // autoDecompression is always be true now
+        autoDecompression = true;
         this.proxyHandlerFactory = Optional.ofNullable(proxyHandlerFactory);
         this.defaultRequestTimeout = Optional.ofNullable(defaultRequestTimeout);
     }
@@ -224,10 +227,10 @@ public abstract class AbstractHttpClient implements HttpClient {
                 }
             }
         }
-        if (compressionEnabled) {
-            headers.set(ACCEPT_ENCODING, Brotli.isAvailable() ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
-        } else {
-            headers.remove(ACCEPT_ENCODING);
+        if (!headers.contains(ACCEPT_ENCODING)) {
+            if (compressionEnabled) {
+                headers.set(ACCEPT_ENCODING, Brotli.isAvailable() ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
+            }
         }
         HttpUtil.setKeepAlive(req, false);
         return req;
