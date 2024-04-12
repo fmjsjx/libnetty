@@ -224,7 +224,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
     private HttpRequest createHttpRequest(ByteBufAllocator alloc, Request request, boolean defaultPort,
                                           int port, String host, String requestUri) {
         var headerHost = defaultPort ? host : host + ":" + port;
-        return createHttpRequest(alloc, request, headerHost, requestUri);
+        return createHttpRequest(alloc, request, headerHost, requestUri, false);
     }
 
     private static final class SimpleHttpClientHandler<T> extends SimpleChannelInboundHandler<FullHttpResponse> {

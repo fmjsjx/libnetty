@@ -206,7 +206,7 @@ public abstract class AbstractHttpClient implements HttpClient {
     }
 
     protected HttpRequest createHttpRequest(ByteBufAllocator alloc, Request request, CharSequence headerHost,
-                                            String requestUri) {
+                                            String requestUri, boolean keepAlive) {
         HttpMethod method = request.method();
         HttpHeaders headers = request.headers();
         if (!headers.contains(HOST)) {
@@ -232,7 +232,7 @@ public abstract class AbstractHttpClient implements HttpClient {
                 headers.set(ACCEPT_ENCODING, Brotli.isAvailable() ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
             }
         }
-        HttpUtil.setKeepAlive(req, false);
+        HttpUtil.setKeepAlive(req, keepAlive);
         return req;
     }
 

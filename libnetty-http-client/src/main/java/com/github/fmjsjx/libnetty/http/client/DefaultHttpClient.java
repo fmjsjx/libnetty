@@ -364,7 +364,6 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
         @Override
         public void sendAsnyc(RequestContext<?> requestContext) {
-            final Channel channel = channel();
             if (channel.isActive()) {
                 channel.eventLoop().execute(() -> {
                     Request request = requestContext.request;
@@ -374,7 +373,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         String path = uri.getRawPath();
                         String query = uri.getRawQuery();
                         String requestUri = query == null ? path : path + "?" + query;
-                        var req = createHttpRequest(channel, request, requestUri);
+                        var req = createHttpRequest(request, requestUri);
                         sendHttpRequest(req, channel, request);
                     } else {
                         requestContext.future.completeExceptionally(new ClosedChannelException());
@@ -385,8 +384,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
             }
         }
 
-        private HttpRequest createHttpRequest(Channel channel, Request request, String requestUri) {
-            return DefaultHttpClient.this.createHttpRequest(channel.alloc(), request, headerHost, requestUri);
+        private HttpRequest createHttpRequest(Request request, String requestUri) {
+            return DefaultHttpClient.this.createHttpRequest(channel.alloc(), request, headerHost, requestUri, true);
         }
 
     }
