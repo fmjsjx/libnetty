@@ -194,7 +194,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
     private void addHttpHandlers(ChannelPipeline pipeline, InternalHttpClientHandler handler) {
         pipeline.addLast(new HttpClientCodec());
-        pipeline.addLast(new HttpContentDecompressor());
+        if (autoDecompression) {
+            pipeline.addLast(new HttpContentDecompressor());
+        }
         pipeline.addLast(new ChunkedWriteHandler());
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
         pipeline.addLast(handler);

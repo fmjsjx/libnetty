@@ -213,7 +213,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
     private <T> void addHttpHandlers(ChannelPipeline pipeline, CompletableFuture<Response<T>> future,
                                      HttpContentHandler<T> contentHandler, Optional<Executor> executor) {
         pipeline.addLast(new HttpClientCodec());
-        pipeline.addLast(new HttpContentDecompressor());
+        if (autoDecompression) {
+            pipeline.addLast(new HttpContentDecompressor());
+        }
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
         pipeline.addLast(new ChunkedWriteHandler());
         pipeline.addLast(new SimpleHttpClientHandler<>(future, contentHandler, executor));
