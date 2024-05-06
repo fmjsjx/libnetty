@@ -55,6 +55,20 @@ public interface JsonLibrary extends HttpServerComponent {
     ByteBuf write(ByteBufAllocator alloc, Object value);
 
     /**
+     * Returns the {@link EmptyWay} configuration.
+     * <p>
+     * Considering compatibility, the default implementation of this method
+     * is always returns {@link EmptyWay#ERROR}.
+     *
+     * @return the {@code EmptyWay} configuration
+     * @author MJ Fang
+     * @since 3.6
+     */
+    default EmptyWay emptyWay() {
+        return EmptyWay.ERROR;
+    }
+
+    /**
      * A runtime exception threw by a JSON encoder/decoder.
      *
      * @since 1.3
@@ -165,6 +179,26 @@ public interface JsonLibrary extends HttpServerComponent {
 
     }
 
+    /**
+     * Enumeration of processing ways for empty request body.
+     *
+     * @author MJ Fang
+     * @since 3.6
+     */
+    enum EmptyWay {
+        /**
+         * Sets the {@code @JsonBody} parameter always be {@code null}.
+         */
+        NULL,
+        /**
+         * Use empty JSON, {@code "{}"} or {@code "[]"}, to parse the {@code @JsonBody} parameter.
+         */
+        EMPTY,
+        /**
+         * Just throws a {@link JsonReadException}.
+         */
+        ERROR,
+    }
 }
 
 final class JsonLibraries {

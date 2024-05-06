@@ -76,9 +76,9 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
 
         /**
          * Set the content size threshold. The response body is compressed when the size
-         * of the response body exceeds the threshold. The value should be a non
-         * negative number. {@code 0} will enable compression for all responses. The
-         * default value is {@code 1024}.
+         * of the response body exceeds the threshold. The value should be a non-negative
+         * number. {@code 0} will enable compression for all responses. The default value
+         * is {@code 1024}.
          * 
          * @param contentSizeThreshold the content size threshold
          * @return this builder

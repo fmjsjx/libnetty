@@ -140,23 +140,51 @@ public class Jackson2JsonLibrary implements JsonLibrary {
     private static final ConcurrentMap<Type, JavaType> cachedJavaTypes = new ConcurrentHashMap<>();
 
     private final ObjectMapper objectMapper;
+    private final EmptyWay emptyWay;
 
     /**
      * Constructs a new {@link Jackson2JsonLibrary} with the specified
-     * {@link com.fasterxml.jackson.databind.ObjectMapper}.
+     * {@link ObjectMapper} and the default {@link EmptyWay} {@code NULL}.
      * 
      * @param objectMapper an {@code ObjectMapper}
      */
     public Jackson2JsonLibrary(ObjectMapper objectMapper) {
-        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+        this(objectMapper, EmptyWay.NULL);
     }
 
     /**
      * Constructs a new {@link Jackson2JsonLibrary} with the default
-     * {@link com.fasterxml.jackson.databind.ObjectMapper}.
+     * {@link ObjectMapper} and the default  {@link EmptyWay} {@code NULL}.
      */
     public Jackson2JsonLibrary() {
-        this(defaultObjectMapper());
+        this(defaultObjectMapper(), EmptyWay.NULL);
+    }
+
+    /**
+     * Constructs a new {@link Jackson2JsonLibrary} with the specified
+     * {@link ObjectMapper} and the specified {@link EmptyWay} given.
+     *
+     * @param objectMapper an {@code ObjectMapper}
+     * @param emptyWay     an {@code EmptyWay}
+     * @author MJ Fang
+     * @since 3.6
+     */
+    public Jackson2JsonLibrary(ObjectMapper objectMapper, EmptyWay emptyWay) {
+        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+        this.emptyWay = Objects.requireNonNull(emptyWay, "emptyWay must not be null");
+    }
+
+    /**
+     * Constructs a new {@link Jackson2JsonLibrary} with the default
+     * {@link ObjectMapper} and the specified {@link EmptyWay} given.
+     */
+    public Jackson2JsonLibrary(EmptyWay emptyWay) {
+        this(defaultObjectMapper(), emptyWay);
+    }
+
+    @Override
+    public EmptyWay emptyWay() {
+        return emptyWay;
     }
 
     @Override

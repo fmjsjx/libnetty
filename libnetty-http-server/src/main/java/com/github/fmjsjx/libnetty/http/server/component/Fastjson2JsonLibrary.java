@@ -23,28 +23,63 @@ public class Fastjson2JsonLibrary implements JsonLibrary {
 
     private final JSONReader.Feature[] readerFeatures;
     private final JSONWriter.Feature[] writerFeatures;
+    private final EmptyWay emptyWay;
 
     /**
      * Constructs a new {@link Fastjson2JsonLibrary} with the specified features.
+     * and the default {@link EmptyWay} {@code NULL}.
      *
      * @param readerFeatures the reader features
      * @param writerFeatures the writer features
      */
     public Fastjson2JsonLibrary(JSONReader.Feature[] readerFeatures, JSONWriter.Feature[] writerFeatures) {
-        this.readerFeatures = Arrays.copyOf(readerFeatures, readerFeatures.length);
-        this.writerFeatures = Arrays.copyOf(writerFeatures, writerFeatures.length);
+        this(readerFeatures, writerFeatures, EmptyWay.NULL);
     }
 
     /**
-     * Constructs a new {@link Fastjson2JsonLibrary} with the default features.
+     * Constructs a new {@link Fastjson2JsonLibrary} with the default features
+     * and the default {@link EmptyWay} {@code NULL}.
      * <p>
      * Default write features:
      * <pre>
-     * - {@code WriteNonStringKeyAsString}
+     * {@code - WriteNonStringKeyAsString}
      * </pre>
      */
     public Fastjson2JsonLibrary() {
-        this(new JSONReader.Feature[0], new JSONWriter.Feature[]{WriteNonStringKeyAsString});
+        this(new JSONReader.Feature[0], new JSONWriter.Feature[]{WriteNonStringKeyAsString}, EmptyWay.NULL);
+    }
+
+    /**
+     * Constructs a new {@link Fastjson2JsonLibrary} with the specified features
+     * and the specified {@link EmptyWay} given.
+     *
+     * @param readerFeatures the reader features
+     * @param writerFeatures the writer features
+     * @param emptyWay       the {@code EmptyWay}
+     * @author MJ Fang
+     * @since 3.6
+     */
+    public Fastjson2JsonLibrary(JSONReader.Feature[] readerFeatures, JSONWriter.Feature[] writerFeatures, EmptyWay emptyWay) {
+        this.readerFeatures = Arrays.copyOf(readerFeatures, readerFeatures.length);
+        this.writerFeatures = Arrays.copyOf(writerFeatures, writerFeatures.length);
+        this.emptyWay = emptyWay;
+    }
+
+    /**
+     * Constructs a new {@link Fastjson2JsonLibrary} with the default features
+     * and the specified {@link EmptyWay} given.
+     * <p>
+     * Default write features:
+     * <pre>
+     * {@code - WriteNonStringKeyAsString}
+     * </pre>
+     *
+     * @param emptyWay the {@code EmptyWay}
+     * @author MJ Fang
+     * @since 3.6
+     */
+    public Fastjson2JsonLibrary(EmptyWay emptyWay) {
+        this(new JSONReader.Feature[0], new JSONWriter.Feature[]{WriteNonStringKeyAsString}, emptyWay);
     }
 
     @Override
@@ -75,6 +110,11 @@ public class Fastjson2JsonLibrary implements JsonLibrary {
             buf.release();
             throw new JsonWriteException(e.getMessage(), e);
         }
+    }
+
+    @Override
+    public EmptyWay emptyWay() {
+        return emptyWay;
     }
 
 }

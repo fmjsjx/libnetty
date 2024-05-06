@@ -21,18 +21,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
-import java.util.OptionalLong;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -48,6 +37,8 @@ import java.util.stream.Collectors;
 import com.github.fmjsjx.libcommon.util.KotlinUtil;
 import com.github.fmjsjx.libcommon.util.kotlin.KotlinReflectionUtil;
 import com.github.fmjsjx.libnetty.http.server.annotation.*;
+import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import kotlin.coroutines.Continuation;
 import kotlinx.coroutines.CoroutineStart;
 import kotlinx.coroutines.ExecutorsKt;
@@ -955,6 +946,11 @@ public class RouterUtil {
     private static final Function<HttpRequestContext, Object> contentToBytesMapper = ctx -> ByteBufUtil
             .getBytes(ctx.request().content());
 
+    private static final ByteBuf EMPTY_JSON_OBJECT = Unpooled.unreleasableBuffer(
+            UnpooledByteBufAllocator.DEFAULT.buffer(2).writeBytes("{}".getBytes()).asReadOnly());
+    private static final ByteBuf EMPTY_JSON_ARRAY = Unpooled.unreleasableBuffer(
+            UnpooledByteBufAllocator.DEFAULT.buffer(2).writeBytes("[]".getBytes()).asReadOnly());
+
     private static final Function<HttpRequestContext, Object> toJsonBodyMapper(Parameter param, @SuppressWarnings("unused") JsonBody jsonBody) {
         Type type = param.getParameterizedType();
         if (type == String.class) {
@@ -962,9 +958,44 @@ public class RouterUtil {
         } else if (type == byte[].class) {
             return contentToBytesMapper;
         } else {
-            return ctx -> ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
-                    .read(ctx.request().content(), type);
+            if (isArrayType(param)) {
+                return ctx -> {
+                    var jsonLibrary = ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY);
+                    var content = ctx.request().content();
+                    if (!content.isReadable()) {
+                        // Use EmptyWay to decide how to process empty body
+                        // see: https://github.com/fmjsjx/libnetty/issues/87
+                        return switch (jsonLibrary.emptyWay()) {
+                            case NULL -> null;
+                            case EMPTY -> jsonLibrary.read(EMPTY_JSON_ARRAY, type);
+                            default -> jsonLibrary.read(content, type);
+                        };
+                    }
+                    return jsonLibrary.read(content, type);
+                };
+            }
+            return ctx -> {
+                var jsonLibrary = ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY);
+                var content = ctx.request().content();
+                if (!content.isReadable()) {
+                    // Use EmptyWay to decide how to process empty body
+                    // see: https://github.com/fmjsjx/libnetty/issues/87
+                    return switch (jsonLibrary.emptyWay()) {
+                        case NULL -> null;
+                        case EMPTY -> jsonLibrary.read(EMPTY_JSON_OBJECT, type);
+                        default -> jsonLibrary.read(content, type);
+                    };
+                }
+                return jsonLibrary.read(content, type);
+            };
         }
+    }
+
+    private static boolean isArrayType(Parameter param) {
+        if (param.getParameterizedType() instanceof Class<?> clazz) {
+            return clazz.isArray();
+        }
+        return Collection.class.isAssignableFrom(param.getType());
     }
 
     private static final Function<HttpRequestContext, Object> toStringBodyMapper(Parameter param,
