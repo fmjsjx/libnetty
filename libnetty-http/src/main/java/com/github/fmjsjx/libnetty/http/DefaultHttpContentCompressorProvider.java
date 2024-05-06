@@ -169,7 +169,7 @@ public class DefaultHttpContentCompressorProvider implements HttpContentCompress
      *
      * @param contentSizeThreshold The response body is compressed when the size of
      *                             the response body exceeds the threshold. The
-     *                             value should be a non negative number. {@code 0}
+     *                             value should be a non-negative number. {@code 0}
      *                             will enable compression for all responses.
      * @param compressionOptions   {@link CompressionOptions} or {@code null} if the
      *                             default should be used.
