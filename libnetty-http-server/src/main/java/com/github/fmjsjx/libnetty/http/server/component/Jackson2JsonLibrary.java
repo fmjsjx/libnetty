@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import com.alibaba.fastjson2.JSONObject;
+import com.github.fmjsjx.libcommon.json.Fastjson2Library;
 import com.github.fmjsjx.libcommon.util.KotlinUtil;
 import com.github.fmjsjx.libcommon.util.ReflectUtil;
 import org.slf4j.Logger;
@@ -33,7 +35,7 @@ import io.netty.buffer.ByteBufOutputStream;
  * 
  * @since 1.3
  */
-public class Jackson2JsonLibrary implements JsonLibrary {
+public class Jackson2JsonLibrary extends AbstractJsonLibrary {
 
     private static final Logger logger = LoggerFactory.getLogger(Jackson2JsonLibrary.class);
 
@@ -140,7 +142,6 @@ public class Jackson2JsonLibrary implements JsonLibrary {
     private static final ConcurrentMap<Type, JavaType> cachedJavaTypes = new ConcurrentHashMap<>();
 
     private final ObjectMapper objectMapper;
-    private final EmptyWay emptyWay;
 
     /**
      * Constructs a new {@link Jackson2JsonLibrary} with the specified
@@ -170,8 +171,8 @@ public class Jackson2JsonLibrary implements JsonLibrary {
      * @since 3.6
      */
     public Jackson2JsonLibrary(ObjectMapper objectMapper, EmptyWay emptyWay) {
+        super(emptyWay);
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
-        this.emptyWay = Objects.requireNonNull(emptyWay, "emptyWay must not be null");
     }
 
     /**
@@ -180,11 +181,6 @@ public class Jackson2JsonLibrary implements JsonLibrary {
      */
     public Jackson2JsonLibrary(EmptyWay emptyWay) {
         this(defaultObjectMapper(), emptyWay);
-    }
-
-    @Override
-    public EmptyWay emptyWay() {
-        return emptyWay;
     }
 
     @Override
@@ -214,6 +210,11 @@ public class Jackson2JsonLibrary implements JsonLibrary {
             buf.release();
             throw new JsonWriteException(e.getMessage(), e);
         }
+    }
+
+    public static void main(String[] args) {
+        var o = Fastjson2Library.getInstance().loads("{}", JSONObject.class);
+        System.out.println(o);
     }
 
 }

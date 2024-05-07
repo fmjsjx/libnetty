@@ -19,11 +19,10 @@ import java.util.Arrays;
  * @author MJ Fang
  * @since 3.1
  */
-public class Fastjson2JsonLibrary implements JsonLibrary {
+public class Fastjson2JsonLibrary extends AbstractJsonLibrary {
 
     private final JSONReader.Feature[] readerFeatures;
     private final JSONWriter.Feature[] writerFeatures;
-    private final EmptyWay emptyWay;
 
     /**
      * Constructs a new {@link Fastjson2JsonLibrary} with the specified features.
@@ -60,9 +59,9 @@ public class Fastjson2JsonLibrary implements JsonLibrary {
      * @since 3.6
      */
     public Fastjson2JsonLibrary(JSONReader.Feature[] readerFeatures, JSONWriter.Feature[] writerFeatures, EmptyWay emptyWay) {
+        super(emptyWay);
         this.readerFeatures = Arrays.copyOf(readerFeatures, readerFeatures.length);
         this.writerFeatures = Arrays.copyOf(writerFeatures, writerFeatures.length);
-        this.emptyWay = emptyWay;
     }
 
     /**
@@ -110,11 +109,6 @@ public class Fastjson2JsonLibrary implements JsonLibrary {
             buf.release();
             throw new JsonWriteException(e.getMessage(), e);
         }
-    }
-
-    @Override
-    public EmptyWay emptyWay() {
-        return emptyWay;
     }
 
 }

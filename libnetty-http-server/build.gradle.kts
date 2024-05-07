@@ -40,6 +40,13 @@ dependencies {
     "kotlinSupportImplementation"("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
     "jsonSupportApi"("com.alibaba.fastjson2:fastjson2")
     "kotlinSupportImplementation"("com.alibaba.fastjson2:fastjson2-kotlin")
+    "jsonSupportApi"("com.github.fmjsjx:libcommon-json")
+    "jsonSupportApi"("com.github.fmjsjx:libcommon-json-jackson2")
+    "kotlinSupportImplementation"("com.github.fmjsjx:libcommon-json-jackson2-kotlin")
+    "jsonSupportApi"("com.github.fmjsjx:libcommon-json-jsoniter")
+    "kotlinSupportImplementation"("com.github.fmjsjx:libcommon-json-jsoniter-kotlin")
+    "jsonSupportApi"("com.github.fmjsjx:libcommon-json-fastjson2")
+    "kotlinSupportImplementation"("com.github.fmjsjx:libcommon-json-fastjson2-kotlin")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.mockito:mockito-core")
