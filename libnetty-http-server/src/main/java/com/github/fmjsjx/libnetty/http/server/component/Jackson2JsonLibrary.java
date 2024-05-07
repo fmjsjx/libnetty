@@ -9,8 +9,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import com.alibaba.fastjson2.JSONObject;
-import com.github.fmjsjx.libcommon.json.Fastjson2Library;
 import com.github.fmjsjx.libcommon.util.KotlinUtil;
 import com.github.fmjsjx.libcommon.util.ReflectUtil;
 import org.slf4j.Logger;
@@ -178,6 +176,10 @@ public class Jackson2JsonLibrary extends AbstractJsonLibrary {
     /**
      * Constructs a new {@link Jackson2JsonLibrary} with the default
      * {@link ObjectMapper} and the specified {@link EmptyWay} given.
+     *
+     * @param emptyWay an {@code EmptyWay}
+     * @author MJ Fang
+     * @since 3.6
      */
     public Jackson2JsonLibrary(EmptyWay emptyWay) {
         this(defaultObjectMapper(), emptyWay);
@@ -210,11 +212,6 @@ public class Jackson2JsonLibrary extends AbstractJsonLibrary {
             buf.release();
             throw new JsonWriteException(e.getMessage(), e);
         }
-    }
-
-    public static void main(String[] args) {
-        var o = Fastjson2Library.getInstance().loads("{}", JSONObject.class);
-        System.out.println(o);
     }
 
 }
