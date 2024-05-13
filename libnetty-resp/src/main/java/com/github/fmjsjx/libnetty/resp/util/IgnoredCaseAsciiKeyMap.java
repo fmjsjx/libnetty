@@ -308,7 +308,14 @@ public final class IgnoredCaseAsciiKeyMap<V> {
      * @return the value if persistent, {@code null} if not found
      */
     public V get(AsciiString key) {
-        return get(Unpooled.wrappedBuffer(key.array()));
+        // heap ByteBuf should also be released
+        // see: https://github.com/fmjsjx/libnetty/issues/91
+        var buf = Unpooled.wrappedBuffer(key.array());
+        try {
+            return get(buf);
+        } finally {
+            buf.release();
+        }
     }
 
     /**
