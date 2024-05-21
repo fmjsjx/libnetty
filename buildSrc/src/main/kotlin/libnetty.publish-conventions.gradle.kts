@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.github.fmjsjx"
-version = "3.6.0"
+version = "3.7.0-RC1"
 
 publishing {
     repositories {
