@@ -11,6 +11,8 @@ import static io.netty.handler.codec.http.HttpMethod.DELETE;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
@@ -34,6 +36,7 @@ import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEnc
 import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.NettyRuntime;
+import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -274,10 +277,13 @@ public abstract class AbstractHttpClient implements HttpClient {
             var body = request.multipartBody().get();
             var factory = createHttpDataFactory(body);
             var encoder = createHttpPostRequestEncoder(factory, req, body);
+            var contentFileUploadList = new ArrayList<FileUpload>();
             try {
                 for (var entry : body.entries()) {
                     if (entry instanceof ContentFileUploadEntry contentFileUploadEntry) {
-                        encoder.addBodyHttpData(createFileUpload(req, factory, body.charset(), contentFileUploadEntry));
+                        var httpData = createFileUpload(req, factory, body.charset(), contentFileUploadEntry);
+                        contentFileUploadList.add(httpData);
+                        encoder.addBodyHttpData(httpData);
                     } else {
                         entry.addBody(encoder);
                     }
@@ -289,16 +295,33 @@ public abstract class AbstractHttpClient implements HttpClient {
                 channel.write(encoder).addListener(cf -> {
                     if (cf.isDone()) {
                         encoder.cleanFiles();
+                        // ContentFileUploadEntry may cause a memory leak, safe release all entries here.
+                        // see: https://github.com/fmjsjx/libnetty/issues/94
+                        safeRelease(contentFileUploadList, body);
                     }
                 });
                 channel.flush();
             } catch (ErrorDataEncoderException e) {
                 encoder.cleanFiles();
+                // ContentFileUploadEntry may cause a memory leak, safe release all entries here.
+                // see: https://github.com/fmjsjx/libnetty/issues/94
+                safeRelease(contentFileUploadList, body);
                 throw new HttpRuntimeException(e);
             }
         } else {
             log.debug("Send HTTP request async: {}", req);
             channel.writeAndFlush(req);
+        }
+    }
+
+    private static void safeRelease(List<FileUpload> contentFileUploadList, MultipartBody body) {
+        for (var fileUpload : contentFileUploadList) {
+            ReferenceCountUtil.safeRelease(fileUpload);
+        }
+        for (var entry : body.entries()) {
+            if (entry instanceof ContentFileUploadEntry contentFileUploadEntry) {
+                ReferenceCountUtil.safeRelease(contentFileUploadEntry.content());
+            }
         }
     }
 
