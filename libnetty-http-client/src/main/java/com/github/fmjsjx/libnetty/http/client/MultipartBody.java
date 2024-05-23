@@ -1,7 +1,9 @@
 package com.github.fmjsjx.libnetty.http.client;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.codec.http.HttpConstants;
+import io.netty.handler.codec.http.multipart.HttpData;
 import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEncoderException;
 
@@ -10,6 +12,8 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * An HTTP request body class holding components of {@code multipart/form-data}.
@@ -20,6 +24,7 @@ public final class MultipartBody {
 
     private final Charset charset;
     private final List<DataEntry> entries;
+    private List<HttpData> toDeleteDataList;
 
     MultipartBody(Charset charset, List<DataEntry> entries) {
         this.charset = charset;
@@ -37,6 +42,18 @@ public final class MultipartBody {
 
     List<DataEntry> entries() {
         return entries;
+    }
+
+    List<HttpData> getToDeleteDataList(boolean createIfNull) {
+        var toDeleteDataList = this.toDeleteDataList;
+        if (createIfNull && toDeleteDataList == null) {
+            this.toDeleteDataList = toDeleteDataList = new ArrayList<>();
+        }
+        return toDeleteDataList;
+    }
+
+    List<HttpData> getToDeleteDataList() {
+        return getToDeleteDataList(false);
     }
 
     @Override
@@ -144,7 +161,9 @@ public final class MultipartBody {
          * @param filename    the filename
          * @param fileContent the file content
          * @return this builder
+         * @deprecated since 3.7, please use {@link #addFileUpload(String, String, Supplier)} instead
          */
+        @Deprecated
         public Builder addFileUpload(String name, String filename, ByteBuf fileContent) {
             return addFileUpload(name, filename, fileContent, null);
         }
@@ -157,13 +176,83 @@ public final class MultipartBody {
          * @param fileContent the file content
          * @param contentType the content type, nullable, if {@code null} then use {@code "application/octet-stream"}
          * @return this builder
+         * @deprecated since 3.7, please use {@link #addFileUpload(String, String, String, Supplier)} instead
          */
+        @SuppressWarnings("DeprecatedIsStillUsed")
+        @Deprecated
         public Builder addFileUpload(String name, String filename, ByteBuf fileContent, String contentType) {
             Objects.requireNonNull(name, "name must not be null");
             Objects.requireNonNull(filename, "filename must not be null");
             Objects.requireNonNull(fileContent, "fileContent must not be null");
             return addEntry(new ContentFileUploadEntry(name, filename, fileContent,
                     contentType == null ? "application/octet-stream" : contentType));
+        }
+
+        /**
+         * Add the file upload entry with the specified parameters given.
+         *
+         * @param name            the name
+         * @param filename        the filename
+         * @param contentProvider the file content provider
+         * @return this builder
+         * @author MJ Fang
+         * @since 3.7
+         */
+        public Builder addFileUpload(String name, String filename, Function<ByteBufAllocator, ByteBuf> contentProvider) {
+            return addFileUpload(name, filename, null, contentProvider);
+        }
+
+        /**
+         * Add the file upload entry with the specified parameters given.
+         *
+         * @param name            the name
+         * @param filename        the filename
+         * @param contentType     the content type, nullable, if {@code null}
+         *                        then use {@code "application/octet-stream"}
+         * @param contentProvider the file content provider
+         * @return this builder
+         * @author MJ Fang
+         * @since 3.7
+         */
+        public Builder addFileUpload(String name, String filename, String contentType,
+                                     Function<ByteBufAllocator, ByteBuf> contentProvider) {
+            Objects.requireNonNull(name, "name must not be null");
+            Objects.requireNonNull(filename, "filename must not be null");
+            Objects.requireNonNull(contentProvider, "fileContentProvider must not be null");
+            var entry = new ContentProviderFileUploadEntry(name, filename,
+                    contentType == null ? "application/octet-stream" : contentType, contentProvider);
+            return addEntry(entry);
+        }
+
+        /**
+         * Add the file upload entry with the specified parameters given.
+         *
+         * @param name            the name
+         * @param filename        the filename
+         * @param contentSupplier the file content supplier
+         * @return this builder
+         * @author MJ Fang
+         * @since 3.7
+         */
+        public Builder addFileUpload(String name, String filename, Supplier<ByteBuf> contentSupplier) {
+            return addFileUpload(name, filename, null, contentSupplier);
+        }
+
+        /**
+         * Add the file upload entry with the specified parameters given.
+         *
+         * @param name            the name
+         * @param filename        the filename
+         * @param contentType     the content type, nullable, if {@code null}
+         *                        then use {@code "application/octet-stream"}
+         * @param contentSupplier the file content supplier
+         * @return this builder
+         * @author MJ Fang
+         * @since 3.7
+         */
+        public Builder addFileUpload(String name, String filename, String contentType,
+                                     Supplier<ByteBuf> contentSupplier) {
+            return addFileUpload(name, filename, contentType, alloc -> contentSupplier.get());
         }
 
         /**
@@ -203,5 +292,11 @@ record FileUploadEntry(String name, String filename, File file, String contentTy
     }
 }
 
+@SuppressWarnings("DeprecatedIsStillUsed")
+@Deprecated
 record ContentFileUploadEntry(String name, String filename, ByteBuf content, String contentType) implements DataEntry {
+}
+
+record ContentProviderFileUploadEntry(String name, String filename, String contentType,
+                                      Function<ByteBufAllocator, ByteBuf> contentProvider) implements DataEntry {
 }

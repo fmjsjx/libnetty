@@ -11,8 +11,6 @@ import static io.netty.handler.codec.http.HttpMethod.DELETE;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
@@ -24,7 +22,6 @@ import com.github.fmjsjx.libnetty.http.client.exception.ClientClosedException;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.compression.Brotli;
 import io.netty.handler.codec.http.*;
@@ -258,8 +255,10 @@ public abstract class AbstractHttpClient implements HttpClient {
         return factory;
     }
 
-    FileUpload createFileUpload(
-            HttpRequest request, HttpDataFactory factory, Charset charset, ContentFileUploadEntry entry) {
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
+    FileUpload createFileUpload(HttpRequest request, HttpDataFactory factory, Charset charset,
+                                ContentFileUploadEntry entry) {
         var content = entry.content();
         var fileUpload = factory.createFileUpload(request, entry.name(), entry.filename(), entry.contentType(),
                 "binary", charset, content.readableBytes());
@@ -267,45 +266,64 @@ public abstract class AbstractHttpClient implements HttpClient {
             fileUpload.setContent(content);
         } catch (IOException e) {
             // Can't reach this line commonly
+            content.release();
             throw new HttpRuntimeException(e);
         }
         return fileUpload;
     }
 
-    protected void sendHttpRequest(HttpRequest req, ChannelOutboundInvoker channel, Request request) {
+    FileUpload createFileUpload(HttpRequest request, HttpDataFactory factory, Charset charset,
+                                Channel channel, ContentProviderFileUploadEntry entry) {
+        var content = entry.contentProvider().apply(channel.alloc());
+        var fileUpload = factory.createFileUpload(request, entry.name(), entry.filename(), entry.contentType(),
+                "binary", charset, content.readableBytes());
+        try {
+            fileUpload.setContent(content);
+        } catch (IOException e) {
+            // Can't reach this line commonly
+            content.release();
+            throw new HttpRuntimeException(e);
+        }
+        return fileUpload;
+    }
+
+    protected void sendHttpRequest(HttpRequest req, Channel channel, Request request) {
         if (request.multipartBody().isPresent()) {
             var body = request.multipartBody().get();
             var factory = createHttpDataFactory(body);
             var encoder = createHttpPostRequestEncoder(factory, req, body);
-            var contentFileUploadList = new ArrayList<FileUpload>();
             try {
                 for (var entry : body.entries()) {
-                    if (entry instanceof ContentFileUploadEntry contentFileUploadEntry) {
+                    if (entry instanceof @SuppressWarnings("deprecation")ContentFileUploadEntry contentFileUploadEntry) {
                         var httpData = createFileUpload(req, factory, body.charset(), contentFileUploadEntry);
-                        contentFileUploadList.add(httpData);
+                        body.getToDeleteDataList(true).add(httpData);
+                        encoder.addBodyHttpData(httpData);
+                    } else if (entry instanceof ContentProviderFileUploadEntry fileUploadEntry) {
+                        var httpData = createFileUpload(req, factory, body.charset(), channel, fileUploadEntry);
+                        body.getToDeleteDataList(true).add(httpData);
                         encoder.addBodyHttpData(httpData);
                     } else {
                         entry.addBody(encoder);
                     }
                 }
                 var freq = encoder.finalizeRequest();
-                log.debug("Send HTTP request async: {}", req);
+                log.debug("Send HTTP request with multipart/form-data data async: {}", req);
                 log.debug("-- headers : {}", freq.headers());
                 channel.write(freq);
                 channel.write(encoder).addListener(cf -> {
                     if (cf.isDone()) {
                         encoder.cleanFiles();
-                        // ContentFileUploadEntry may cause a memory leak, safe release all entries here.
-                        // see: https://github.com/fmjsjx/libnetty/issues/94
-                        safeRelease(contentFileUploadList, body);
+                        // HttpPostRequestEncoder never releases ByteBuf in cleanFiles()
+                        // when the useDisk on factory is false, just safe release them here
+                        safeRelease(body);
                     }
                 });
                 channel.flush();
             } catch (ErrorDataEncoderException e) {
                 encoder.cleanFiles();
-                // ContentFileUploadEntry may cause a memory leak, safe release all entries here.
-                // see: https://github.com/fmjsjx/libnetty/issues/94
-                safeRelease(contentFileUploadList, body);
+                // HttpPostRequestEncoder never releases ByteBuf in cleanFiles()
+                // when the useDisk on factory is false, just safe release them here
+                safeRelease(body);
                 throw new HttpRuntimeException(e);
             }
         } else {
@@ -314,12 +332,16 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
     }
 
-    private static void safeRelease(List<FileUpload> contentFileUploadList, MultipartBody body) {
-        for (var fileUpload : contentFileUploadList) {
-            ReferenceCountUtil.safeRelease(fileUpload);
+    private static void safeRelease(MultipartBody body) {
+        if (body.getToDeleteDataList() != null) {
+            for (var httpData : body.getToDeleteDataList()) {
+                ReferenceCountUtil.safeRelease(httpData);
+            }
         }
         for (var entry : body.entries()) {
-            if (entry instanceof ContentFileUploadEntry contentFileUploadEntry) {
+            if (entry instanceof @SuppressWarnings("deprecation")ContentFileUploadEntry contentFileUploadEntry) {
+                // ContentFileUploadEntry may cause a memory leak, safe release all entries here.
+                // see: https://github.com/fmjsjx/libnetty/issues/94
                 ReferenceCountUtil.safeRelease(contentFileUploadEntry.content());
             }
         }
