@@ -34,7 +34,7 @@ public final class MultipartBody {
     /**
      * Returns the charset.
      *
-     * @return the chatset
+     * @return the charset
      */
     public Charset charset() {
         return charset;
