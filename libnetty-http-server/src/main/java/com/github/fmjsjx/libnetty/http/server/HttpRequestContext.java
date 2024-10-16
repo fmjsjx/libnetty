@@ -90,7 +90,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * @return a {@code ZonedDateTime} with the specified {@code zone}
      */
     default ZonedDateTime receivedTime(ZoneId zone) {
-        return receivedTime().withZoneSameLocal(zone);
+        return receivedTime().withZoneSameInstant(zone);
     }
 
     /**
@@ -583,8 +583,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
 
     @Override
     default CompletableFuture<HttpResult> simpleRespond(HttpFailureException cause) {
-        if (cause instanceof ManualHttpFailureException) {
-            ManualHttpFailureException e = (ManualHttpFailureException) cause;
+        if (cause instanceof ManualHttpFailureException e) {
             ByteBuf content = alloc().buffer();
             int contentLength = ByteBufUtil.writeUtf8(content, e.content());
             return simpleRespond(e.status(), content, contentLength, e.contentType());
