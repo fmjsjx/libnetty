@@ -4,6 +4,8 @@ import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpHeaderValues.*;
 
 import java.nio.charset.Charset;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.Optional;
@@ -32,10 +34,9 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 
 /**
  * The default implementation of {@link DefaultHttpRequestContext}.
- * 
- * @since 1.1
  *
  * @author MJ Fang
+ * @since 1.1
  */
 class DefaultHttpRequestContext implements HttpRequestContext {
 
@@ -43,6 +44,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
 
     private final long receivedNanoTime = System.nanoTime();
     private final ZonedDateTime receivedTime = ZonedDateTime.now();
+    private LocalDateTime receivedLocalTime;
 
     private final Channel channel;
     private final FullHttpRequest request;
@@ -52,7 +54,9 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     private int keepAliveFlag = -1;
     private Optional<CharSequence> contentType;
     private QueryStringDecoder queryStringDecoder;
-    private AtomicReference<PathVariables> pathVariablesRef = new AtomicReference<>();
+    private String rawPath;
+    private String rawQuery;
+    private final AtomicReference<PathVariables> pathVariablesRef = new AtomicReference<>();
 
     private final Map<Class<?>, Object> components;
     private final ConcurrentMap<Object, Object> properties = new ConcurrentHashMap<>();
@@ -60,7 +64,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     private final Optional<Consumer<HttpHeaders>> addHeaders;
 
     DefaultHttpRequestContext(Channel channel, FullHttpRequest request, Map<Class<?>, Object> components,
-            Consumer<HttpHeaders> addHeaders) {
+                              Consumer<HttpHeaders> addHeaders) {
         this.channel = channel;
         this.request = request;
         this.contentLength = request.content().readableBytes();
@@ -76,6 +80,15 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     @Override
     public ZonedDateTime receivedTime() {
         return receivedTime;
+    }
+
+    @Override
+    public LocalDateTime receivedLocalTime() {
+        var receivedLocalTime = this.receivedLocalTime;
+        if (receivedLocalTime == null) {
+            this.receivedLocalTime = receivedLocalTime = receivedTime().withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+        }
+        return receivedLocalTime;
     }
 
     @Override
@@ -114,6 +127,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     @Override
     public Optional<CharSequence> contentType() {
         Optional<CharSequence> contentType = this.contentType;
+        //noinspection OptionalAssignedToNull
         if (contentType == null) {
             this.contentType = contentType = Optional.ofNullable(HttpUtil.getMimeType(request));
         }
@@ -127,6 +141,24 @@ class DefaultHttpRequestContext implements HttpRequestContext {
             queryStringDecoder = decoder = new QueryStringDecoder(request().uri());
         }
         return decoder;
+    }
+
+    @Override
+    public String rawPath() {
+        var rawPath = this.rawPath;
+        if (rawPath == null) {
+            this.rawPath = rawPath = queryStringDecoder().rawPath();
+        }
+        return rawPath;
+    }
+
+    @Override
+    public String rawQuery() {
+        var rawQuery = this.rawQuery;
+        if (rawQuery == null) {
+            this.rawQuery = rawQuery = queryStringDecoder().rawQuery();
+        }
+        return rawQuery;
     }
 
     @Override
@@ -230,7 +262,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
 
         @Override
         public FullHttpResponse createFull(HttpResponseStatus status, ByteBuf content, int contentLength,
-                CharSequence contentType) {
+                                           CharSequence contentType) {
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(version(), status, content);
             HttpHeaders headers = initHeaders(response);
             headers.setInt(CONTENT_LENGTH, contentLength);
