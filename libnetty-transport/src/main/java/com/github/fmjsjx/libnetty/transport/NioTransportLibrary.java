@@ -3,8 +3,9 @@ package com.github.fmjsjx.libnetty.transport;
 import java.nio.channels.Selector;
 import java.util.concurrent.ThreadFactory;
 
-import io.netty.channel.Channel;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
@@ -42,18 +43,30 @@ public class NioTransportLibrary implements TransportLibrary {
     }
 
     @Override
+    @Deprecated
     public NioEventLoopGroup createGroup() {
         return new NioEventLoopGroup();
     }
 
     @Override
+    @Deprecated
     public NioEventLoopGroup createGroup(int nThreads) {
         return new NioEventLoopGroup(nThreads);
     }
 
     @Override
+    @Deprecated
     public NioEventLoopGroup createGroup(int nThreads, ThreadFactory threadFactory) {
         return new NioEventLoopGroup(nThreads, threadFactory);
+    }
+
+    /**
+     * Returns a new {@link IoHandlerFactory} that creates {@link NioIoHandler}
+     * instances.
+     */
+    @Override
+    public IoHandlerFactory createIoHandlerFactory() {
+        return NioIoHandler.newFactory();
     }
 
 }

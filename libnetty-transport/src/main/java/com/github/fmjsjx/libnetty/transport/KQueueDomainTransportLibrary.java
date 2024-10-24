@@ -1,9 +1,6 @@
 package com.github.fmjsjx.libnetty.transport;
 
-import java.util.concurrent.ThreadFactory;
-
 import io.netty.channel.kqueue.KQueueDomainSocketChannel;
-import io.netty.channel.kqueue.KQueueEventLoopGroup;
 import io.netty.channel.kqueue.KQueueServerDomainSocketChannel;
 
 /**
@@ -14,7 +11,7 @@ import io.netty.channel.kqueue.KQueueServerDomainSocketChannel;
  * 
  * @author MJ Fang
  */
-public class KQueueDomainTransportLibrary implements TransportLibrary {
+public class KQueueDomainTransportLibrary extends AbstractKQueueTransportLibrary {
 
     private static final class InstanceHolder {
         private static final KQueueDomainTransportLibrary instance = new KQueueDomainTransportLibrary();
@@ -37,21 +34,6 @@ public class KQueueDomainTransportLibrary implements TransportLibrary {
     @Override
     public Class<KQueueServerDomainSocketChannel> serverChannelClass() {
         return KQueueServerDomainSocketChannel.class;
-    }
-
-    @Override
-    public KQueueEventLoopGroup createGroup() {
-        return new KQueueEventLoopGroup();
-    }
-
-    @Override
-    public KQueueEventLoopGroup createGroup(int nThreads) {
-        return new KQueueEventLoopGroup(nThreads);
-    }
-
-    @Override
-    public KQueueEventLoopGroup createGroup(int nThreads, ThreadFactory threadFactory) {
-        return new KQueueEventLoopGroup(nThreads, threadFactory);
     }
 
 }

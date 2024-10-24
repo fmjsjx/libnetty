@@ -1,9 +1,7 @@
 package com.github.fmjsjx.libnetty.transport;
 
-import java.util.concurrent.ThreadFactory;
 
 import io.netty.channel.epoll.EpollDomainSocketChannel;
-import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerDomainSocketChannel;
 
 /**
@@ -14,7 +12,7 @@ import io.netty.channel.epoll.EpollServerDomainSocketChannel;
  *
  * @author MJ Fang
  */
-public class EpollDomainTransportLibrary implements TransportLibrary {
+public class EpollDomainTransportLibrary extends AbstractEpollTransportLibrary {
 
     private static final class InstanceHolder {
         private static final EpollDomainTransportLibrary instance = new EpollDomainTransportLibrary();
@@ -39,18 +37,4 @@ public class EpollDomainTransportLibrary implements TransportLibrary {
         return EpollServerDomainSocketChannel.class;
     }
 
-    @Override
-    public EpollEventLoopGroup createGroup() {
-        return new EpollEventLoopGroup();
-    }
-
-    @Override
-    public EpollEventLoopGroup createGroup(int nThreads) {
-        return new EpollEventLoopGroup(nThreads);
-    }
-
-    @Override
-    public EpollEventLoopGroup createGroup(int nThreads, ThreadFactory threadFactory) {
-        return new EpollEventLoopGroup(nThreads, threadFactory);
-    }
 }
