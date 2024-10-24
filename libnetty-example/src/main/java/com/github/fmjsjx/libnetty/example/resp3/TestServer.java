@@ -32,6 +32,7 @@ import com.github.fmjsjx.libnetty.resp3.DefaultMapMessage;
 import com.github.fmjsjx.libnetty.resp3.DefaultSetMessage;
 import com.github.fmjsjx.libnetty.resp3.FieldValuePair;
 
+import com.github.fmjsjx.libnetty.transport.NioTransportLibrary;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -40,7 +41,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.CharsetUtil;
 
@@ -57,7 +57,7 @@ public class TestServer {
      */
     public static void main(String[] args) throws Exception {
         RespMessageEncoder respMessageEncoder = new RespMessageEncoder();
-        NioEventLoopGroup group = new NioEventLoopGroup();
+        var group = NioTransportLibrary.getInstance().createIoGroup();
         try {
             ServerBootstrap b = new ServerBootstrap().group(group).channel(NioServerSocketChannel.class)
                     .option(ChannelOption.SO_BACKLOG, 512).childOption(ChannelOption.TCP_NODELAY, true)
