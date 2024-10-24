@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.ThreadLocalMatcher;
+import io.netty.util.concurrent.FastThreadLocal;
 
 /**
  * Delegating a {@link Middleware} with a path filter.
@@ -25,31 +26,31 @@ public class PathFilterMiddleware implements Middleware {
 
     /**
      * Convert path prefixes to path filter.
-     * 
+     *
      * @param pathPrefixes the prefixes of HTTP paths
      * @return a {@code Predicate<String>}
      */
     public static final Predicate<String> toFilter(String... pathPrefixes) {
-        switch (pathPrefixes.length) {
-        case 0:
-            // always returns true
-            return p -> true;
-        case 1:
-            ThreadLocalMatcher tlm = new ThreadLocalMatcher(toPattern(pathPrefixes[0]));
-            return p -> tlm.reset(p).matches();
-        default:
-            ThreadLocalMatchers threadLocalMatchers = new ThreadLocalMatchers(
-                    Arrays.stream(pathPrefixes).map(PathFilterMiddleware::toPattern).toArray(Pattern[]::new));
-            return p -> {
-                Matcher[] ms = threadLocalMatchers.get();
-                for (Matcher m : ms) {
-                    if (m.reset(p).matches()) {
-                        return true;
+        return switch (pathPrefixes.length) {
+            case 0 -> p -> true; // always returns true
+            case 1 -> {
+                ThreadLocalMatcher tlm = new ThreadLocalMatcher(toPattern(pathPrefixes[0]));
+                yield p -> tlm.reset(p).matches();
+            }
+            default -> {
+                ThreadLocalMatchers threadLocalMatchers = new ThreadLocalMatchers(
+                        Arrays.stream(pathPrefixes).map(PathFilterMiddleware::toPattern).toArray(Pattern[]::new));
+                yield p -> {
+                    Matcher[] ms = threadLocalMatchers.get();
+                    for (Matcher m : ms) {
+                        if (m.reset(p).matches()) {
+                            return true;
+                        }
                     }
-                }
-                return false;
-            };
-        }
+                    return false;
+                };
+            }
+        };
     }
 
     static final Pattern toPattern(String pathPrefix) {
@@ -63,7 +64,7 @@ public class PathFilterMiddleware implements Middleware {
         return Pattern.compile(regex);
     }
 
-    private static final class ThreadLocalMatchers extends ThreadLocal<Matcher[]> {
+    private static final class ThreadLocalMatchers extends FastThreadLocal<Matcher[]> {
 
         private final Pattern[] patterns;
 

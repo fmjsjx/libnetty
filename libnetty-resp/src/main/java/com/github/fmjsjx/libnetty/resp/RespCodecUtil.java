@@ -9,6 +9,7 @@ import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.AsciiString;
 import io.netty.util.ByteProcessor;
 import io.netty.util.CharsetUtil;
+import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -85,7 +86,7 @@ public class RespCodecUtil {
      * @return a {@code ByteBuf}
      */
     public static final ByteBuf writeAsciiFixed(ByteBufAllocator alloc, AsciiString ascii) {
-        if (ascii.length() == 0) {
+        if (ascii.isEmpty()) {
             return Unpooled.EMPTY_BUFFER;
         }
         return alloc.buffer(ascii.length(), ascii.length()).writeBytes(ascii.array());
@@ -140,7 +141,7 @@ public class RespCodecUtil {
         if (end == begin) {
             throw NaN;
         }
-        boolean negative = content.getByte(begin) == '-' ? true : false;
+        boolean negative = content.getByte(begin) == '-';
         if (negative) {
             begin++;
         }
@@ -184,7 +185,7 @@ public class RespCodecUtil {
         if (begin == end) {
             throw NaN;
         }
-        boolean negative = content.getByte(begin) == '-' ? true : false;
+        boolean negative = content.getByte(begin) == '-';
         if (negative) {
             begin++;
         }
@@ -307,7 +308,7 @@ public class RespCodecUtil {
         private int value;
 
         @Override
-        public boolean process(byte value) throws Exception {
+        public boolean process(byte value) {
             int num = this.value;
             if (value >= '0' && value <= '9') {
                 this.value = num = num * 10 + (value - '0');
@@ -338,7 +339,7 @@ public class RespCodecUtil {
 
     }
 
-    private static final class ThreadLocalToPositiveIntProcessor extends ThreadLocal<ToPositiveIntProcessor> {
+    private static final class ThreadLocalToPositiveIntProcessor extends FastThreadLocal<ToPositiveIntProcessor> {
 
         private static final ThreadLocalToPositiveIntProcessor INSTANCE = new ThreadLocalToPositiveIntProcessor();
 
@@ -363,7 +364,7 @@ public class RespCodecUtil {
         private long value;
 
         @Override
-        public boolean process(byte value) throws Exception {
+        public boolean process(byte value) {
             long num = this.value;
             if (value >= '0' && value <= '9') {
                 this.value = num = num * 10 + (value - '0');
@@ -394,7 +395,7 @@ public class RespCodecUtil {
 
     }
 
-    private static final class ThreadLocalToPositiveLongProcessor extends ThreadLocal<ToPositiveLongProcessor> {
+    private static final class ThreadLocalToPositiveLongProcessor extends FastThreadLocal<ToPositiveLongProcessor> {
 
         private static final ThreadLocalToPositiveLongProcessor INSTANCE = new ThreadLocalToPositiveLongProcessor();
 

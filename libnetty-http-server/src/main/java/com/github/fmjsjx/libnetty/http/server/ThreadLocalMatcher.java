@@ -1,5 +1,7 @@
 package com.github.fmjsjx.libnetty.http.server;
 
+import io.netty.util.concurrent.FastThreadLocal;
+
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -11,7 +13,7 @@ import java.util.regex.Pattern;
  *
  * @author MJ Fang
  */
-public class ThreadLocalMatcher extends ThreadLocal<Matcher> {
+public class ThreadLocalMatcher extends FastThreadLocal<Matcher> {
 
     protected final Pattern pattern;
 
