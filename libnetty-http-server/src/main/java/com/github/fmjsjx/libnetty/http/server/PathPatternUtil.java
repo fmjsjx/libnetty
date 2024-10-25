@@ -22,13 +22,13 @@ public class PathPatternUtil {
 
     private static final Logger log = LoggerFactory.getLogger(PathPatternUtil.class);
 
-    private static final Pattern pathVariablePattern = Pattern.compile("\\{[A-Za-z]\\w*\\}");
-    private static final Pattern anyPathVariablePattern = Pattern.compile("\\{.+\\}");
+    private static final Pattern pathVariablePattern = Pattern.compile("\\{[A-Za-z]\\w+}");
+    private static final Pattern anyPathVariablePattern = Pattern.compile("\\{.+}");
 
     /**
-     * Returns the any path variable pattern.
+     * Returns the "any" path variable pattern.
      *
-     * @return the any path variable pattern
+     * @return the "any" path variable pattern
      * @since 3.3
      */
     public static final Pattern anyPathVariablePattern() {
@@ -37,12 +37,11 @@ public class PathPatternUtil {
 
     /**
      * Build a new {@link PathPattern} from HTTP path pattern.
-     * 
+     *
      * @param pathPattern        the pattern of HTTP path
-     * @param threadLocalMatcher if matchers will be cached in a {@link ThreadLocal}
-     *                           variable
+     * @param threadLocalMatcher if matchers will be cached in a
+     *                           {@code ThreadLocal} variable
      * @return a {@code PathPattern}
-     * 
      * @throws IllegalArgumentException if the path variable is illegal
      */
     public static final PathPattern build(String pathPattern, boolean threadLocalMatcher)
