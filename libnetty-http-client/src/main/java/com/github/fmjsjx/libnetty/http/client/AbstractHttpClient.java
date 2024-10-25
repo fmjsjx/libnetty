@@ -287,6 +287,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         return fileUpload;
     }
 
+    @SuppressWarnings("deprecation")
     protected void sendHttpRequest(HttpRequest req, Channel channel, Request request) {
         if (request.multipartBody().isPresent()) {
             var body = request.multipartBody().get();
@@ -294,7 +295,7 @@ public abstract class AbstractHttpClient implements HttpClient {
             var encoder = createHttpPostRequestEncoder(factory, req, body);
             try {
                 for (var entry : body.entries()) {
-                    if (entry instanceof @SuppressWarnings("deprecation")ContentFileUploadEntry contentFileUploadEntry) {
+                    if (entry instanceof ContentFileUploadEntry contentFileUploadEntry) {
                         var httpData = createFileUpload(req, factory, body.charset(), contentFileUploadEntry);
                         body.getToDeleteDataList(true).add(httpData);
                         encoder.addBodyHttpData(httpData);
@@ -332,6 +333,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static void safeRelease(MultipartBody body) {
         if (body.getToDeleteDataList() != null) {
             for (var httpData : body.getToDeleteDataList()) {
@@ -339,7 +341,7 @@ public abstract class AbstractHttpClient implements HttpClient {
             }
         }
         for (var entry : body.entries()) {
-            if (entry instanceof @SuppressWarnings("deprecation")ContentFileUploadEntry contentFileUploadEntry) {
+            if (entry instanceof ContentFileUploadEntry contentFileUploadEntry) {
                 // ContentFileUploadEntry may cause a memory leak, safe release all entries here.
                 // see: https://github.com/fmjsjx/libnetty/issues/94
                 ReferenceCountUtil.safeRelease(contentFileUploadEntry.content());

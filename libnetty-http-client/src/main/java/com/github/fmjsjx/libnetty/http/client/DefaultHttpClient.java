@@ -495,7 +495,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
             ensureSslContext();
             TransportLibrary transportLibrary = TransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
-            return new DefaultHttpClient(transportLibrary.createGroup(ioThreads(), threadFactory),
+            return new DefaultHttpClient(transportLibrary.createIoGroup(ioThreads(), threadFactory),
                     transportLibrary.channelClass(), sslContextProvider(), compressionEnabled(), true,
                     connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), maxCachedSizeEachDomain,
                     cachedPoolFactory, proxyHandlerFactory());

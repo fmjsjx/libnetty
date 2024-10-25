@@ -892,11 +892,11 @@ public class DefaultHttpServer implements HttpServer {
             throw new IllegalArgumentException("missing handlerProvider for HTTP server '" + name + "'");
         }
         if (parentGroup == null) {
-            parentGroup = TransportLibrary.getDefault().createGroup(1, new DefaultThreadFactory("http-parent"));
+            parentGroup = TransportLibrary.getDefault().createIoGroup(1, new DefaultThreadFactory("http-parent"));
             closeGroupsWhenShutdown = true;
         }
         if (childGroup == null) {
-            childGroup = TransportLibrary.getDefault().createGroup(ioThreads, new DefaultThreadFactory("http-child"));
+            childGroup = TransportLibrary.getDefault().createIoGroup(ioThreads, new DefaultThreadFactory("http-child"));
         }
         if (channelClass == null) {
             channelClass = TransportLibrary.getDefault().serverChannelClass();

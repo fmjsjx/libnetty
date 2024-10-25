@@ -6,6 +6,7 @@ import com.github.fmjsjx.libnetty.fastcgi.FcgiMessageEncoder;
 import com.github.fmjsjx.libnetty.fastcgi.FcgiRequest;
 import com.github.fmjsjx.libnetty.fastcgi.FcgiVersion;
 
+import com.github.fmjsjx.libnetty.transport.NioTransportLibrary;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -15,7 +16,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
@@ -33,7 +33,7 @@ public class TestClient {
      */
     public static void main(String[] args) throws Exception {
         FcgiMessageEncoder encoder = new FcgiMessageEncoder();
-        NioEventLoopGroup group = new NioEventLoopGroup(1);
+        var group = NioTransportLibrary.getInstance().createIoGroup(1);
         try {
             Bootstrap b = new Bootstrap().group(group).channel(NioSocketChannel.class)
                     .option(ChannelOption.TCP_NODELAY, true).handler(new ChannelInitializer<>() {
