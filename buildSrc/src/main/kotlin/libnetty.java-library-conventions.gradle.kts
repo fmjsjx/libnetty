@@ -13,7 +13,7 @@ dependencies {
     // netty-bom
     api(platform("io.netty:netty-bom:4.1.114.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:3.9.0"))
+    api(platform("com.github.fmjsjx:libcommon-bom:3.9.1"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.18.0"))
     // junit-bom
@@ -50,13 +50,13 @@ java {
     withSourcesJar()
     withJavadocJar()
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(javaVersion))
+        languageVersion = JavaLanguageVersion.of(javaVersion)
     }
 }
 
 tasks.compileJava {
     options.encoding = "UTF-8"
-    options.release.set(javaVersion)
+    options.release = javaVersion
 }
 
 tasks.javadoc {
