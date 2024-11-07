@@ -15,22 +15,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 
-import javax.net.ssl.SSLContext;
-
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
-import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.client.util.HttpRequestUtil;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
-import io.netty.handler.codec.compression.Brotli;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.proxy.ProxyHandler;
-import io.netty.handler.ssl.SslContext;
 import io.netty.util.AsciiString;
 
 /**
@@ -51,40 +46,6 @@ public interface HttpClient extends AutoCloseable {
      */
     static HttpClient build() {
         return DefaultHttpClient.builder().build();
-    }
-
-    /**
-     * Returns a default {@link Builder}.
-     * 
-     * @return a {@code Builder}
-     * @see DefaultHttpClient#builder()
-     * @deprecated Please use {@link DefaultHttpClient#builder()} directly.
-     */
-    @Deprecated
-    static Builder defaultBuilder() {
-        return DefaultHttpClient.builder();
-    }
-
-    /**
-     * Returns a {@link SimpleHttpClient.Builder}.
-     * 
-     * @return a {@code Builder}
-     * @see SimpleHttpClient#builder()
-     * @deprecated Please use {@link SimpleHttpClient#builder()} directly.
-     */
-    @Deprecated
-    static Builder simpleBuilder() {
-        return SimpleHttpClient.builder();
-    }
-
-    /**
-     * Returns the SSL context of this {@link HttpClient}.
-     * 
-     * @return the {@link SSLContext} of this {@link HttpClient}
-     */
-    @Deprecated
-    default SslContext sslContext() {
-        return Optional.ofNullable(sslContextProvider()).map(SslContextProvider::get).orElse(null);
     }
 
     /**
@@ -915,7 +876,7 @@ public interface HttpClient extends AutoCloseable {
          */
         default OptionalInt intHeader(CharSequence name) {
             Integer value = headers().getInt(name);
-            return value == null ? OptionalInt.empty() : OptionalInt.of(value.intValue());
+            return value == null ? OptionalInt.empty() : OptionalInt.of(value);
         }
 
         /**
@@ -954,18 +915,6 @@ public interface HttpClient extends AutoCloseable {
         Builder ioThreads(int ioThreads);
 
         /**
-         * Sets the timeout duration for this client.
-         * 
-         * @param duration the timeout {@link Duration}
-         * @return this {@code Builder}
-         * @deprecated please use {@link #connectionTimeout(Duration)} instead
-         */
-        @Deprecated
-        default Builder timeout(Duration duration) {
-            return connectionTimeout(duration);
-        }
-
-        /**
          * Sets the connection timeout duration for this client.
          *
          * @param duration the connection timeout {@link Duration}
@@ -992,19 +941,6 @@ public interface HttpClient extends AutoCloseable {
         Builder maxContentLength(int maxContentLength);
 
         /**
-         * Sets the SSL context for this client.
-         * 
-         * @param sslContext the {@link SslContext}
-         * @return this {@code Builder}
-         * 
-         * @deprecated please use {@link #sslContextProvider(SslContextProvider)}
-         */
-        @Deprecated
-        default Builder sslContext(SslContext sslContext) {
-            return sslContextProvider(SslContextProviders.simple(sslContext));
-        }
-
-        /**
          * Sets the {@link SslContextProvider} for this client.
          * 
          * @param sslContextProvider the {@code SslContextProvider}
@@ -1029,32 +965,6 @@ public interface HttpClient extends AutoCloseable {
          * @return this {@code Builder}
          */
         Builder compression(boolean enabled);
-
-        /**
-         * Enable Brotli.
-         * 
-         * @return this {@code Builder}
-         * @deprecated Brotli will auto be enabled when compression enabled and {@link Brotli#isAvailable()} returns {@code true}
-         */
-        @Deprecated
-        default Builder enableBrotli() {
-            return brotli(true);
-        }
-
-        /**
-         * Sets if Brotli is enabled or not.
-         * 
-         * @param enabled {@code true} if enabled
-         * @return this {@code Builder}
-         * @deprecated Brotli will auto be enabled when compression enabled and {@link Brotli#isAvailable()} returns {@code true}
-         */
-        @Deprecated
-        default Builder brotli(boolean enabled) {
-            if (enabled) {
-                return enableCompression();
-            }
-            return this;
-        }
 
         /**
          * Sets the factory of {@link ProxyHandler}.
