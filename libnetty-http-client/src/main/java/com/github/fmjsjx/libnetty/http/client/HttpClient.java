@@ -1072,6 +1072,9 @@ public interface HttpClient extends AutoCloseable {
      * {@code "gzip,deflate,br"}
      * 
      * @since 1.1
+     * @deprecated deprecated since 3.8, this const may be removed in future version
      */
+    @Deprecated
+    @SuppressWarnings("DeprecatedIsStillUsed")
     AsciiString GZIP_DEFLATE_BR = AsciiString.cached("gzip,deflate,br");
 }

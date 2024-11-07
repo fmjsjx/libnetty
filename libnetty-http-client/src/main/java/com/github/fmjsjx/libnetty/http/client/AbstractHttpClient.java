@@ -1,6 +1,7 @@
 package com.github.fmjsjx.libnetty.http.client;
 
 import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
+import static com.github.fmjsjx.libnetty.http.client.AbstractHttpClient.AcceptEncodingValues.*;
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT_ENCODING;
 import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
@@ -24,6 +25,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.compression.Brotli;
+import io.netty.handler.codec.compression.Zstd;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.FileUpload;
@@ -32,6 +34,7 @@ import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEncoderException;
 import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.AsciiString;
 import io.netty.util.NettyRuntime;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
@@ -58,6 +61,33 @@ public abstract class AbstractHttpClient implements HttpClient {
      * Default is 16 MB.
      */
     protected static final int DEFAULT_MAX_CONTENT_LENGTH = 16 * 1024 * 1024;
+
+    /**
+     * Values of HTTP header {@code accept-encoding}.
+     *
+     * @since 3.8
+     */
+    protected static final class AcceptEncodingValues {
+        /**
+         * {@code "gzip,deflate,br"}
+         *
+         * @since 3.8
+         */
+        @SuppressWarnings("deprecation")
+        public static final AsciiString GZIP_DEFLATE_BR = HttpClient.GZIP_DEFLATE_BR;
+        /**
+         * {@code "gzip,deflate,zstd"}
+         *
+         * @since 3.8
+         */
+        public static final AsciiString GZIP_DEFLATE_ZSTD = AsciiString.cached("gzip,deflate,zstd");
+        /**
+         * {@code "gzip,deflate,br,zstd"}
+         *
+         * @since 3.8
+         */
+        public static final AsciiString GZIP_DEFLATE_BR_ZSTD = AsciiString.cached("gzip,deflate,br,zstd");
+    }
 
     protected final EventLoopGroup group;
     protected final Class<? extends Channel> channelClass;
@@ -229,7 +259,11 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
         if (!headers.contains(ACCEPT_ENCODING)) {
             if (compressionEnabled) {
-                headers.set(ACCEPT_ENCODING, Brotli.isAvailable() ? GZIP_DEFLATE_BR : GZIP_DEFLATE);
+                if (Brotli.isAvailable()) {
+                    headers.set(ACCEPT_ENCODING, Zstd.isAvailable() ? GZIP_DEFLATE_BR_ZSTD : AcceptEncodingValues.GZIP_DEFLATE_BR);
+                } else {
+                    headers.set(ACCEPT_ENCODING, Zstd.isAvailable() ? GZIP_DEFLATE_ZSTD : GZIP_DEFLATE);
+                }
             }
         }
         HttpUtil.setKeepAlive(req, keepAlive);
@@ -456,7 +490,7 @@ public abstract class AbstractHttpClient implements HttpClient {
          * Returns the SSL context for this client.
          *
          * @return the {@link SslContext}
-         * @deprecated please use
+         * @deprecated please use {@link #sslContextProvider()} instead
          */
         @Deprecated
         public SslContext sslContext() {

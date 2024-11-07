@@ -10,6 +10,9 @@ java {
     registerFeature("brotliSupport") {
         usingSourceSet(sourceSets["main"])
     }
+    registerFeature("zstdSupport") {
+        usingSourceSet(sourceSets["main"])
+    }
 }
 
 dependencies {
@@ -32,6 +35,7 @@ dependencies {
     implementation("com.jcraft:jzlib")
     implementation("org.brotli:dec:0.1.2")
     "brotliSupportImplementation"("com.aayushatharva.brotli4j:brotli4j")
+    "zstdSupportImplementation"("com.github.luben:zstd-jni:1.5.6-7")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
