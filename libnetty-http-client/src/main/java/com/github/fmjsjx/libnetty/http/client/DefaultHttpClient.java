@@ -74,8 +74,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
                       SslContextProvider sslContextProvider, boolean compressionEnabled, boolean shutdownGroupOnClose,
                       int connectionTimeoutSeconds, Duration defaultRequestTimeout, int maxContentLength,
                       int maxCachedSizeEachDomain, IntFunction<CachedPool<HttpConnection>> cachedPoolFactory,
-                      ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
-        super(group, channelClass, sslContextProvider, compressionEnabled, proxyHandlerFactory, defaultRequestTimeout);
+                      ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory, CharSequence defaultUserAgent) {
+        super(group, channelClass, sslContextProvider, compressionEnabled, proxyHandlerFactory, defaultRequestTimeout, defaultUserAgent);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.connectionTimeoutSeconds = connectionTimeoutSeconds;
         this.maxContentLength = maxContentLength;
@@ -498,7 +498,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
             return new DefaultHttpClient(transportLibrary.createIoGroup(ioThreads(), threadFactory),
                     transportLibrary.channelClass(), sslContextProvider(), compressionEnabled(), true,
                     connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), maxCachedSizeEachDomain,
-                    cachedPoolFactory, proxyHandlerFactory());
+                    cachedPoolFactory, proxyHandlerFactory(), defaultUserAgent());
         }
 
         /**
@@ -529,7 +529,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
             ensureSslContext();
             return new DefaultHttpClient(group, channelClass, sslContextProvider(), compressionEnabled(), false,
                     connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), maxCachedSizeEachDomain,
-                    cachedPoolFactory, proxyHandlerFactory());
+                    cachedPoolFactory, proxyHandlerFactory(), defaultUserAgent());
         }
 
     }

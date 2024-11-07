@@ -88,6 +88,8 @@ public abstract class AbstractHttpClient implements HttpClient {
         public static final AsciiString GZIP_DEFLATE_BR_ZSTD = AsciiString.cached("gzip,deflate,br,zstd");
     }
 
+    protected static final AsciiString DEFAULT_USER_AGENT_VALUE = AsciiString.cached("Libnetty/3.8.0-alpha3");
+
     protected final EventLoopGroup group;
     protected final Class<? extends Channel> channelClass;
     protected final SslContextProvider sslContextProvider;
@@ -95,6 +97,7 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected final boolean autoDecompression;
     protected final Optional<ProxyHandlerFactory<? extends ProxyHandler>> proxyHandlerFactory;
     protected final Optional<Duration> defaultRequestTimeout;
+    protected final Optional<CharSequence> defaultUserAgent;
 
     private final Object closeLock = new Object();
     protected volatile boolean closed;
@@ -102,7 +105,7 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected AbstractHttpClient(
             EventLoopGroup group, Class<? extends Channel> channelClass, SslContextProvider sslContextProvider,
             boolean compressionEnabled, ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory,
-            Duration defaultRequestTimeout) {
+            Duration defaultRequestTimeout, CharSequence defaultUserAgent) {
         this.group = Objects.requireNonNull(group, "group must not be null");
         this.channelClass = Objects.requireNonNull(channelClass, "channelClass must not be null");
         this.sslContextProvider = Objects.requireNonNull(sslContextProvider, "sslContextProvider must not be null");
@@ -111,6 +114,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         autoDecompression = true;
         this.proxyHandlerFactory = Optional.ofNullable(proxyHandlerFactory);
         this.defaultRequestTimeout = Optional.ofNullable(defaultRequestTimeout);
+        this.defaultUserAgent = Optional.ofNullable(defaultUserAgent);
     }
 
     protected EventLoopGroup group() {
@@ -241,6 +245,9 @@ public abstract class AbstractHttpClient implements HttpClient {
         if (!headers.contains(HOST)) {
             headers.set(HOST, headerHost);
         }
+        if (!headers.contains(USER_AGENT) && defaultUserAgent.isPresent()) {
+            headers.set(USER_AGENT, defaultUserAgent.get());
+        }
         HttpRequest req;
         if (request.multipartBody().isPresent()) {
             req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, method, requestUri, headers);
@@ -368,6 +375,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         protected SslContextProvider sslContextProvider;
         protected boolean compressionEnabled;
         protected ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory;
+        protected CharSequence defaultUserAgent = DEFAULT_USER_AGENT_VALUE;
 
         /**
          * Returns the number of IO threads for this client.
@@ -504,6 +512,23 @@ public abstract class AbstractHttpClient implements HttpClient {
          */
         public ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory() {
             return this.proxyHandlerFactory;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Self defaultUserAgent(CharSequence userAgent) {
+            this.defaultUserAgent = userAgent;
+            return (Self) this;
+        }
+
+        /**
+         * Returns the default {@code user-agent} value.
+         *
+         * @return the default {@code user-agent} value, may be {@code null}
+         * @since 3.8
+         */
+        public CharSequence defaultUserAgent() {
+            return this.defaultUserAgent;
         }
 
     }

@@ -976,6 +976,15 @@ public interface HttpClient extends AutoCloseable {
          */
         Builder proxyHandlerFactory(ProxyHandlerFactory<? extends ProxyHandler> factory);
 
+        /**
+         * Sets the default {@code user-agent} value.
+         *
+         * @param userAgent the default {@code user-agent} value, can be {@code null}
+         * @return this {@code Builder}
+         * @since 3.8
+         */
+        Builder defaultUserAgent(CharSequence userAgent);
+
     }
 
     /**
