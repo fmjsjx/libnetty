@@ -64,7 +64,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
             ThreadFactory threadFactory = new DefaultThreadFactory(SimpleHttpClient.class, true);
             return new SimpleHttpClient(transportLibrary.createIoGroup(ioThreads(), threadFactory),
                     transportLibrary.channelClass(), sslContextProvider(), compressionEnabled(), true,
-                    connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), proxyHandlerFactory());
+                    connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), proxyHandlerFactory(),
+                    defaultUserAgent());
         }
 
         /**
@@ -94,7 +95,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
         public SimpleHttpClient build(EventLoopGroup group, Class<? extends Channel> channelClass) {
             ensureSslContext();
             return new SimpleHttpClient(group, channelClass, sslContextProvider(), compressionEnabled(), false,
-                    connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), proxyHandlerFactory());
+                    connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), proxyHandlerFactory(),
+                    defaultUserAgent());
         }
 
     }
@@ -124,8 +126,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
     SimpleHttpClient(EventLoopGroup group, Class<? extends Channel> channelClass, SslContextProvider sslContextProvider,
                      boolean compressionEnabled, boolean shutdownGroupOnClose, int connectionTimeoutSeconds,
                      Duration defaultRequestTimeout, int maxContentLength,
-                     ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory) {
-        super(group, channelClass, sslContextProvider, compressionEnabled, proxyHandlerFactory, defaultRequestTimeout);
+                     ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory, CharSequence defaultUserAgent) {
+        super(group, channelClass, sslContextProvider, compressionEnabled, proxyHandlerFactory, defaultRequestTimeout, defaultUserAgent);
         this.shutdownGroupOnClose = shutdownGroupOnClose;
         this.connectionTimeoutSeconds = connectionTimeoutSeconds;
         this.maxContentLength = maxContentLength;
