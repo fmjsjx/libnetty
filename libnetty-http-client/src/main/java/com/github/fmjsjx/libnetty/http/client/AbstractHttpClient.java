@@ -33,7 +33,6 @@ import io.netty.handler.codec.http.multipart.HttpDataFactory;
 import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder.ErrorDataEncoderException;
 import io.netty.handler.proxy.ProxyHandler;
-import io.netty.handler.ssl.SslContext;
 import io.netty.util.AsciiString;
 import io.netty.util.NettyRuntime;
 import io.netty.util.ReferenceCountUtil;
@@ -289,23 +288,6 @@ public abstract class AbstractHttpClient implements HttpClient {
         return factory;
     }
 
-    @SuppressWarnings("DeprecatedIsStillUsed")
-    @Deprecated
-    FileUpload createFileUpload(HttpRequest request, HttpDataFactory factory, Charset charset,
-                                ContentFileUploadEntry entry) {
-        var content = entry.content();
-        var fileUpload = factory.createFileUpload(request, entry.name(), entry.filename(), entry.contentType(),
-                "binary", charset, content.readableBytes());
-        try {
-            fileUpload.setContent(content);
-        } catch (IOException e) {
-            // Can't reach this line commonly
-            content.release();
-            throw new HttpRuntimeException(e);
-        }
-        return fileUpload;
-    }
-
     FileUpload createFileUpload(HttpRequest request, HttpDataFactory factory, Charset charset,
                                 Channel channel, ContentProviderFileUploadEntry entry) {
         var content = entry.contentProvider().apply(channel.alloc());
@@ -321,7 +303,6 @@ public abstract class AbstractHttpClient implements HttpClient {
         return fileUpload;
     }
 
-    @SuppressWarnings("deprecation")
     protected void sendHttpRequest(HttpRequest req, Channel channel, Request request) {
         if (request.multipartBody().isPresent()) {
             var body = request.multipartBody().get();
@@ -329,11 +310,7 @@ public abstract class AbstractHttpClient implements HttpClient {
             var encoder = createHttpPostRequestEncoder(factory, req, body);
             try {
                 for (var entry : body.entries()) {
-                    if (entry instanceof ContentFileUploadEntry contentFileUploadEntry) {
-                        var httpData = createFileUpload(req, factory, body.charset(), contentFileUploadEntry);
-                        body.getToDeleteDataList(true).add(httpData);
-                        encoder.addBodyHttpData(httpData);
-                    } else if (entry instanceof ContentProviderFileUploadEntry fileUploadEntry) {
+                    if (entry instanceof ContentProviderFileUploadEntry fileUploadEntry) {
                         var httpData = createFileUpload(req, factory, body.charset(), channel, fileUploadEntry);
                         body.getToDeleteDataList(true).add(httpData);
                         encoder.addBodyHttpData(httpData);
@@ -367,18 +344,10 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
     }
 
-    @SuppressWarnings("deprecation")
     private static void safeRelease(MultipartBody body) {
         if (body.getToDeleteDataList() != null) {
             for (var httpData : body.getToDeleteDataList()) {
                 ReferenceCountUtil.safeRelease(httpData);
-            }
-        }
-        for (var entry : body.entries()) {
-            if (entry instanceof ContentFileUploadEntry contentFileUploadEntry) {
-                // ContentFileUploadEntry may cause a memory leak, safe release all entries here.
-                // see: https://github.com/fmjsjx/libnetty/issues/94
-                ReferenceCountUtil.safeRelease(contentFileUploadEntry.content());
             }
         }
     }
@@ -417,23 +386,6 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         /**
-         * Returns the timeout duration for this client.
-         *
-         * @return the timeout {@link Duration}
-         * @deprecated please use {@link #connectionTimeout()} instead
-         */
-        @Deprecated
-        public Duration timeout() {
-            return connectionTimeout();
-        }
-
-        @Override
-        @SuppressWarnings("deprecation")
-        public Self timeout(Duration duration) {
-            return connectionTimeout(duration);
-        }
-
-        /**
          * Returns the connection timeout duration for this client.
          *
          * @return the connection timeout {@link Duration}
@@ -466,17 +418,6 @@ public abstract class AbstractHttpClient implements HttpClient {
         }
 
         /**
-         * Returns the timeout seconds for this client.
-         *
-         * @return the timeout seconds
-         * @deprecated please use {@link #connectionTimeoutSeconds()} instead
-         */
-        @Deprecated
-        public int timeoutSeconds() {
-            return connectionTimeoutSeconds();
-        }
-
-        /**
          * Returns the connection timeout seconds for this client.
          *
          * @return the connection timeout
@@ -484,17 +425,6 @@ public abstract class AbstractHttpClient implements HttpClient {
          */
         public int connectionTimeoutSeconds() {
             return (int) connectionTimeout().getSeconds();
-        }
-
-        /**
-         * Returns the SSL context for this client.
-         *
-         * @return the {@link SslContext}
-         * @deprecated please use {@link #sslContextProvider()} instead
-         */
-        @Deprecated
-        public SslContext sslContext() {
-            return sslContextProvider != null ? sslContextProvider.get() : null;
         }
 
         /**
@@ -557,32 +487,6 @@ public abstract class AbstractHttpClient implements HttpClient {
          */
         public boolean compressionEnabled() {
             return compressionEnabled;
-        }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        @Deprecated
-        public Self enableBrotli() {
-            return brotli(true);
-        }
-
-        @Override
-        @SuppressWarnings({"unchecked", "deprecation"})
-        @Deprecated
-        public Self brotli(boolean enabled) {
-            this.compressionEnabled = enabled;
-            return (Self) this;
-        }
-
-        /**
-         * Returns {@code true} if Brotli is enabled.
-         *
-         * @return {@code true} if Brotli is enabled
-         * @deprecated use {@link Brotli#isAvailable()} instead
-         */
-        @Deprecated
-        public boolean brotliEnabled() {
-            return compressionEnabled() && Brotli.isAvailable();
         }
 
         @Override

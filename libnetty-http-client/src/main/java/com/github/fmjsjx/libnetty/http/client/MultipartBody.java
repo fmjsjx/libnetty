@@ -154,41 +154,6 @@ public final class MultipartBody {
         }
 
         /**
-         * Add the file upload entry with the content type {@code "application/octet-stream"} and the specified
-         * parameters given.
-         *
-         * @param name        the name
-         * @param filename    the filename
-         * @param fileContent the file content
-         * @return this builder
-         * @deprecated since 3.7, please use {@link #addFileUpload(String, String, Supplier)} instead
-         */
-        @Deprecated
-        public Builder addFileUpload(String name, String filename, ByteBuf fileContent) {
-            return addFileUpload(name, filename, fileContent, null);
-        }
-
-        /**
-         * Add the file upload entry with the specified parameters given.
-         *
-         * @param name        the name
-         * @param filename    the filename
-         * @param fileContent the file content
-         * @param contentType the content type, nullable, if {@code null} then use {@code "application/octet-stream"}
-         * @return this builder
-         * @deprecated since 3.7, please use {@link #addFileUpload(String, String, String, Supplier)} instead
-         */
-        @SuppressWarnings("DeprecatedIsStillUsed")
-        @Deprecated
-        public Builder addFileUpload(String name, String filename, ByteBuf fileContent, String contentType) {
-            Objects.requireNonNull(name, "name must not be null");
-            Objects.requireNonNull(filename, "filename must not be null");
-            Objects.requireNonNull(fileContent, "fileContent must not be null");
-            return addEntry(new ContentFileUploadEntry(name, filename, fileContent,
-                    contentType == null ? "application/octet-stream" : contentType));
-        }
-
-        /**
          * Add the file upload entry with the specified parameters given.
          *
          * @param name            the name
@@ -290,11 +255,6 @@ record FileUploadEntry(String name, String filename, File file, String contentTy
     public void addBody(HttpPostRequestEncoder encoder) throws ErrorDataEncoderException {
         encoder.addBodyFileUpload(name, filename, file, contentType, false);
     }
-}
-
-@SuppressWarnings("DeprecatedIsStillUsed")
-@Deprecated
-record ContentFileUploadEntry(String name, String filename, ByteBuf content, String contentType) implements DataEntry {
 }
 
 record ContentProviderFileUploadEntry(String name, String filename, String contentType,

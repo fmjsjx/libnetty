@@ -81,7 +81,6 @@ public class TestDefaultClient {
         cd.await();
     }
 
-    @SuppressWarnings("deprecation")
     static void testUpload(HttpClient client) throws InterruptedException, IOException, TimeoutException {
         //noinspection DataFlowIssue
         var file = new File(TestDefaultClient.class.getResource("/test-pic.jpeg").getFile());
@@ -92,12 +91,6 @@ public class TestDefaultClient {
         try {
             var body = MultipartBody.builder().addFileUpload("file", "test-pic-1.jpeg", "image/jpeg", content::retainedDuplicate).build();
             var resp = client.request(URI.create("https://localhost:8443/api/upload"))
-                    .post(body).send(HttpContentHandlers.ofString());
-            System.out.println(resp);
-
-            // deprecated function which use file content directly
-            body = MultipartBody.builder().addFileUpload("file", "test-pic-1.jpeg", content.retainedDuplicate(), "image/jpeg").build();
-            resp = client.request(URI.create("https://localhost:8443/api/upload"))
                     .post(body).send(HttpContentHandlers.ofString());
             System.out.println(resp);
 
