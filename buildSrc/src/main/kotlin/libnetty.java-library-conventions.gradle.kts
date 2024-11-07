@@ -43,6 +43,7 @@ dependencies {
         val fastjson2Version = "2.0.53"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
+        implementation("com.github.luben:zstd-jni:1.5.6-7")
 	}
 
 }
