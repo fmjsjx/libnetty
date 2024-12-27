@@ -7,6 +7,7 @@ dependencies {
 
     implementation("org.slf4j:slf4j-api")
     api("io.netty:netty-handler")
+    implementation("io.netty:netty-pkitesting")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
