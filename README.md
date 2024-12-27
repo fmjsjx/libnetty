@@ -1,6 +1,6 @@
 # LibNetty Project
 
-A set of some useful libraries based on netty4.1.x.
+A set of some useful libraries based on netty4.2.x.
 
 > Since version 3.0, All modules are compiled based on JDK-17.
 
@@ -16,7 +16,7 @@ A set of some useful libraries based on netty4.1.x.
       <dependency>
         <groupId>com.github.fmjsjx</groupId>
         <artifactId>libnetty-bom</artifactId>
-        <version>3.8.0-alpha3</version>
+        <version>3.8.0-beta1</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -42,7 +42,7 @@ repositories {
 
 dependencies {
     // BOM
-    implementation platform('com.github.fmjsjx:libnetty-bom:3.8.0-alpha3')
+    implementation platform('com.github.fmjsjx:libnetty-bom:3.8.0-beta1')
     // HTTP server
     implementation 'com.github.fmjsjx:libnetty-http-server'
 }
@@ -56,7 +56,7 @@ repositories {
 
 dependencies {
     // BOM
-    implementation(platform("com.github.fmjsjx:libnetty-bom:3.8.0-alpha3"))
+    implementation(platform("com.github.fmjsjx:libnetty-bom:3.8.0-beta1"))
     // HTTP server
     implementation("com.github.fmjsjx:libnetty-http-server")
 }

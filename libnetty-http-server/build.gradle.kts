@@ -78,7 +78,7 @@ publishing {
             }
             pom {
                 name.set("libnetty/HTTP-Server")
-                description.set("A set of some useful libraries based on netty4.1.x.")
+                description.set("A set of some useful libraries based on netty4.2.x.")
                 url.set("https://github.com/fmjsjx/libnetty")
                 licenses {
                     license {
