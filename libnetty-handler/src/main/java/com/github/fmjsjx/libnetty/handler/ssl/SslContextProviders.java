@@ -2,6 +2,7 @@ package com.github.fmjsjx.libnetty.handler.ssl;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLException;
@@ -11,7 +12,8 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-import io.netty.handler.ssl.util.SelfSignedCertificate;
+import io.netty.pkitesting.CertificateBuilder;
+import io.netty.pkitesting.X509Bundle;
 import io.netty.util.internal.StringUtil;
 
 /**
@@ -33,8 +35,9 @@ public class SslContextProviders {
      * @throws SSLRuntimeException if any SSL error occurs
      */
     public static final SslContextProvider selfSignedForServer() throws SSLRuntimeException {
-        SelfSignedCertificate ssc = SelfSignedCertificateHolder.instance;
-        SslContextBuilder builder = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey());
+        var x509Bundle = X509BundleHolder.instance;
+
+        SslContextBuilder builder = SslContextBuilder.forServer(x509Bundle.getKeyPair().getPrivate(), x509Bundle.getCertificatePath());
         try {
             SslContext sslContext = chooseProvider(builder).build();
             return simple(sslContext);
@@ -50,15 +53,20 @@ public class SslContextProviders {
         return builder;
     }
 
-    private static final class SelfSignedCertificateHolder {
-
-        private static final SelfSignedCertificate instance;
+    private static final class X509BundleHolder {
+        private static final X509Bundle instance;
 
         static {
             try {
-                instance = new SelfSignedCertificate();
+                instance = new CertificateBuilder()
+                        .setIsCertificateAuthority(true)
+                        .subject("CN=localhost")
+                        .notBefore(Instant.ofEpochMilli(System.currentTimeMillis() - 86400000L * 365))
+                        .notAfter(Instant.ofEpochMilli(253402300799000L)) // 9999-12-31 23:59:59
+                        .algorithm(CertificateBuilder.Algorithm.rsa2048)
+                        .buildSelfSigned();
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Failed to generate a self-signed X.509 certificate using CertificateBuilder", e);
             }
         }
     }
