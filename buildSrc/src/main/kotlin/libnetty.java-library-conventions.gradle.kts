@@ -13,13 +13,13 @@ dependencies {
     // netty-bom
     api(platform("io.netty:netty-bom:4.2.0.RC2"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:3.10.0"))
+    api(platform("com.github.fmjsjx:libcommon-bom:3.11.0"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.18.2"))
     // junit-bom
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     // mockito
-    testImplementation(platform("org.mockito:mockito-bom:5.14.2"))
+    testImplementation(platform("org.mockito:mockito-bom:5.15.2"))
     // log4j2
     implementation(platform("org.apache.logging.log4j:log4j-bom:2.24.3"))
     // kotlin coroutines
@@ -34,13 +34,13 @@ dependencies {
         val lombokVersion = "1.18.36"
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-        implementation("ch.qos.logback:logback-classic:1.5.15")
+        implementation("ch.qos.logback:logback-classic:1.5.16")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
-        val fastjson2Version = "2.0.53"
+        val fastjson2Version = "2.0.54"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
-        implementation("com.github.luben:zstd-jni:1.5.6-8")
+        implementation("com.github.luben:zstd-jni:1.5.6-9")
 	}
 
 }
