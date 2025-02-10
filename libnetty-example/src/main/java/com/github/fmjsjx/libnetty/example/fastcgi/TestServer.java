@@ -9,7 +9,7 @@ import com.github.fmjsjx.libnetty.fastcgi.FcgiMessageEncoder;
 import com.github.fmjsjx.libnetty.fastcgi.FcgiRequest;
 import com.github.fmjsjx.libnetty.fastcgi.FcgiResponse;
 
-import com.github.fmjsjx.libnetty.transport.NioTransportLibrary;
+import com.github.fmjsjx.libnetty.transport.io.NioIoTransportLibrary;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -37,13 +37,13 @@ public class TestServer {
      */
     public static void main(String[] args) throws Exception {
         FcgiMessageEncoder encoder = new FcgiMessageEncoder();
-        var group = NioTransportLibrary.getInstance().createIoGroup();
+        var group = NioIoTransportLibrary.getInstance().createGroup();
         try {
 
             ServerBootstrap b = new ServerBootstrap().group(group).channel(NioServerSocketChannel.class)
                     .option(ChannelOption.SO_BACKLOG, 512).childOption(ChannelOption.TCP_NODELAY, true)
                     .childHandler(new ChannelInitializer<>() {
-                        protected void initChannel(Channel ch) throws Exception {
+                        protected void initChannel(Channel ch) {
                             ch.pipeline().addLast(new ReadTimeoutHandler(60)).addLast(encoder)
                                     .addLast(new FcgiMessageDecoder()).addLast(new TestServerHandler());
                         }
@@ -63,23 +63,24 @@ public class TestServer {
 class TestServerHandler extends SimpleChannelInboundHandler<FcgiMessage> {
 
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    public void channelActive(ChannelHandlerContext ctx) {
         System.err.println(ctx.channel() + " connected");
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         System.err.println(ctx.channel() + " disconnected");
     }
 
+    @SuppressWarnings("CallToPrintStackTrace")
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
         ctx.close();
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, FcgiMessage msg) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, FcgiMessage msg) {
         System.out.println("-- message received --");
         System.out.println(msg);
         if (msg instanceof FcgiRequest req) {

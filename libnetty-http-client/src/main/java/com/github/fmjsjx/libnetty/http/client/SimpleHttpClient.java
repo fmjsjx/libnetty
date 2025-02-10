@@ -8,26 +8,24 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 
-import io.netty.channel.*;
-import io.netty.handler.codec.http.*;
-import io.netty.handler.stream.ChunkedWriteHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
-import com.github.fmjsjx.libnetty.transport.TransportLibrary;
-
+import com.github.fmjsjx.libnetty.transport.io.IoTransportLibrary;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.*;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.proxy.ProxyConnectionEvent;
 import io.netty.handler.proxy.ProxyHandler;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.resolver.NoopAddressResolverGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple implementation of {@link HttpClient} uses short connections (create
@@ -38,6 +36,7 @@ import lombok.NoArgsConstructor;
  * @see DefaultHttpClient
  * @since 1.0
  */
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class SimpleHttpClient extends AbstractHttpClient {
 
     private static final Logger log = LoggerFactory.getLogger(SimpleHttpClient.class);
@@ -60,9 +59,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
         @Override
         public SimpleHttpClient build() {
             ensureSslContext();
-            TransportLibrary transportLibrary = TransportLibrary.getDefault();
+            IoTransportLibrary transportLibrary = IoTransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(SimpleHttpClient.class, true);
-            return new SimpleHttpClient(transportLibrary.createIoGroup(ioThreads(), threadFactory),
+            return new SimpleHttpClient(transportLibrary.createGroup(ioThreads(), threadFactory),
                     transportLibrary.channelClass(), sslContextProvider(), compressionEnabled(), true,
                     connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), proxyHandlerFactory(),
                     defaultUserAgent());
