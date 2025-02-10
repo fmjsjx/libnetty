@@ -11,6 +11,7 @@ import java.util.concurrent.ThreadFactory;
  *
  * @since 3.8
  */
+@SuppressWarnings("deprecation")
 abstract class AbstractEpollTransportLibrary implements TransportLibrary {
 
     @Override

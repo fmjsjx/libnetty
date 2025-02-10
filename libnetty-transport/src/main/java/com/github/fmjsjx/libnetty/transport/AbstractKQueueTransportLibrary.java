@@ -11,6 +11,7 @@ import java.util.concurrent.ThreadFactory;
  *
  * @since 3.8
  */
+@SuppressWarnings("deprecation")
 abstract class AbstractKQueueTransportLibrary implements TransportLibrary {
 
     @Override

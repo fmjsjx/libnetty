@@ -17,6 +17,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
  * 
  * @author MJ Fang
  */
+@SuppressWarnings("deprecation")
 public class NioTransportLibrary implements TransportLibrary {
 
     private static final class InstanceHolder {
