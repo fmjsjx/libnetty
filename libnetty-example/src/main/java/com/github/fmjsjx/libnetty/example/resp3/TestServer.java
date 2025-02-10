@@ -32,7 +32,7 @@ import com.github.fmjsjx.libnetty.resp3.DefaultMapMessage;
 import com.github.fmjsjx.libnetty.resp3.DefaultSetMessage;
 import com.github.fmjsjx.libnetty.resp3.FieldValuePair;
 
-import com.github.fmjsjx.libnetty.transport.NioTransportLibrary;
+import com.github.fmjsjx.libnetty.transport.io.NioIoTransportLibrary;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -57,12 +57,12 @@ public class TestServer {
      */
     public static void main(String[] args) throws Exception {
         RespMessageEncoder respMessageEncoder = new RespMessageEncoder();
-        var group = NioTransportLibrary.getInstance().createIoGroup();
+        var group = NioIoTransportLibrary.getInstance().createGroup();
         try {
             ServerBootstrap b = new ServerBootstrap().group(group).channel(NioServerSocketChannel.class)
                     .option(ChannelOption.SO_BACKLOG, 512).childOption(ChannelOption.TCP_NODELAY, true)
                     .childOption(ChannelOption.AUTO_READ, false).childHandler(new ChannelInitializer<>() {
-                        protected void initChannel(Channel ch) throws Exception {
+                        protected void initChannel(Channel ch) {
                             ch.pipeline().addLast(respMessageEncoder).addLast(new RedisRequestDecoder())
                                     .addLast(new TestServerHandler());
                         }
@@ -111,24 +111,25 @@ class TestServerHandler extends SimpleChannelInboundHandler<RedisRequest> {
     }
 
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    public void channelActive(ChannelHandlerContext ctx) {
         System.err.println(ctx.channel() + " connected");
         ctx.read();
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         System.err.println(ctx.channel() + " disconnected");
     }
 
+    @SuppressWarnings("CallToPrintStackTrace")
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
         ctx.close();
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, RedisRequest msg) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, RedisRequest msg) {
         System.out.println("-- message received --");
         System.out.println(msg);
         BiConsumer<ChannelHandlerContext, RedisRequest> procedure = commandProcedures.get(msg.command().content());

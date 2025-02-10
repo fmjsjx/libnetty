@@ -3,9 +3,9 @@ package com.github.fmjsjx.libnetty.transport;
 import java.nio.channels.Selector;
 import java.util.concurrent.ThreadFactory;
 
+import com.github.fmjsjx.libnetty.transport.io.NioIoTransportLibrary;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
@@ -16,8 +16,9 @@ import io.netty.channel.socket.nio.NioSocketChannel;
  * @since 1.0
  * 
  * @author MJ Fang
+ * @deprecated since 3.8, please use {@link NioIoTransportLibrary} instead
  */
-@SuppressWarnings("deprecation")
+@Deprecated
 public class NioTransportLibrary implements TransportLibrary {
 
     private static final class InstanceHolder {
@@ -26,7 +27,7 @@ public class NioTransportLibrary implements TransportLibrary {
 
     /**
      * Returns the singleton instance.
-     * 
+     *
      * @return the singleton {@link NioTransportLibrary} instance
      */
     public static final NioTransportLibrary getInstance() {
@@ -44,30 +45,18 @@ public class NioTransportLibrary implements TransportLibrary {
     }
 
     @Override
-    @Deprecated
     public NioEventLoopGroup createGroup() {
         return new NioEventLoopGroup();
     }
 
     @Override
-    @Deprecated
     public NioEventLoopGroup createGroup(int nThreads) {
         return new NioEventLoopGroup(nThreads);
     }
 
     @Override
-    @Deprecated
     public NioEventLoopGroup createGroup(int nThreads, ThreadFactory threadFactory) {
         return new NioEventLoopGroup(nThreads, threadFactory);
-    }
-
-    /**
-     * Returns a new {@link IoHandlerFactory} that creates {@link NioIoHandler}
-     * instances.
-     */
-    @Override
-    public IoHandlerFactory createIoHandlerFactory() {
-        return NioIoHandler.newFactory();
     }
 
 }

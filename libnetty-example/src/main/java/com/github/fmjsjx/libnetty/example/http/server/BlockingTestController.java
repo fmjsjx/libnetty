@@ -102,6 +102,7 @@ public class BlockingTestController {
      * @param test query parameter test
      * @throws Exception any error occurs
      */
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     @HttpGet("/error")
     @JsonBody
     public void getError(@QueryVar("test") OptionalInt test) throws Exception {

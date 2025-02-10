@@ -16,18 +16,12 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.function.IntFunction;
 
-import io.netty.handler.codec.http.*;
-import io.netty.handler.stream.ChunkedWriteHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.github.fmjsjx.libcommon.util.pool.BlockingCachedPool;
 import com.github.fmjsjx.libcommon.util.pool.CachedPool;
 import com.github.fmjsjx.libcommon.util.pool.ConcurrentCachedPool;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
-import com.github.fmjsjx.libnetty.transport.TransportLibrary;
-
+import com.github.fmjsjx.libnetty.transport.io.IoTransportLibrary;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -39,13 +33,17 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.proxy.ProxyConnectionEvent;
 import io.netty.handler.proxy.ProxyHandler;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.resolver.NoopAddressResolverGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The default implementation of {@link HttpClient} which will cache {@code TCP}
@@ -217,6 +215,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         }
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static final class RequestContext<T> {
 
         private final Request request;
@@ -493,9 +492,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
         @Override
         public DefaultHttpClient build() {
             ensureSslContext();
-            TransportLibrary transportLibrary = TransportLibrary.getDefault();
+            IoTransportLibrary transportLibrary = IoTransportLibrary.getDefault();
             ThreadFactory threadFactory = new DefaultThreadFactory(DefaultHttpClient.class, true);
-            return new DefaultHttpClient(transportLibrary.createIoGroup(ioThreads(), threadFactory),
+            return new DefaultHttpClient(transportLibrary.createGroup(ioThreads(), threadFactory),
                     transportLibrary.channelClass(), sslContextProvider(), compressionEnabled(), true,
                     connectionTimeoutSeconds(), requestTimeout(), maxContentLength(), maxCachedSizeEachDomain,
                     cachedPoolFactory, proxyHandlerFactory(), defaultUserAgent());

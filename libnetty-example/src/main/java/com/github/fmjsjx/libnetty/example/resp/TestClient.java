@@ -9,7 +9,7 @@ import com.github.fmjsjx.libnetty.resp.RespMessageEncoder;
 import com.github.fmjsjx.libnetty.resp.RespMessages;
 import com.github.fmjsjx.libnetty.resp.RespSimpleStringMessage;
 
-import com.github.fmjsjx.libnetty.transport.NioTransportLibrary;
+import com.github.fmjsjx.libnetty.transport.io.NioIoTransportLibrary;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
@@ -33,12 +33,12 @@ public class TestClient {
      */
     public static void main(String[] args) throws Exception {
         RespMessageEncoder respMessageEncoder = new RespMessageEncoder();
-        var group = NioTransportLibrary.getInstance().createIoGroup();
+        var group = NioIoTransportLibrary.getInstance().createGroup();
         try {
             Bootstrap b = new Bootstrap().group(group).channel(NioSocketChannel.class)
                     .option(ChannelOption.TCP_NODELAY, true).handler(new ChannelInitializer<>() {
                         @Override
-                        protected void initChannel(Channel ch) throws Exception {
+                        protected void initChannel(Channel ch) {
                             ch.pipeline().addLast(respMessageEncoder).addLast(new DefaultRespMessageDecoder())
                                     .addLast(new TestClientHandler());
                         }
@@ -62,7 +62,7 @@ class TestClientHandler extends SimpleChannelInboundHandler<RespMessage> {
     private int count = 0;
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, RespMessage msg) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, RespMessage msg) {
         System.out.println("-- RESP message received --");
         System.out.println(msg);
         if (msg instanceof RespBulkStringMessage || msg instanceof RespArrayMessage) {

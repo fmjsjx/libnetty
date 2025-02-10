@@ -18,9 +18,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.handler.ssl.SniHandlerProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
@@ -31,8 +28,7 @@ import com.github.fmjsjx.libnetty.http.server.component.ExceptionHandler;
 import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
 import com.github.fmjsjx.libnetty.http.server.component.WorkerPool;
-import com.github.fmjsjx.libnetty.transport.TransportLibrary;
-
+import com.github.fmjsjx.libnetty.transport.io.IoTransportLibrary;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -44,6 +40,8 @@ import io.netty.handler.codec.compression.StandardCompressionOptions;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The default implementation of {@link HttpServer}.
@@ -52,7 +50,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  *
  * @author MJ Fang
  */
-@SuppressWarnings("deprecation")
 public class DefaultHttpServer implements HttpServer {
 
     private static final String DEFAULT_NAME = "default";
@@ -892,14 +889,14 @@ public class DefaultHttpServer implements HttpServer {
             throw new IllegalArgumentException("missing handlerProvider for HTTP server '" + name + "'");
         }
         if (parentGroup == null) {
-            parentGroup = TransportLibrary.getDefault().createIoGroup(1, new DefaultThreadFactory("http-parent"));
+            parentGroup = IoTransportLibrary.getDefault().createGroup(1, new DefaultThreadFactory("http-parent"));
             closeGroupsWhenShutdown = true;
         }
         if (childGroup == null) {
-            childGroup = TransportLibrary.getDefault().createIoGroup(ioThreads, new DefaultThreadFactory("http-child"));
+            childGroup = IoTransportLibrary.getDefault().createGroup(ioThreads, new DefaultThreadFactory("http-child"));
         }
         if (channelClass == null) {
-            channelClass = TransportLibrary.getDefault().serverChannelClass();
+            channelClass = IoTransportLibrary.getDefault().serverChannelClass();
         }
         // always set AUTO_READ to false
         // use AutoReadNextHandler to read next HTTP request on Keep-Alive connection
@@ -910,6 +907,7 @@ public class DefaultHttpServer implements HttpServer {
             httpContentCompressorProvider = builder.build();
         }
         if (!compressionSettingsListeners.isEmpty() && httpContentCompressorProvider == null) {
+            @SuppressWarnings("deprecation")
             var legacyBuilder = HttpContentCompressorFactory.builder();
             compressionSettingsListeners.forEach(a -> a.accept(legacyBuilder));
             var factory = legacyBuilder.build();

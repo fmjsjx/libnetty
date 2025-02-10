@@ -8,52 +8,41 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Static factory class for {@link TransportLibrary}.
- * 
- * @since 1.0
- * 
+ *
  * @author MJ Fang
+ * @since 1.0
+ * @deprecated since 3.8
  */
-
+@Deprecated
 final class TransportLibraries {
-    
+
     private static final Logger log = LoggerFactory.getLogger(TransportLibraries.class);
 
     private static final class DefaultLibraryHolder {
         private static final TransportLibrary defaultLibrary;
 
         static {
-            boolean ioUringAvailable = false;
+            boolean epollAvailable = false;
             try {
-                Class<?> ioUring = Class.forName("io.netty.channel.uring.IoUring");
-                ioUringAvailable = isAvailable(ioUring);
+                Class<?> epoll = Class.forName("io.netty.channel.epoll.Epoll");
+                epollAvailable = isAvailable(epoll);
             } catch (ClassNotFoundException e) {
-                log.info("IoUring not found, start without optional native library IoUringLibrary");
+                log.info("Epoll not found, start without optional native library EpollLibrary");
             }
-            if (ioUringAvailable) {
-                defaultLibrary = IoUringTransportLibrary.getInstance();
+            if (epollAvailable) {
+                defaultLibrary = EpollTransportLibrary.getInstance();
             } else {
-                boolean epollAvailable = false;
+                boolean kqueueAvailable = false;
                 try {
-                    Class<?> epoll = Class.forName("io.netty.channel.epoll.Epoll");
-                    epollAvailable = isAvailable(epoll);
+                    Class<?> kqueue = Class.forName("io.netty.channel.kqueue.KQueue");
+                    kqueueAvailable = isAvailable(kqueue);
                 } catch (ClassNotFoundException e) {
-                    log.info("Epoll not found, start without optional native library EpollLibrary");
+                    log.info("KQueue not found, start without optional native library KQueueLibrary");
                 }
-                if (epollAvailable) {
-                    defaultLibrary = EpollTransportLibrary.getInstance();
+                if (kqueueAvailable) {
+                    defaultLibrary = KQueueTransportLibrary.getInstance();
                 } else {
-                    boolean kqueueAvailable = false;
-                    try {
-                        Class<?> kqueue = Class.forName("io.netty.channel.kqueue.KQueue");
-                        kqueueAvailable = isAvailable(kqueue);
-                    } catch (ClassNotFoundException e) {
-                        log.info("KQueue not found, start without optional native library KQueueLibrary");
-                    }
-                    if (kqueueAvailable) {
-                        defaultLibrary = KQueueTransportLibrary.getInstance();
-                    } else {
-                        defaultLibrary = NioTransportLibrary.getInstance();
-                    }
+                    defaultLibrary = NioTransportLibrary.getInstance();
                 }
             }
         }
@@ -65,7 +54,7 @@ final class TransportLibraries {
             Method method = library.getMethod("isAvailable");
             return (Boolean) method.invoke(library);
         } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException
-                | InvocationTargetException e) {
+                 | InvocationTargetException e) {
             return false;
         }
     }
@@ -73,13 +62,14 @@ final class TransportLibraries {
     /**
      * Returns default {@link TransportLibrary} instance, native library is
      * preferred.
-     * 
+     *
      * @return the default {@link TransportLibrary}
      */
     static final TransportLibrary getDefault() {
         return DefaultLibraryHolder.defaultLibrary;
     }
 
-    private TransportLibraries() {}
-    
+    private TransportLibraries() {
+    }
+
 }

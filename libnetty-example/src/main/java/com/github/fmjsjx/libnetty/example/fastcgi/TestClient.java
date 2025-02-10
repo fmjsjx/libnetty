@@ -6,7 +6,7 @@ import com.github.fmjsjx.libnetty.fastcgi.FcgiMessageEncoder;
 import com.github.fmjsjx.libnetty.fastcgi.FcgiRequest;
 import com.github.fmjsjx.libnetty.fastcgi.FcgiVersion;
 
-import com.github.fmjsjx.libnetty.transport.NioTransportLibrary;
+import com.github.fmjsjx.libnetty.transport.io.NioIoTransportLibrary;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -33,11 +33,11 @@ public class TestClient {
      */
     public static void main(String[] args) throws Exception {
         FcgiMessageEncoder encoder = new FcgiMessageEncoder();
-        var group = NioTransportLibrary.getInstance().createIoGroup(1);
+        var group = NioIoTransportLibrary.getInstance().createGroup(1);
         try {
             Bootstrap b = new Bootstrap().group(group).channel(NioSocketChannel.class)
                     .option(ChannelOption.TCP_NODELAY, true).handler(new ChannelInitializer<>() {
-                        protected void initChannel(Channel ch) throws Exception {
+                        protected void initChannel(Channel ch) {
                             ch.pipeline().addLast(new ReadTimeoutHandler(60)).addLast(encoder)
                                     .addLast(new FcgiMessageDecoder()).addLast(new TestClientHandler());
                         }
@@ -76,19 +76,20 @@ class TestClientHandler extends SimpleChannelInboundHandler<FcgiMessage> {
 
     int count = 0;
 
+    @SuppressWarnings("CallToPrintStackTrace")
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
         ctx.close();
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         System.err.println(ctx.channel() + " disconnected");
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, FcgiMessage msg) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, FcgiMessage msg) {
         System.out.println(msg);
         count++;
         if (count == 3) {
