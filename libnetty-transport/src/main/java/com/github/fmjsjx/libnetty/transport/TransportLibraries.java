@@ -22,27 +22,38 @@ final class TransportLibraries {
         private static final TransportLibrary defaultLibrary;
 
         static {
-            boolean epollAvailable = false;
+            boolean ioUringAvailable = false;
             try {
-                Class<?> epoll = Class.forName("io.netty.channel.epoll.Epoll");
-                epollAvailable = isAvailable(epoll);
+                Class<?> ioUring = Class.forName("io.netty.channel.uring.IoUring");
+                ioUringAvailable = isAvailable(ioUring);
             } catch (ClassNotFoundException e) {
-                log.info("Epoll not found, start without optional native library EpollLibrary");
+                log.info("IoUring not found, start without optional native library IoUringLibrary");
             }
-            if (epollAvailable) {
-                defaultLibrary = EpollTransportLibrary.getInstance();
+            if (ioUringAvailable) {
+                defaultLibrary = IoUringTransportLibrary.getInstance();
             } else {
-                boolean kqueueAvailable = false;
+                boolean epollAvailable = false;
                 try {
-                    Class<?> kqueue = Class.forName("io.netty.channel.kqueue.KQueue");
-                    kqueueAvailable = isAvailable(kqueue);
+                    Class<?> epoll = Class.forName("io.netty.channel.epoll.Epoll");
+                    epollAvailable = isAvailable(epoll);
                 } catch (ClassNotFoundException e) {
-                    log.info("KQueue not found, start without optional native library KQueueLibrary");
+                    log.info("Epoll not found, start without optional native library EpollLibrary");
                 }
-                if (kqueueAvailable) {
-                    defaultLibrary = KQueueTransportLibrary.getInstance();
+                if (epollAvailable) {
+                    defaultLibrary = EpollTransportLibrary.getInstance();
                 } else {
-                    defaultLibrary = NioTransportLibrary.getInstance();
+                    boolean kqueueAvailable = false;
+                    try {
+                        Class<?> kqueue = Class.forName("io.netty.channel.kqueue.KQueue");
+                        kqueueAvailable = isAvailable(kqueue);
+                    } catch (ClassNotFoundException e) {
+                        log.info("KQueue not found, start without optional native library KQueueLibrary");
+                    }
+                    if (kqueueAvailable) {
+                        defaultLibrary = KQueueTransportLibrary.getInstance();
+                    } else {
+                        defaultLibrary = NioTransportLibrary.getInstance();
+                    }
                 }
             }
         }

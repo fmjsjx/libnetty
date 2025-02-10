@@ -45,7 +45,9 @@ public interface TransportLibrary {
      * @deprecated Please use {@link #createIoGroup()} instead
      */
     @Deprecated
-    EventLoopGroup createGroup();
+    default EventLoopGroup createGroup() {
+        return createIoGroup();
+    }
 
     /**
      * Create a new {@link EventLoopGroup} instance using the specified number of
@@ -56,7 +58,9 @@ public interface TransportLibrary {
      * @deprecated Please use {@link #createIoGroup(int)} instead
      */
     @Deprecated
-    EventLoopGroup createGroup(int nThreads);
+    default EventLoopGroup createGroup(int nThreads) {
+        return createIoGroup(nThreads);
+    }
 
     /**
      * Create a new instance using the specified number of threads and the given
@@ -68,7 +72,9 @@ public interface TransportLibrary {
      * @deprecated Please use {@link #createIoGroup(int, ThreadFactory)} instead.
      */
     @Deprecated
-    EventLoopGroup createGroup(int nThreads, ThreadFactory threadFactory);
+    default EventLoopGroup createGroup(int nThreads, ThreadFactory threadFactory) {
+        return createIoGroup(nThreads, threadFactory);
+    }
 
     /**
      * Create a new {@link IoEventLoopGroup} using the default number of threads.
