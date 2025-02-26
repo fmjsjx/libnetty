@@ -11,13 +11,13 @@ repositories {
 
 dependencies {
     // netty-bom
-    api(platform("io.netty:netty-bom:4.2.0.RC2"))
+    api(platform("io.netty:netty-bom:4.2.0.RC3"))
     // libcommon-bom
     api(platform("com.github.fmjsjx:libcommon-bom:3.11.0"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.18.2"))
     // junit-bom
-    testImplementation(platform("org.junit:junit-bom:5.11.4"))
+    testImplementation(platform("org.junit:junit-bom:5.12.0"))
     // mockito
     testImplementation(platform("org.mockito:mockito-bom:5.15.2"))
     // log4j2
@@ -30,17 +30,17 @@ dependencies {
     implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.9.0"))
 
     constraints {
-        api("org.slf4j:slf4j-api:2.0.16")
+        api("org.slf4j:slf4j-api:2.0.17")
         val lombokVersion = "1.18.36"
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-        implementation("ch.qos.logback:logback-classic:1.5.16")
+        implementation("ch.qos.logback:logback-classic:1.5.17")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
-        val fastjson2Version = "2.0.54"
+        val fastjson2Version = "2.0.56"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
-        implementation("com.github.luben:zstd-jni:1.5.6-9")
+        implementation("com.github.luben:zstd-jni:1.5.7-1")
 	}
 
 }
