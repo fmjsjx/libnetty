@@ -2,24 +2,19 @@ plugins {
     id("libnetty.java-library-conventions")
     id("libnetty.publish-conventions")
 }
-java {
-    registerFeature("nettyNativeSupport") {
-        usingSourceSet(sourceSets["main"])
-    }
-}
 
 dependencies {
 
     implementation("org.slf4j:slf4j-api")
     api("io.netty:netty-transport")
-    "nettyNativeSupportApi"(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-aarch_64")
-    "nettyNativeSupportApi"(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-riscv64")
-    "nettyNativeSupportApi"(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
-    "nettyNativeSupportApi"(group = "io.netty", name = "netty-transport-native-io_uring", classifier = "linux-aarch_64")
-    "nettyNativeSupportApi"(group = "io.netty", name = "netty-transport-native-io_uring", classifier = "linux-riscv64")
-    "nettyNativeSupportApi"(group = "io.netty", name = "netty-transport-native-io_uring", classifier = "linux-x86_64")
-    "nettyNativeSupportApi"(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
-    "nettyNativeSupportApi"(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-aarch_64")
+    compileOnlyApi(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-aarch_64")
+    compileOnlyApi(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-riscv64")
+    compileOnlyApi(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
+    compileOnlyApi(group = "io.netty", name = "netty-transport-native-io_uring", classifier = "linux-aarch_64")
+    compileOnlyApi(group = "io.netty", name = "netty-transport-native-io_uring", classifier = "linux-riscv64")
+    compileOnlyApi(group = "io.netty", name = "netty-transport-native-io_uring", classifier = "linux-x86_64")
+    compileOnlyApi(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
+    compileOnlyApi(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-aarch_64")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

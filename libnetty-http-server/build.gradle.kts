@@ -3,21 +3,6 @@ plugins {
     id("libnetty.publish-conventions")
 }
 
-java {
-    registerFeature("nettyNativeSupport") {
-        usingSourceSet(sourceSets["main"])
-    }
-    registerFeature("jsonSupport") {
-        usingSourceSet(sourceSets["main"])
-    }
-    registerFeature("brotliSupport") {
-        usingSourceSet(sourceSets["main"])
-    }
-    registerFeature("kotlinSupport") {
-        usingSourceSet(sourceSets["main"])
-    }
-}
-
 dependencies {
 
     api("org.slf4j:slf4j-api")
@@ -25,28 +10,28 @@ dependencies {
     api(project(":libnetty-http"))
     api(project(":libnetty-transport"))
     implementation("com.github.fmjsjx:libcommon-util")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-aarch_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-x86_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "osx-x86_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "windows-x86_64")
-    "jsonSupportApi"("com.fasterxml.jackson.core:jackson-databind")
-    "jsonSupportApi"("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
-    "jsonSupportApi"("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    compileOnly(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
+    compileOnly(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
+    compileOnly(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-aarch_64")
+    compileOnly(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-x86_64")
+    compileOnly(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "osx-x86_64")
+    compileOnly(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "windows-x86_64")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind")
+    compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
+    compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.jcraft:jzlib")
-    "brotliSupportImplementation"("com.aayushatharva.brotli4j:brotli4j")
-    "kotlinSupportImplementation"("com.github.fmjsjx:libcommon-kotlin")
-    "kotlinSupportImplementation"("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
-    "jsonSupportApi"("com.alibaba.fastjson2:fastjson2")
-    "kotlinSupportImplementation"("com.alibaba.fastjson2:fastjson2-kotlin")
-    "jsonSupportApi"("com.github.fmjsjx:libcommon-json")
-    "jsonSupportApi"("com.github.fmjsjx:libcommon-json-jackson2")
-    "kotlinSupportImplementation"("com.github.fmjsjx:libcommon-json-jackson2-kotlin")
-    "jsonSupportApi"("com.github.fmjsjx:libcommon-json-jsoniter")
-    "kotlinSupportImplementation"("com.github.fmjsjx:libcommon-json-jsoniter-kotlin")
-    "jsonSupportApi"("com.github.fmjsjx:libcommon-json-fastjson2")
-    "kotlinSupportImplementation"("com.github.fmjsjx:libcommon-json-fastjson2-kotlin")
+    compileOnly("com.aayushatharva.brotli4j:brotli4j")
+    compileOnly("com.github.fmjsjx:libcommon-kotlin")
+    compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
+    compileOnly("com.alibaba.fastjson2:fastjson2")
+    compileOnly("com.alibaba.fastjson2:fastjson2-kotlin")
+    compileOnly("com.github.fmjsjx:libcommon-json")
+    compileOnly("com.github.fmjsjx:libcommon-json-jackson2")
+    compileOnly("com.github.fmjsjx:libcommon-json-jackson2-kotlin")
+    compileOnly("com.github.fmjsjx:libcommon-json-jsoniter")
+    compileOnly("com.github.fmjsjx:libcommon-json-jsoniter-kotlin")
+    compileOnly("com.github.fmjsjx:libcommon-json-fastjson2")
+    compileOnly("com.github.fmjsjx:libcommon-json-fastjson2-kotlin")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.mockito:mockito-core")
