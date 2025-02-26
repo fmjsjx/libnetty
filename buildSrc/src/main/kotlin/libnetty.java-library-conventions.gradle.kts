@@ -58,6 +58,7 @@ java {
 tasks.compileJava {
     options.encoding = "UTF-8"
     options.release = javaVersion
+    options.compilerArgs = options.compilerArgs + listOf("-Xlint:deprecation")
 }
 
 tasks.javadoc {
