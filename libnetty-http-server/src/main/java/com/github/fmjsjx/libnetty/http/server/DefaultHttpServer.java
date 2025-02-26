@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.handler.ssl.SniHandlerProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
-import com.github.fmjsjx.libnetty.http.HttpContentCompressorFactory;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.http.server.component.ExceptionHandler;
@@ -36,7 +35,6 @@ import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
-import io.netty.handler.codec.compression.StandardCompressionOptions;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -88,10 +86,6 @@ public class DefaultHttpServer implements HttpServer {
     private final List<Consumer<HttpContentCompressorProvider.Builder>> compressionOptionsListeners = new ArrayList<>();
 
     private HttpContentCompressorProvider httpContentCompressorProvider;
-
-    @SuppressWarnings("DeprecatedIsStillUsed")
-    @Deprecated
-    private final List<Consumer<HttpContentCompressorFactory.Builder>> compressionSettingsListeners = new ArrayList<>();
 
     private HttpServerHandlerProvider handlerProvider;
 
@@ -674,20 +668,6 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
-     * Enable HTTP content compression feature and apply compression settings.
-     * 
-     * @param action the apply action
-     * @return this server
-     * @deprecated please use {@link #applyCompressionOptions(Consumer)} instead
-     */
-    @Deprecated
-    public DefaultHttpServer applyCompressionSettings(Consumer<HttpContentCompressorFactory.Builder> action) {
-        ensureNotStarted();
-        compressionSettingsListeners.add(action);
-        return this;
-    }
-
-    /**
      * Set the singleton {@link HttpServerHandler} of this server.
      * 
      * <p>
@@ -832,7 +812,6 @@ public class DefaultHttpServer implements HttpServer {
         bootstrap = new ServerBootstrap();
 
         compressionOptionsListeners.clear();
-        compressionSettingsListeners.clear();
 
         handlerProvider = null;
 
@@ -904,18 +883,6 @@ public class DefaultHttpServer implements HttpServer {
         if (!compressionOptionsListeners.isEmpty()) {
             var builder = HttpContentCompressorProvider.builder();
             compressionOptionsListeners.forEach(a -> a.accept(builder));
-            httpContentCompressorProvider = builder.build();
-        }
-        if (!compressionSettingsListeners.isEmpty() && httpContentCompressorProvider == null) {
-            @SuppressWarnings("deprecation")
-            var legacyBuilder = HttpContentCompressorFactory.builder();
-            compressionSettingsListeners.forEach(a -> a.accept(legacyBuilder));
-            var factory = legacyBuilder.build();
-            var builder = HttpContentCompressorProvider.builder().contentSizeThreshold(factory.contentSizeThreshold())
-                    .gzip(StandardCompressionOptions.gzip(factory.compressionLevel(), factory.windowBits(),
-                            factory.memLevel()))
-                    .deflate(StandardCompressionOptions.deflate(factory.compressionLevel(), factory.windowBits(),
-                            factory.memLevel()));
             httpContentCompressorProvider = builder.build();
         }
     }
