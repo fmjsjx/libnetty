@@ -3,18 +3,6 @@ plugins {
     id("libnetty.publish-conventions")
 }
 
-java {
-    registerFeature("nettyNativeSupport") {
-        usingSourceSet(sourceSets["main"])
-    }
-    registerFeature("brotliSupport") {
-        usingSourceSet(sourceSets["main"])
-    }
-    registerFeature("zstdSupport") {
-        usingSourceSet(sourceSets["main"])
-    }
-}
-
 dependencies {
 
     compileOnly("org.projectlombok:lombok")
@@ -26,16 +14,16 @@ dependencies {
     api("io.netty:netty-handler-proxy")
     api(project(":libnetty-transport"))
     api("com.github.fmjsjx:libcommon-util")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-aarch_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-x86_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "osx-x86_64")
-    "nettyNativeSupportImplementation"(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "windows-x86_64")
+    compileOnly(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
+    compileOnly(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
+    compileOnly(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-aarch_64")
+    compileOnly(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "linux-x86_64")
+    compileOnly(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "osx-x86_64")
+    compileOnly(group = "io.netty", name = "netty-tcnative-boringssl-static", classifier = "windows-x86_64")
     implementation("com.jcraft:jzlib")
     implementation("org.brotli:dec:0.1.2")
-    "brotliSupportImplementation"("com.aayushatharva.brotli4j:brotli4j")
-    "zstdSupportImplementation"("com.github.luben:zstd-jni:1.5.6-7")
+    compileOnly("com.aayushatharva.brotli4j:brotli4j")
+    compileOnly("com.github.luben:zstd-jni:1.5.6-7")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
