@@ -7,6 +7,7 @@ import static io.netty.handler.codec.http.HttpHeaderNames.SERVER;
 import static java.util.Objects.requireNonNull;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -871,9 +872,13 @@ public class DefaultHttpServer implements HttpServer {
             }
 
             channel = (ServerChannel) channelFuture.channel();
-
-            log.info("HTTP server '{}' started at {}.", name, channel.localAddress());
-
+            // Write back the port value
+            // see: https://github.com/fmjsjx/libnetty/issues/137
+            var localAddress = channel.localAddress();
+            if (localAddress instanceof InetSocketAddress localSocketAddress) {
+                this.port = localSocketAddress.getPort();
+            }
+            log.info("HTTP server '{}' started at {}.", name, localAddress);
             return this;
         } catch (Exception e) {
             running.set(false);
