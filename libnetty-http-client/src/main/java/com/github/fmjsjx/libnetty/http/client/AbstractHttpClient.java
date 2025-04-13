@@ -88,7 +88,7 @@ public abstract class AbstractHttpClient implements HttpClient {
         public static final AsciiString GZIP_DEFLATE_BR_ZSTD = AsciiString.cached("gzip,deflate,br,zstd");
     }
 
-    protected static final AsciiString DEFAULT_USER_AGENT_VALUE = AsciiString.cached("Libnetty/3.8.0-RC1");
+    protected static final AsciiString DEFAULT_USER_AGENT_VALUE = AsciiString.cached("Libnetty/3.8.0");
 
     protected final EventLoopGroup group;
     protected final Class<? extends Channel> channelClass;
