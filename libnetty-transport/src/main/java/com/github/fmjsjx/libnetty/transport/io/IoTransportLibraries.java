@@ -30,6 +30,7 @@ final class IoTransportLibraries {
             }
             if (ioUringAvailable) {
                 defaultLibrary = IoUringIoTransportLibrary.getInstance();
+                log.info("io_uring is available, sets the native library IoUringLibrary as the default library");
             } else {
                 boolean epollAvailable = false;
                 try {
@@ -40,6 +41,7 @@ final class IoTransportLibraries {
                 }
                 if (epollAvailable) {
                     defaultLibrary = EpollIoTransportLibrary.getInstance();
+                    log.info("epoll is available, sets the native library EpollLibrary as the default library");
                 } else {
                     boolean kqueueAvailable = false;
                     try {
@@ -50,8 +52,10 @@ final class IoTransportLibraries {
                     }
                     if (kqueueAvailable) {
                         defaultLibrary = KQueueIoTransportLibrary.getInstance();
+                        log.info("kqueue is available, sets the native library KQueueLibrary as the default library");
                     } else {
                         defaultLibrary = NioIoTransportLibrary.getInstance();
+                        log.info("All native libraries are unavailable, sets the NioIoTransportLibrary as the default library");
                     }
                 }
             }
@@ -70,8 +74,8 @@ final class IoTransportLibraries {
     }
 
     /**
-     * Returns default {@link IoTransportLibrary} instance, native library is
-     * preferred.
+     * Returns the default {@link IoTransportLibrary} instance, a native
+     * library is preferred.
      *
      * @return the default {@link IoTransportLibrary}
      */

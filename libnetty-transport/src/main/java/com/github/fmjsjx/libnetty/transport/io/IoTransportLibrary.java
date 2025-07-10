@@ -14,7 +14,7 @@ import java.util.concurrent.ThreadFactory;
 public interface IoTransportLibrary {
 
     /**
-     * Returns the default {@link IoTransportLibrary} instance, native
+     * Returns the default {@link IoTransportLibrary} instance, a native
      * library is preferred.
      *
      * @return the default {@link IoTransportLibrary}
