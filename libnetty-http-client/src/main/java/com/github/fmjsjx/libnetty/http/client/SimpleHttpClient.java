@@ -1,7 +1,6 @@
 package com.github.fmjsjx.libnetty.http.client;
 
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -143,7 +142,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
     @Override
     protected <T> CompletableFuture<Response<T>> sendAsync0(Request request, HttpContentHandler<T> contentHandler,
                                                             Optional<Executor> executor) {
-        URI uri = request.uri();
+        var uri = request.uri();
         boolean ssl = "https".equalsIgnoreCase(uri.getScheme());
         boolean defaultPort = uri.getPort() == -1;
         int port = defaultPort ? (ssl ? 443 : 80) : uri.getPort();
@@ -215,7 +214,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
                                      HttpContentHandler<T> contentHandler, Optional<Executor> executor) {
         pipeline.addLast(new HttpClientCodec());
         if (autoDecompression) {
-            pipeline.addLast(new HttpContentDecompressor());
+            pipeline.addLast(new HttpContentDecompressor(0));
         }
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
         pipeline.addLast(new ChunkedWriteHandler());

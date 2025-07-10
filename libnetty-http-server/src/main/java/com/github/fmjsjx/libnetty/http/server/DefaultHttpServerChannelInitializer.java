@@ -31,6 +31,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final int timeoutSeconds;
     private final int maxContentLength;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<CorsConfig> corsConfig;
 
     private final boolean sslEnabled;
@@ -80,11 +81,11 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         if (autoCompressionEnabled) {
             pipeline.addLast("HttpContentCompressor", httpContentCompressorProvider.create());
         }
-        pipeline.addLast("HttpContentDecompressor", new HttpContentDecompressor());
+        pipeline.addLast("HttpContentDecompressor", new HttpContentDecompressor(0));
         pipeline.addLast("HttpObjectAggregator", new HttpObjectAggregator(maxContentLength));
         var webSocketSupport = this.webSocketSupport;
         if (webSocketSupport != null) {
-            pipeline.addLast(new WebSocketServerCompressionHandler());
+            pipeline.addLast(new WebSocketServerCompressionHandler(0));
             pipeline.addLast(new WebSocketServerProtocolHandler(webSocketSupport.protocolConfig()));
             pipeline.addLast(webSocketInitializer);
         }
