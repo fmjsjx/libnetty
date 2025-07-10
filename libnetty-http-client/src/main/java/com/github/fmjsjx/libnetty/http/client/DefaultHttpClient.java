@@ -115,7 +115,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
     @Override
     protected <T> CompletableFuture<Response<T>> sendAsync0(Request request, HttpContentHandler<T> contentHandler,
             Optional<Executor> executor) {
-        URI uri = request.uri();
+        var uri = request.uri();
         boolean ssl = "https".equalsIgnoreCase(uri.getScheme());
         boolean defaultPort = uri.getPort() == -1;
         int port = defaultPort ? (ssl ? 443 : 80) : uri.getPort();
@@ -193,7 +193,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
     private void addHttpHandlers(ChannelPipeline pipeline, InternalHttpClientHandler handler) {
         pipeline.addLast(new HttpClientCodec());
         if (autoDecompression) {
-            pipeline.addLast(new HttpContentDecompressor());
+            pipeline.addLast(new HttpContentDecompressor(0));
         }
         pipeline.addLast(new ChunkedWriteHandler());
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
@@ -215,7 +215,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         }
     }
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "ClassCanBeRecord"})
     private static final class RequestContext<T> {
 
         private final Request request;
