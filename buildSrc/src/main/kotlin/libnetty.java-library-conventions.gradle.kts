@@ -11,9 +11,9 @@ repositories {
 
 dependencies {
     // netty-bom
-    api(platform("io.netty:netty-bom:4.2.2.Final"))
+    api(platform("io.netty:netty-bom:4.2.4.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:3.14.0"))
+    api(platform("com.github.fmjsjx:libcommon-bom:3.15.1"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.19.1"))
     // junit-bom
