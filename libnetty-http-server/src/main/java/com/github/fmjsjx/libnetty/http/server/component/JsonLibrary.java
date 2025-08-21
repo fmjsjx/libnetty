@@ -3,6 +3,7 @@ package com.github.fmjsjx.libnetty.http.server.component;
 import java.io.Serial;
 import java.lang.reflect.Type;
 
+import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,13 +70,38 @@ public interface JsonLibrary extends HttpServerComponent {
     }
 
     /**
+     * Read a JSON value from the given content.
+     *
+     * @param <T>       the type of the value to be converted to
+     * @param ctx       the {@code HttpRequestContext} object of the current HTTP request
+     * @param valueType the common type of the value
+     * @return the converted object
+     * @since 3.9
+     */
+    default <T> T read(HttpRequestContext ctx, Type valueType) {
+        return read(ctx.request().content(), valueType);
+    }
+
+    /**
+     * Write a JSON value into the a {@link ByteBuf}.
+     *
+     * @param ctx   the {@code HttpRequestContext} object of the current HTTP request
+     * @param value the value object
+     * @return a {@code ByteBuf}
+     * @since 3.9
+     */
+    default ByteBuf write(HttpRequestContext ctx, Object value) {
+        return write(ctx.alloc(), value);
+    }
+
+    /**
      * A runtime exception threw by a JSON encoder/decoder.
      *
      * @since 1.3
      *
      * @author MJ Fang
      */
-    public static class JsonException extends RuntimeException {
+    class JsonException extends RuntimeException {
 
         @Serial
         private static final long serialVersionUID = 4697052174693197902L;
@@ -127,7 +153,7 @@ public interface JsonLibrary extends HttpServerComponent {
      * @author MJ Fang
      * @since 3.2
      */
-    public static class JsonReadException extends JsonException {
+    class JsonReadException extends JsonException {
 
         /**
          * Constructs a new {@link JsonReadException} with the specified detail message and cause.
@@ -156,7 +182,7 @@ public interface JsonLibrary extends HttpServerComponent {
      * @author MJ Fang
      * @since 3.2
      */
-    public static class JsonWriteException extends JsonException {
+    class JsonWriteException extends JsonException {
 
         /**
          * Constructs a new {@link JsonWriteException} with the specified detail message and cause.

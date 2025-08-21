@@ -1,5 +1,6 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
+import java.io.Serial;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletionStage;
 
@@ -20,7 +21,7 @@ import io.netty.buffer.ByteBufAllocator;
  * @see MiddlewareChain
  * @see JsonLibrary
  */
-@Deprecated
+@Deprecated(since = "1.3", forRemoval = true)
 public class SupportJson implements Middleware {
 
     /**
@@ -34,7 +35,7 @@ public class SupportJson implements Middleware {
      *             {@link com.github.fmjsjx.libnetty.http.server.component.JsonLibrary}
      *             instead
      */
-    @Deprecated
+    @Deprecated(since = "1.3", forRemoval = true)
     public interface JsonLibrary {
 
         /**
@@ -80,6 +81,7 @@ public class SupportJson implements Middleware {
     @Deprecated
     public static class JsonException extends RuntimeException {
 
+        @Serial
         private static final long serialVersionUID = 4697052174693197902L;
 
         /**
@@ -112,7 +114,7 @@ public class SupportJson implements Middleware {
      *             {@link com.github.fmjsjx.libnetty.http.server.component.Jackson2JsonLibrary}
      *             instead
      */
-    @Deprecated
+    @Deprecated(since = "1.3", forRemoval = true)
     public static class Jackson2JsonLibrary implements JsonLibrary {
 
         private final com.github.fmjsjx.libnetty.http.server.component.Jackson2JsonLibrary delegatedLibrary;

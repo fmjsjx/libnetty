@@ -78,6 +78,7 @@ import io.netty.util.internal.StringUtil;
  *
  * @author MJ Fang
  */
+@SuppressWarnings({"DuplicatedCode", "LoggingSimilarMessage"})
 public class RouterUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(RouterUtil.class);
@@ -233,7 +234,7 @@ public class RouterUtil {
             }
             try {
                 ByteBuf content = ctx.component(JsonLibrary.class).orElseThrow(JsonConstants.MISSING_JSON_LIBRARY)
-                        .write(ctx.alloc(), result);
+                        .write(ctx, result);
                 return ctx.simpleRespond(OK, content, ResponseConstants.APPLICATION_JSON_UTF8);
             } catch (Exception e) {
                 return handleError(ctx, e);
@@ -968,10 +969,10 @@ public class RouterUtil {
                         return switch (jsonLibrary.emptyWay()) {
                             case NULL -> null;
                             case EMPTY -> jsonLibrary.read(EMPTY_JSON_ARRAY, type);
-                            default -> jsonLibrary.read(content, type);
+                            default -> jsonLibrary.read(ctx, type);
                         };
                     }
-                    return jsonLibrary.read(content, type);
+                    return jsonLibrary.read(ctx, type);
                 };
             }
             return ctx -> {
@@ -983,10 +984,10 @@ public class RouterUtil {
                     return switch (jsonLibrary.emptyWay()) {
                         case NULL -> null;
                         case EMPTY -> jsonLibrary.read(EMPTY_JSON_OBJECT, type);
-                        default -> jsonLibrary.read(content, type);
+                        default -> jsonLibrary.read(ctx, type);
                     };
                 }
-                return jsonLibrary.read(content, type);
+                return jsonLibrary.read(ctx, type);
             };
         }
     }
