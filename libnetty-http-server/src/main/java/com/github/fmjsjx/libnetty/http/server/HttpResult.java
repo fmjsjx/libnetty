@@ -44,7 +44,7 @@ public interface HttpResult {
      *         source, in nanoseconds
      * @see System#nanoTime()
      */
-    long respondedNaonTime();
+    long respondedNanoTime();
 
     /**
      * Returns the {@link ZonedDateTime} with the system {@link ZoneId} when the
@@ -73,7 +73,7 @@ public interface HttpResult {
      *         finished being written out to the connection, in nanoseconds
      */
     default long nanoUsed() {
-        return respondedNaonTime() - requestContext().receivedNanoTime();
+        return respondedNanoTime() - requestContext().receivedNanoTime();
     }
 
     /**

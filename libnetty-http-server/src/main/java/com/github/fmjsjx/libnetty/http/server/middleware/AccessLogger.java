@@ -291,7 +291,7 @@ public class AccessLogger implements Middleware {
         BASIC(":datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length"),
 
         /**
-         * Another basic log output, make result length human readable.
+         * Another basic log output, make result length human-readable.
          *
          * <pre>
          * :datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length-humanreadable
@@ -301,7 +301,7 @@ public class AccessLogger implements Middleware {
 
         private final String pattern;
 
-        private LogFormat(String pattern) {
+        LogFormat(String pattern) {
             this.pattern = pattern;
         }
 
@@ -390,8 +390,9 @@ public class AccessLogger implements Middleware {
             case ":status" -> HttpResult::responseStatus;
             case ":status-code" -> result -> result.responseStatus().codeAsText();
             case ":status-reason" -> result -> result.responseStatus().reasonPhrase();
-            case ":result-length" -> HttpResult::resultLength;
-            case ":result-length-humanreadable" -> result -> toHumanReadableSize(result.resultLength());
+            case ":result-length" -> result -> result.resultLength() < 0 ? "-" : String.valueOf(result.resultLength());
+            case ":result-length-humanreadable" ->
+                    result -> result.resultLength() < 0 ? "-" : toHumanReadableSize(result.resultLength());
             case ":iso-local-datetime" ->
                     result -> result.respondedTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             case ":datetime" -> result -> result.respondedTime().format(DEFAULT_DATE_TIME);
