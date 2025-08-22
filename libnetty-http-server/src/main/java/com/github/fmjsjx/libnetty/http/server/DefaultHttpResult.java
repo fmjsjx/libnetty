@@ -6,23 +6,22 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * Default implementation of {@link HttpResult}.
- * 
- * @since 1.1
  *
  * @author MJ Fang
+ * @since 1.1
  */
 public class DefaultHttpResult implements HttpResult {
 
     private final HttpRequestContext requestContext;
     private final long resultLength;
     private final HttpResponseStatus responseStatus;
-    private final long respondedNaonTime;
+    private final long respondedNanoTime;
     private final ZonedDateTime respondedTime;
 
     /**
      * Creates a new {@link DefaultHttpResult} instance with the specified params
      * given.
-     * 
+     *
      * @param requestContext an {@link HttpRequestContext}
      * @param resultLength   the length of the HTTP response body content
      * @param responseStatus the {@link HttpResponseStatus} of the HTTP response
@@ -35,22 +34,22 @@ public class DefaultHttpResult implements HttpResult {
     /**
      * Creates a new {@link DefaultHttpResult} instance with the specified params
      * given.
-     * 
+     *
      * @param requestContext    an {@link HttpRequestContext}
      * @param resultLength      the length of the HTTP response body content
      * @param responseStatus    the {@link HttpResponseStatus} of the HTTP response
-     * @param respondedNaonTime the value of the running Java Virtual
-     *                          Machine'shigh-resolution time source, in
+     * @param respondedNanoTime the value of the running Java Virtual
+     *                          Machine's high-resolution time source, in
      *                          nanoseconds, when the HTTP response just responded
      * @param respondedTime     the {@link ZonedDateTime} when the HTTP response
      *                          just responded
      */
     public DefaultHttpResult(HttpRequestContext requestContext, long resultLength, HttpResponseStatus responseStatus,
-            long respondedNaonTime, ZonedDateTime respondedTime) {
+                             long respondedNanoTime, ZonedDateTime respondedTime) {
         this.requestContext = requestContext;
         this.resultLength = resultLength;
         this.responseStatus = responseStatus;
-        this.respondedNaonTime = respondedNaonTime;
+        this.respondedNanoTime = respondedNanoTime;
         this.respondedTime = respondedTime;
     }
 
@@ -70,8 +69,8 @@ public class DefaultHttpResult implements HttpResult {
     }
 
     @Override
-    public long respondedNaonTime() {
-        return respondedNaonTime;
+    public long respondedNanoTime() {
+        return respondedNanoTime;
     }
 
     @Override
@@ -81,10 +80,10 @@ public class DefaultHttpResult implements HttpResult {
 
     @Override
     public String toString() {
-        StringBuilder b = new StringBuilder().append("DefaultHttpResult(resultLength: ").append(resultLength)
-                .append(", responseStatus: ").append(responseStatus).append(", respondedNaonTime: ")
-                .append(respondedNaonTime).append(", respondedTime: ").append(respondedTime).append(")");
-        return b.toString();
+        return "DefaultHttpResult(resultLength: " + resultLength +
+                ", responseStatus: " + responseStatus +
+                ", respondedNanoTime: " + respondedNanoTime +
+                ", respondedTime: " + respondedTime + ")";
     }
 
 }
