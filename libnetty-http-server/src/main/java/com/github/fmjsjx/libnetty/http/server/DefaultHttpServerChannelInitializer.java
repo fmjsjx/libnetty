@@ -80,7 +80,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         }
         pipeline.addLast(HTTP_CODEC, new HttpServerCodec());
         if (autoCompressionEnabled) {
-            pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, httpContentCompressorProvider.create());
+            pipeline.addLast(HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
         }
         pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
         pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
