@@ -14,6 +14,8 @@ import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpServer;
+import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
+import com.github.fmjsjx.libnetty.http.server.component.MixedJsonLibrary;
 import com.github.fmjsjx.libnetty.http.server.component.WebSocketSupport;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger;
 import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.LogFormat;
@@ -51,13 +53,17 @@ public class TestDefaultServer {
         KotlinController kotlinController = new KotlinController();
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
-        DefaultHttpServer server = new DefaultHttpServer("test", 8443) // server name and port
+        DefaultHttpServer server =
+                new DefaultHttpServer("test", 8443) // server name and port
                 .enableSsl(ChannelSslInitializer.of(SslContextProviders.selfSignedForServer())) // SSL
-                .neverTimeout() // never timeout
+//                .neverTimeout() // never timeout
+//                new DefaultHttpServer("test", 8080) // server name and port
                 .corsConfig(corsConfig) // CORS support
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
-                .supportJson() // Support JSON using Jackson2
+                // support JSON using MixedJsonLibrary
+                .component(MixedJsonLibrary.Builder.recommended().emptyWay(JsonLibrary.EmptyWay.EMPTY).build())
+//                .supportJson() // Support JSON using Jackson2
                 .component(new TestExceptionHandler()) // Support test exception
                 .component(WebSocketSupport.build(
                         WebSocketServerProtocolConfig.newBuilder().websocketPath("/ws").subprotocols("sp1,sp2").checkStartsWith(true).allowExtensions(true).build(),
@@ -71,7 +77,7 @@ public class TestDefaultServer {
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
                 .addLast("/static/auth", new AuthBasic(passwords(), "test")) // HTTP Basic Authentication
-                .addLast(new ServeStatic("/static/", "src/main/resources/static/")) // static resources
+                .addLast(new ServeStatic("/static/", "libnetty-example/src/main/resources/static/")) // static resources
                 .addLast(new Router().register(controller).register(kotlinController).init()) // router
         ;
         try {

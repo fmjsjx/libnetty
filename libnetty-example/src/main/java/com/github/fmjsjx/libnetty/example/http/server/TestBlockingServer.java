@@ -68,7 +68,7 @@ public class TestBlockingServer {
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
                 .addLast("/static/auth", new AuthBasic(passwds(), "test")) // HTTP Basic Authentication
-                .addLast(new ServeStatic("/static/", "src/main/resources/static/")) // static resources
+                .addLast(new ServeStatic("/static/", "libnetty-example/src/main/resources/static/")) // static resources
                 .addLast(new Router().register(controller).init()) // router
         ;
         try {

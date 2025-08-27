@@ -1,9 +1,14 @@
 package com.github.fmjsjx.libnetty.example.http.server;
 
 import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
-import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static com.github.fmjsjx.libnetty.http.server.Constants.TIMEOUT_HANDLER;
+import static com.github.fmjsjx.libnetty.http.server.HttpServerHandler.READ_NEXT;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_ENCODING;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.LastHttpContent.EMPTY_LAST_CONTENT;
 import static io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType.FileUpload;
 
 import java.io.File;
@@ -12,10 +17,12 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.fmjsjx.libnetty.http.server.DefaultHttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
@@ -32,12 +39,11 @@ import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureExcepti
 import com.github.fmjsjx.libnetty.http.server.exception.SimpleHttpFailureException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.EventLoop;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.*;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
@@ -100,7 +106,7 @@ public class TestController {
     public CompletableFuture<?> getJsons(QueryStringDecoder query, EventLoop eventLoop) {
         // GET /api/jsons
         System.out.println("-- jsons --");
-//        System.out.println("library: " + library);
+        //        System.out.println("library: " + library);
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         query.parameters().forEach((key, values) -> {
             if (values.size() == 1) {
@@ -199,8 +205,9 @@ public class TestController {
      */
     @HttpGet("/ok")
     @StringBody
-    public CompletionStage<CharSequence> getOK(QueryStringDecoder query) {
+    public CompletionStage<CharSequence> getOK(HttpRequestContext ctx, QueryStringDecoder query) {
         System.out.println("-- ok --");
+        System.out.println(ctx.channel());
         System.out.println(query.uri());
         return CompletableFuture.completedFuture(ASCII_OK);
     }
@@ -254,9 +261,9 @@ public class TestController {
     /**
      * GET /api/array
      *
-     * @param ctx request context
+     * @param ctx   request context
      * @param names names
-     * @param ids ids
+     * @param ids   ids
      * @return result
      */
     @HttpGet("/array")
@@ -270,6 +277,77 @@ public class TestController {
         ByteBuf body = ByteBufUtil.writeAscii(ctx.alloc(), "200 OK");
         System.out.println(body.toString(CharsetUtil.UTF_8));
         return ctx.simpleRespond(OK, body, TEXT_PLAIN);
+    }
+
+    /**
+     * GET /api/test/event-stream
+     * <p>
+     * A demo API for the low level {@code SSE} implementation.
+     *
+     * @param ctx request context
+     * @param len the length of the event message
+     * @return result
+     * @since 3.9
+     */
+    @HttpGet("/test/event-stream")
+    public CompletionStage<HttpResult> getTestEventStream(HttpRequestContext ctx, @QueryVar(value = "len", required = false) Integer len) {
+        // GET /api/test/event-stream
+        System.out.println("-- test event-stream --");
+        System.out.println(ctx.channel());
+        int messageSize = len == null ? 100 : len;
+        var channel = ctx.channel();
+        var pipeline = channel.pipeline();
+        var timeoutHandler = (ReadTimeoutHandler) pipeline.get(TIMEOUT_HANDLER);
+        if (timeoutHandler != null) {
+            pipeline.remove(TIMEOUT_HANDLER);
+        }
+        var response = new DefaultHttpResponse(ctx.version(), OK);
+        var keepAlive = HttpUtil.isKeepAlive(ctx.request());
+        HttpUtil.setKeepAlive(response, keepAlive);
+        HttpUtil.setTransferEncodingChunked(response, true);
+        response.headers().set(CONTENT_TYPE, TEXT_EVENT_STREAM);
+        response.headers().set(CONTENT_ENCODING, IDENTITY);
+        var future = new CompletableFuture<HttpResult>();
+        channel.writeAndFlush(response).addListener((ChannelFuture cf) -> {
+            if (cf.isSuccess()) {
+                future.complete(new DefaultHttpResult(ctx, -1, OK));
+
+            } else if (cf.cause() != null) {
+                future.completeExceptionally(cf.cause());
+            }
+        });
+
+        var eventContent = channel.alloc().buffer();
+        eventContent.writeBytes("event: ping\n\n".getBytes(CharsetUtil.UTF_8));
+        channel.writeAndFlush(eventContent);
+        var writeStreamTask = new Runnable() {
+
+            private int n;
+
+            @Override
+            public void run() {
+                if (n++ < messageSize) {
+                    var content = channel.alloc().buffer();
+                    // {"line":}
+                    var data = "data: {\"line\":" + n + "}\n\n";
+                    content.writeBytes(data.getBytes(CharsetUtil.UTF_8));
+                    channel.writeAndFlush(content);
+                    channel.eventLoop().schedule(this, 1000, TimeUnit.MILLISECONDS);
+                } else {
+                    var content = channel.alloc().buffer();
+                    // {"line":}
+                    var data = "event: close\ndata: {}\n\n";
+                    content.writeBytes(data.getBytes(CharsetUtil.UTF_8));
+                    channel.writeAndFlush(content);
+                    channel.writeAndFlush(EMPTY_LAST_CONTENT).addListener(READ_NEXT);
+                    if (timeoutHandler != null) {
+                        channel.pipeline().addFirst(TIMEOUT_HANDLER, new ReadTimeoutHandler(timeoutHandler.getReaderIdleTimeInMillis(), TimeUnit.MILLISECONDS));
+                    }
+                }
+            }
+        };
+        channel.eventLoop().schedule(writeStreamTask, 1000, TimeUnit.MILLISECONDS);
+        return future;
     }
 
 }

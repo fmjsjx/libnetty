@@ -40,7 +40,7 @@ public class TestWatchingSslServer {
 
     private static final String sslCertPath = System.getProperty("ssl.certFile",
             "src/main/resources/ssl/localhost.crt");
-    private static final String sslKeyFile = System.getProperty("ssl.keyFile", "src/main/resources/ssl/localhost.key");
+    private static final String sslKeyFile = System.getProperty("ssl.keyFile", "libnetty-example/src/main/resources/ssl/localhost.key");
 
     /**
      * Main method.

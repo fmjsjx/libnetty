@@ -1,12 +1,13 @@
 package com.github.fmjsjx.libnetty.http.server;
 
+import static com.github.fmjsjx.libnetty.http.server.Constants.*;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
 import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
-
 import com.github.fmjsjx.libnetty.http.server.component.WebSocketSupport;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.HttpContentDecompressor;
@@ -72,31 +73,31 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         ChannelPipeline pipeline = ch.pipeline();
         int timeoutSeconds = this.timeoutSeconds;
         if (timeoutSeconds > 0) {
-            pipeline.addLast("TimeoutHandler", new ReadTimeoutHandler(timeoutSeconds));
+            pipeline.addLast(TIMEOUT_HANDLER, new ReadTimeoutHandler(timeoutSeconds));
         }
         if (sslEnabled) {
             channelSslInitializer.init(ch);
         }
-        pipeline.addLast("HttpCodec", new HttpServerCodec());
+        pipeline.addLast(HTTP_CODEC, new HttpServerCodec());
         if (autoCompressionEnabled) {
-            pipeline.addLast("HttpContentCompressor", httpContentCompressorProvider.create());
+            pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, httpContentCompressorProvider.create());
         }
-        pipeline.addLast("HttpContentDecompressor", new HttpContentDecompressor(0));
-        pipeline.addLast("HttpObjectAggregator", new HttpObjectAggregator(maxContentLength));
+        pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
+        pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
         var webSocketSupport = this.webSocketSupport;
         if (webSocketSupport != null) {
             pipeline.addLast(new WebSocketServerCompressionHandler(0));
             pipeline.addLast(new WebSocketServerProtocolHandler(webSocketSupport.protocolConfig()));
             pipeline.addLast(webSocketInitializer);
         }
-        pipeline.addLast("AutoReadNextHandler", AutoReadNextHandler.getInstance());
+        pipeline.addLast(AUTO_READ_NEXT_HANDLER, AutoReadNextHandler.getInstance());
         if (sslEnabled) {
-            pipeline.addLast("HstsHandler", HstsHandler.getInstance());
+            pipeline.addLast(HSTS_HANDLER, HstsHandler.getInstance());
         }
         corsConfig.map(CorsHandler::new).ifPresent(pipeline::addLast);
-        pipeline.addLast("ChunkedWriteHandler", new ChunkedWriteHandler());
-        pipeline.addLast("HttpRequestContextDecoder", contextDecoder);
-        pipeline.addLast("HttpRequestContextHandler", handlerProvider.get());
+        pipeline.addLast(CHUNKED_WRITE_HANDLER, new ChunkedWriteHandler());
+        pipeline.addLast(HTTP_REQUEST_CONTEXT_DECODER, contextDecoder);
+        pipeline.addLast(HTTP_REQUEST_CONTEXT_HANDLER, handlerProvider.get());
     }
 
     @Sharable
@@ -114,18 +115,18 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
                 var p = ctx.pipeline();
                 // HttpContentDecompressor will trigger a `read` operation that is unexpected.
                 // So the HttpContentDecompressor MUST be removed from channel pipeline.
-                if (p.get("HttpContentDecompressor") != null) {
-                    p.remove("HttpContentDecompressor");
+                if (p.get(HTTP_CONTENT_DECOMPRESSOR) != null) {
+                    p.remove(HTTP_CONTENT_DECOMPRESSOR);
                 }
                 // Remove other unused handlers
                 if (p.get(CorsHandler.class) != null) {
                     p.remove(CorsHandler.class);
                 }
-                if (p.get("ChunkedWriteHandler") != null) {
-                    p.remove("ChunkedWriteHandler");
+                if (p.get(CHUNKED_WRITE_HANDLER) != null) {
+                    p.remove(CHUNKED_WRITE_HANDLER);
                 }
                 // Add web socket frame handler after this handler
-                p.addAfter(ctx.name(), "WebSocketFrameHandler", webSocketSupport.supplyWebSocketFrameHandler());
+                p.addAfter(ctx.name(), WEB_SOCKET_FRAME_HANDLER, webSocketSupport.supplyWebSocketFrameHandler());
                 // remove this handler from pipeline
                 p.remove(this);
             }
