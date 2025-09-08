@@ -62,8 +62,10 @@ public class TestDefaultServer {
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
                 // support JSON using MixedJsonLibrary
-                .component(MixedJsonLibrary.Builder.recommended().emptyWay(JsonLibrary.EmptyWay.EMPTY).build())
-//                .supportJson() // Support JSON using Jackson2
+//                .component(MixedJsonLibrary.Builder.recommended().emptyWay(JsonLibrary.EmptyWay.EMPTY).build())
+                .component(MixedJsonLibrary.Builder.recommended().emptyWay(JsonLibrary.EmptyWay.EMPTY)
+                        .beforeWrite((ctx, content) -> content.replace("test", "hello"))
+                        .build())
                 .component(new TestExceptionHandler()) // Support test exception
                 .component(WebSocketSupport.build(
                         WebSocketServerProtocolConfig.newBuilder().websocketPath("/ws").subprotocols("sp1,sp2").checkStartsWith(true).allowExtensions(true).build(),

@@ -314,7 +314,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * @param pathVariables the path variables
      * @return this {@code HttpRequestContext}
      */
-    HttpResponder pathVariables(PathVariables pathVariables);
+    HttpRequestContext pathVariables(PathVariables pathVariables);
 
     /**
      * Returns the component with the specified {@code componentType}.
@@ -396,7 +396,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * 
      * @return this {@code HttpRequestContext}
      */
-    HttpResponder property(Object key, Object value);
+    HttpRequestContext property(Object key, Object value);
 
     /**
      * Put the property value with the key already provided by itself.
@@ -405,7 +405,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      *
      * @return this {@code HttpRequestContext}
      */
-    default HttpResponder putProperty(PropertyKeyProvider value) {
+    default HttpRequestContext putProperty(PropertyKeyProvider value) {
         Objects.requireNonNull(value, "value must not be null");
         return property(value.key(), value);
     }

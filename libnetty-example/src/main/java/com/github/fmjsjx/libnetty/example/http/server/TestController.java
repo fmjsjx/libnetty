@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.fmjsjx.libcommon.json.Fastjson2Library;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
@@ -37,6 +38,7 @@ import com.github.fmjsjx.libnetty.http.server.annotation.StringBody;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 
 import com.github.fmjsjx.libnetty.http.server.exception.SimpleHttpFailureException;
+import com.github.fmjsjx.libnetty.http.server.sse.SseEventBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelFuture;
@@ -301,9 +303,7 @@ public class TestController {
         if (timeoutHandler != null) {
             pipeline.remove(TIMEOUT_HANDLER);
         }
-        var response = new DefaultHttpResponse(ctx.version(), OK);
-        var keepAlive = HttpUtil.isKeepAlive(ctx.request());
-        HttpUtil.setKeepAlive(response, keepAlive);
+        var response = ctx.responseFactory().create(OK);
         HttpUtil.setTransferEncodingChunked(response, true);
         response.headers().set(CONTENT_TYPE, TEXT_EVENT_STREAM);
         response.headers().set(CONTENT_ENCODING, IDENTITY);
@@ -318,8 +318,10 @@ public class TestController {
         });
 
         var eventContent = channel.alloc().buffer();
-        eventContent.writeBytes("event: ping\n\n".getBytes(CharsetUtil.UTF_8));
+        eventContent.writeBytes("event: ping\n\n".getBytes());
         channel.writeAndFlush(eventContent);
+        // id: 1\n\n
+        channel.writeAndFlush(channel.alloc().buffer().writeBytes("id: 1\n\n".getBytes()));
         var writeStreamTask = new Runnable() {
 
             private int n;
@@ -339,6 +341,69 @@ public class TestController {
                     var data = "event: close\ndata: {}\n\n";
                     content.writeBytes(data.getBytes(CharsetUtil.UTF_8));
                     channel.writeAndFlush(content);
+                    channel.writeAndFlush(EMPTY_LAST_CONTENT).addListener(READ_NEXT);
+                    if (timeoutHandler != null) {
+                        channel.pipeline().addFirst(TIMEOUT_HANDLER, new ReadTimeoutHandler(timeoutHandler.getReaderIdleTimeInMillis(), TimeUnit.MILLISECONDS));
+                    }
+                }
+            }
+        };
+        channel.eventLoop().schedule(writeStreamTask, 1000, TimeUnit.MILLISECONDS);
+        return future;
+    }
+
+    static final AsciiString SSE_EVENT_CLOSE = AsciiString.cached("close");
+
+    /**
+     * GET /api/test/sse-events
+     * <p>
+     * A demo API for the low level {@code SSE} implementation.
+     *
+     * @param ctx request context
+     * @param len the length of the event message
+     * @return result
+     * @since 3.9
+     */
+    @HttpGet("/test/sse-events")
+    public CompletionStage<HttpResult> getTestSseEvents(HttpRequestContext ctx, @QueryVar(value = "len", required = false) Integer len) {
+        // GET /api/test/event-stream
+        System.out.println("-- test sse-events --");
+        System.out.println(ctx.channel());
+        int messageSize = len == null ? 100 : len;
+        var channel = ctx.channel();
+        var pipeline = channel.pipeline();
+        var timeoutHandler = (ReadTimeoutHandler) pipeline.get(TIMEOUT_HANDLER);
+        if (timeoutHandler != null) {
+            pipeline.remove(TIMEOUT_HANDLER);
+        }
+        var response = ctx.responseFactory().create(OK);
+        HttpUtil.setTransferEncodingChunked(response, true);
+        response.headers().set(CONTENT_TYPE, TEXT_EVENT_STREAM);
+        response.headers().set(CONTENT_ENCODING, IDENTITY);
+        var future = new CompletableFuture<HttpResult>();
+        channel.writeAndFlush(response).addListener((ChannelFuture cf) -> {
+            if (cf.isSuccess()) {
+                future.complete(new DefaultHttpResult(ctx, -1, OK));
+
+            } else if (cf.cause() != null) {
+                future.completeExceptionally(cf.cause());
+            }
+        });
+        channel.writeAndFlush(SseEventBuilder.pingEvent().serialize(ctx.alloc()));
+        // id: 1\n\n
+        channel.writeAndFlush(SseEventBuilder.create().id(0).build().serialize(ctx.alloc()));
+        var writeStreamTask = new Runnable() {
+
+            private int n;
+
+            @Override
+            public void run() {
+                if (n++ < messageSize) {
+                    var data = new AsciiString(Fastjson2Library.getInstance().dumpsToBytes(Map.of("line", n)));
+                    channel.writeAndFlush(SseEventBuilder.message(data).id(n).build().serialize(channel.alloc()));
+                    channel.eventLoop().schedule(this, 1000, TimeUnit.MILLISECONDS);
+                } else {
+                    channel.writeAndFlush(SseEventBuilder.create().event(SSE_EVENT_CLOSE).build().serialize(channel.alloc()));
                     channel.writeAndFlush(EMPTY_LAST_CONTENT).addListener(READ_NEXT);
                     if (timeoutHandler != null) {
                         channel.pipeline().addFirst(TIMEOUT_HANDLER, new ReadTimeoutHandler(timeoutHandler.getReaderIdleTimeInMillis(), TimeUnit.MILLISECONDS));

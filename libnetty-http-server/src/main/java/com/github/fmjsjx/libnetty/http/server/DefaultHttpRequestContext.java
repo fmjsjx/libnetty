@@ -167,7 +167,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     }
 
     @Override
-    public HttpResponder pathVariables(PathVariables pathVariables) {
+    public DefaultHttpRequestContext pathVariables(PathVariables pathVariables) {
         this.pathVariablesRef.set(pathVariables);
         return this;
     }
