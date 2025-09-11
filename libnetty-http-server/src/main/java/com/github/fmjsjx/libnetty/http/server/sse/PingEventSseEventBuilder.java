@@ -30,6 +30,11 @@ class PingEventSseEventBuilder implements SseEventBuilder {
             return EVENT_PING.duplicate();
         }
 
+        @Override
+        public String toString() {
+            return "{event: ping}";
+        }
+
         private PingEventSseEvent() {
         }
 

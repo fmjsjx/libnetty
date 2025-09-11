@@ -74,6 +74,11 @@ public final class Constants {
      */
     public static final String WEB_SOCKET_FRAME_HANDLER = "WebSocketFrameHandler";
 
+    /**
+     * {@code "SseEventEncoder"}, the name of the SSE event encoder.
+     */
+    public static final String SSE_EVENT_ENCODER = "SseEventEncoder";
+
     private Constants() {
     }
 }

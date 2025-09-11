@@ -4,6 +4,8 @@ package com.github.fmjsjx.libnetty.http.server.sse;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 
+import java.util.function.Supplier;
+
 /**
  * Interface defines method for serialization of SSE events.
  *
@@ -12,7 +14,7 @@ import io.netty.buffer.ByteBufAllocator;
  * @author MJ Fang
  * @since 3.9
  */
-public interface SseEventSerializable {
+public interface SseEventSerializable extends Supplier<SseEventSerializable> {
 
     /**
      * Serialize this event into the specified {@link ByteBuf} given.
@@ -32,6 +34,22 @@ public interface SseEventSerializable {
         var byteBuf = allocator.buffer();
         serialize(byteBuf);
         return byteBuf;
+    }
+
+    @Override
+    default SseEventSerializable get() {
+        return this;
+    }
+
+    /**
+     * Convert to a {@code Supplier<SseEventSerializable>} supplies this
+     * SSE event.
+     *
+     * @return the {@code Supplier<SseEventSerializable>} supplies this
+     * SSE event
+     */
+    default Supplier<SseEventSerializable> toSupplier() {
+        return this;
     }
 
 }
