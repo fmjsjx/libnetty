@@ -858,7 +858,7 @@ public class RouterUtil {
     }
 
     private static final Supplier<IllegalArgumentException> noSuchQueryVariable(String name) {
-        String message = "missing path query variable " + name;
+        String message = "missing query variable " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
         return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
