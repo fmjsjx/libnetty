@@ -786,18 +786,18 @@ public class RouterUtil {
         map.put(Long[].class, values -> values.stream().map(Long::valueOf).toArray(Long[]::new));
         // simples
         map.put(String.class, values -> values.size() == 1 ? values.get(0) : String.join(",", values));
-        map.put(Boolean.class, values -> Boolean.valueOf(values.get(0)));
-        map.put(Byte.class, values -> Byte.valueOf(values.get(0)));
-        map.put(Short.class, values -> Short.valueOf(values.get(0)));
-        map.put(Integer.class, values -> Integer.valueOf(values.get(0)));
-        map.put(Long.class, values -> Long.valueOf(values.get(0)));
-        map.put(Float.class, values -> Float.valueOf(values.get(0)));
-        map.put(Double.class, values -> Double.valueOf(values.get(0)));
-        map.put(BigInteger.class, values -> new BigInteger(values.get(0)));
-        map.put(BigDecimal.class, values -> new BigDecimal(values.get(0)));
-        map.put(OptionalInt.class, values -> OptionalInt.of(Integer.parseInt(values.get(0))));
-        map.put(OptionalLong.class, values -> OptionalLong.of(Long.parseLong(values.get(0))));
-        map.put(OptionalDouble.class, values -> OptionalDouble.of(Double.parseDouble(values.get(0))));
+        map.put(Boolean.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? null : Boolean.valueOf(values.get(0)));
+        map.put(Byte.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? null : Byte.valueOf(values.get(0)));
+        map.put(Short.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? null : Short.valueOf(values.get(0)));
+        map.put(Integer.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? null : Integer.valueOf(values.get(0)));
+        map.put(Long.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? null : Long.valueOf(values.get(0)));
+        map.put(Float.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? null : Float.valueOf(values.get(0)));
+        map.put(Double.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? null : Double.valueOf(values.get(0)));
+        map.put(BigInteger.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? null : new BigInteger(values.get(0)));
+        map.put(BigDecimal.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? null : new BigDecimal(values.get(0)));
+        map.put(OptionalInt.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? OptionalInt.empty() : OptionalInt.of(Integer.parseInt(values.get(0))));
+        map.put(OptionalLong.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? OptionalLong.empty() : OptionalLong.of(Long.parseLong(values.get(0))));
+        map.put(OptionalDouble.class, values -> StringUtil.isNullOrEmpty(values.get(0)) ? OptionalDouble.empty() : OptionalDouble.of(Double.parseDouble(values.get(0))));
 
         queryValueMappers = map;
     }
