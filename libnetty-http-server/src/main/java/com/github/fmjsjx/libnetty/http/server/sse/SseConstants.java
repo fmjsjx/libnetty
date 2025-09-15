@@ -4,6 +4,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 
+import java.time.Duration;
+
 /**
  * Defines static constants.
  *
@@ -17,6 +19,8 @@ class SseConstants {
     static final ByteBuf LABEL_DATA = Unpooled.unreleasableBuffer(UnpooledByteBufAllocator.DEFAULT.buffer(6, 6).writeBytes("data: ".getBytes()).asReadOnly());
 
     static final ByteBuf EVENT_PING = Unpooled.unreleasableBuffer(UnpooledByteBufAllocator.DEFAULT.buffer(13, 13).writeBytes("event: ping\n\n".getBytes()).asReadOnly());
+
+    static final Duration DEFAULT_AUTO_PING_INTERVAL = Duration.ofSeconds(15);
 
     private SseConstants() {
     }

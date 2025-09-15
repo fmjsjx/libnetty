@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 import com.github.fmjsjx.libcommon.util.KotlinUtil;
 import com.github.fmjsjx.libcommon.util.kotlin.KotlinReflectionUtil;
 import com.github.fmjsjx.libnetty.http.server.annotation.*;
+import com.github.fmjsjx.libnetty.http.server.sse.SseEventStream;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import kotlin.coroutines.Continuation;
@@ -1494,6 +1495,24 @@ public class RouterUtil {
                 }
                 return;
             }
+            // when return type is SseEventStream then means call SseEventStream.start() to send response
+            if (SseEventStream.class.isAssignableFrom(returnType)) {
+                if (params.length == 1) {
+                    router.add(toEventStreamResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toEventStreamResultInvoker(controller, method, params), path, httpMethods);
+                }
+                return;
+            }
+            // when return type is HttpResult then means there is nothing else to do
+            if (HttpResult.class.isAssignableFrom(returnType)) {
+                if (params.length == 1) {
+                    router.add(toHttpResultInvoker(controller, method), path, httpMethods);
+                } else {
+                    router.add(toHttpResultInvoker(controller, method, params), path, httpMethods);
+                }
+                return;
+            }
             // otherwise, always try to parse JSON
             if (params.length == 1) {
                 router.add(toJsonResultInvoker(controller, method), path, httpMethods);
@@ -1602,6 +1621,77 @@ public class RouterUtil {
                             throw new CompletionException(e.getTargetException());
                         }
                     }).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toEventStreamResultInvoker(Object controller, Method method) {
+            return ctx -> FutureKt.<CompletableFuture<HttpResult>>future(
+                    GlobalScope.INSTANCE,
+                    ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT,
+                    (coroutineScope, continuation) -> {
+                        try {
+                            return ((SseEventStream) method.invoke(controller, continuation)).start();
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }
+            ).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toEventStreamResultInvoker(Object controller, Method method, Parameter[] params) {
+            var parametersMapper = toParametersMapper(params);
+            return ctx -> FutureKt.<CompletableFuture<HttpResult>>future(
+                    GlobalScope.INSTANCE,
+                    ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT,
+                    (coroutineScope, continuation) -> {
+                        try {
+                            var args = parametersMapper.apply(ctx, continuation);
+                            return ((SseEventStream) method.invoke(controller, args)).start();
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }
+            ).thenCompose(Function.identity());
+        }
+
+        private static final HttpServiceInvoker toHttpResultInvoker(Object controller, Method method) {
+            return ctx -> FutureKt.future(
+                    GlobalScope.INSTANCE,
+                    ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT,
+                    (coroutineScope, continuation) -> {
+                        try {
+                            return (HttpResult) method.invoke(controller, continuation);
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }
+            );
+        }
+
+        private static final HttpServiceInvoker toHttpResultInvoker(Object controller, Method method, Parameter[] params) {
+            var parametersMapper = toParametersMapper(params);
+            return ctx -> FutureKt.future(
+                    GlobalScope.INSTANCE,
+                    ExecutorsKt.from(ctx.eventLoop()),
+                    CoroutineStart.DEFAULT,
+                    (coroutineScope, continuation) -> {
+                        try {
+                            return (HttpResult) method.invoke(controller, parametersMapper.apply(ctx, continuation));
+                        } catch (IllegalAccessException e) {
+                            throw new CompletionException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new CompletionException(e.getTargetException());
+                        }
+                    }
+            );
         }
 
     }

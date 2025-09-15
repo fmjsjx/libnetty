@@ -1,5 +1,7 @@
 package com.github.fmjsjx.libnetty.http.server.sse;
 
+import com.github.fmjsjx.libnetty.http.server.HttpResult;
+
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -122,5 +124,16 @@ public interface SseEventStream {
      * @return the {@code CompletableFuture<Void>}
      */
     CompletableFuture<Void> close();
+
+    /**
+     * Send HTTP response with status {@code 200 OK} and header
+     * {@code content-type: event-stream} to the client and returns the
+     * {@link HttpResult} asynchronously.
+     * <p>
+     * This event stream will get active at an appropriate time.
+     *
+     * @return a {@code CompletableFuture<HttpResult>}
+     */
+    CompletableFuture<HttpResult> start();
 
 }

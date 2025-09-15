@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -353,6 +354,7 @@ public class TestController {
     }
 
     static final AsciiString SSE_EVENT_CLOSE = AsciiString.cached("close");
+    static final AsciiString SSE_EVENT_OPEN = AsciiString.cached("open");
 
     /**
      * GET /api/test/sse-events
@@ -366,7 +368,7 @@ public class TestController {
      */
     @HttpGet("/test/sse-events")
     public CompletionStage<HttpResult> getTestSseEvents(HttpRequestContext ctx, @QueryVar(value = "len", required = false) Integer len) {
-        // GET /api/test/event-stream
+        // GET /api/test/sse-events
         System.out.println("-- test sse-events --");
         System.out.println(ctx.channel());
         int messageSize = len == null ? 100 : len;
@@ -413,6 +415,61 @@ public class TestController {
         };
         channel.eventLoop().schedule(writeStreamTask, 1000, TimeUnit.MILLISECONDS);
         return future;
+    }
+
+    /**
+     * GET /api/test/sse-event-stream
+     * <p>
+     * A demo API for the high level {@code SSE} implementation.
+     *
+     * @param ctx request context
+     * @param len the length of the event message
+     * @return result
+     * @since 3.9
+     */
+    @SuppressWarnings("CallToPrintStackTrace")
+    @HttpGet("/test/sse-event-stream")
+    public CompletionStage<HttpResult> getTestSseEventStream(HttpRequestContext ctx, @QueryVar(value = "len", required = false) Integer len) {
+        // GET /api/test/sse-event-stream
+        System.out.println("-- test sse-event-stream --");
+        System.out.println(ctx.channel());
+        int messageSize = len == null ? 100 : len;
+        var eventLoop = ctx.eventLoop();
+        var running = new AtomicBoolean(false);
+        var uuid = UUID.randomUUID().toString();
+        return ctx.eventStreamBuilder().autoPing().onError((stream, cause) -> {
+            System.err.println("error occurs on SSE event stream");
+            cause.printStackTrace();
+            running.set(false);
+        }).onActive(stream -> {
+            running.set(true);
+            // id: 1\n
+            // event: open\n\n
+            // data: {"session":"$uuid"}
+            var sessionData = AsciiString.of(Fastjson2Library.getInstance().dumpsToString(Map.of("session", uuid)));
+            stream.sendEvent(SseEventBuilder.create().id(1).event(SSE_EVENT_OPEN).data(sessionData));
+            var writeStreamTask = new Runnable() {
+
+                private int n;
+
+                @Override
+                public void run() {
+                    if (!running.get()) {
+                        System.err.println("Abnormal interruption of event stream");
+                        return;
+                    }
+                    if (n++ < messageSize) {
+                        var data = new AsciiString(Fastjson2Library.getInstance().dumpsToBytes(Map.of("line", n)));
+                        stream.sendEvent(SseEventBuilder.message(data).id(n + 1));
+                        eventLoop.schedule(this, 1000, TimeUnit.MILLISECONDS);
+                    } else {
+                        stream.sendEvent(SseEventBuilder.create().event(SSE_EVENT_CLOSE).id(n + 1).data(sessionData));
+                        stream.close();
+                    }
+                }
+            };
+            eventLoop.schedule(writeStreamTask, 1000, TimeUnit.MILLISECONDS);
+        }).build().start();
     }
 
 }
