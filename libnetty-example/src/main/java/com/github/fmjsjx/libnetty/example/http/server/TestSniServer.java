@@ -54,7 +54,7 @@ public class TestSniServer {
                         HttpContentCompressorProvider.defaultOptions());
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
-                .addLast(new ServeStatic("/static/", "src/main/resources/static/")) // static resources
+                .addLast(new ServeStatic("/static/", "libnetty-example/src/main/resources/static/")) // static resources
                 .addLast(new Router().register(controller).init()) // router
         ;
         try {

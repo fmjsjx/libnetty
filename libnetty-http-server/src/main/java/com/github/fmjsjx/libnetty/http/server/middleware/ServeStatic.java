@@ -81,7 +81,7 @@ public class ServeStatic implements Middleware {
         if (kvs.length % 2 != 0) {
             throw new IllegalArgumentException("number of arguments must be even");
         }
-        LinkedHashMap<String, String> map = new LinkedHashMap<String, String>(kvs.length);
+        var map = new LinkedHashMap<String, String>(kvs.length);
         for (int i = 0; i < kvs.length / 2; i++) {
             int index = i * 2;
             map.put(kvs[index], kvs[index + 1]);
@@ -187,17 +187,17 @@ public class ServeStatic implements Middleware {
         boolean isGet = HttpMethod.GET.equals(ctx.method());
         boolean isHead = HttpMethod.HEAD.equals(ctx.method());
         List<StaticLocationMapping> mappings = this.mappings;
-        L1: for (StaticLocationMapping mapping : mappings) {
+        for (StaticLocationMapping mapping : mappings) {
             String uri = mapping.uri;
             if (!path.startsWith(uri)) {
-                continue L1;
+                continue;
             }
             if (!isGet && !isHead) {
                 return ctx.simpleRespond(METHOD_NOT_ALLOWED);
             }
             Path p = Paths.get(mapping.location, path.substring(uri.length()));
             if (!Files.exists(p)) {
-                continue L1;
+                continue;
             }
             logger.debug("Converted location path {} => {}", path, p);
             if (Files.isDirectory(p)) {
@@ -215,11 +215,11 @@ public class ServeStatic implements Middleware {
                         }
                     }
                     if (!exists) {
-                        continue L1;
+                        continue;
                     }
                 }
             } else if (!Files.isRegularFile(p)) {
-                continue L1;
+                continue;
             }
             FullHttpRequest request = ctx.request();
             HttpVersion version = request.protocolVersion();
@@ -248,7 +248,7 @@ public class ServeStatic implements Middleware {
                 }
                 if (lastModifiedEnabled) {
                     Long ims = headers.getTimeMillis(IF_MODIFIED_SINCE);
-                    if (ims != null && ims.longValue() >= lastModified.toEpochMilli()) { // not modified
+                    if (ims != null && ims >= lastModified.toEpochMilli()) { // not modified
                         FullHttpResponse response = ctx.responseFactory().createFull(NOT_MODIFIED);
                         setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
                         return ctx.sendResponse(response, 0);
@@ -302,7 +302,7 @@ public class ServeStatic implements Middleware {
     }
 
     private void setDateAndCacheHeaders(Instant date, String etag, Instant lastModified, Instant expires,
-            HttpHeaders headers) {
+                                        HttpHeaders headers) {
         addCustomHeaders(headers);
         if (!cacheControl.isEmpty()) {
             headers.add(CACHE_CONTROL, cacheControl);
@@ -376,7 +376,7 @@ public class ServeStatic implements Middleware {
          * "${hex(file.lastModifiedInSeconds)}-${hex(file.size)}"
          * </pre>
          */
-        static EtagGenerator BASIC = (p, a) -> {
+        EtagGenerator BASIC = (p, a) -> {
             long size = a.size();
             long modifiedTime = a.lastModifiedTime().to(TimeUnit.SECONDS);
             return "\"" + Long.toHexString(modifiedTime) + "-" + Long.toHexString(size) + "\"";
@@ -405,7 +405,7 @@ public class ServeStatic implements Middleware {
      */
     public static class Options {
 
-        private List<String> indexes = Arrays.asList("index.html");
+        private List<String> indexes = List.of("index.html");
         private boolean showHidden = false;
         private boolean redirectDirectory = true;
         private String cacheControl = "no-cache";
@@ -435,7 +435,7 @@ public class ServeStatic implements Middleware {
             if (indexes.length == 0) {
                 this.indexes = Collections.emptyList();
             } else {
-                this.indexes = Arrays.stream(indexes).map(String::trim).filter(s -> s.length() > 0).map(String::intern)
+                this.indexes = Arrays.stream(indexes).map(String::trim).filter(s -> !s.isEmpty()).map(String::intern)
                         .collect(Collectors.toList());
             }
             return this;
