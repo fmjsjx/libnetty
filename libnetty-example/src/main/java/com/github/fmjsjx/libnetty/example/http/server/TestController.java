@@ -203,6 +203,7 @@ public class TestController {
     /**
      * GET /api/ok
      *
+     * @param ctx   the {@link HttpRequestContext}
      * @param query query
      * @return result
      */
