@@ -33,6 +33,7 @@ import io.netty.buffer.ByteBufOutputStream;
  * 
  * @since 1.3
  */
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class Jackson2JsonLibrary extends AbstractJsonLibrary {
 
     private static final Logger logger = LoggerFactory.getLogger(Jackson2JsonLibrary.class);
@@ -73,7 +74,7 @@ public class Jackson2JsonLibrary extends AbstractJsonLibrary {
      * @return the created {@code ObjectMapper} instance
      */
     public static final ObjectMapper defaultObjectMapper() {
-        ObjectMapper om = new ObjectMapper().setSerializationInclusion(Include.NON_ABSENT)
+        ObjectMapper om = new ObjectMapper().setDefaultPropertyInclusion(Include.NON_ABSENT)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         jdk8Module.ifPresent(om::registerModule);
         javaTimeModule.ifPresent(om::registerModule);
