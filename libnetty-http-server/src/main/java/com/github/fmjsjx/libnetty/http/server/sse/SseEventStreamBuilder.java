@@ -20,7 +20,7 @@ public interface SseEventStreamBuilder {
      * Creates and returns a new {@link SseEventStreamBuilder} with the
      * specified {@link HttpRequestContext} given.
      *
-     * @param ctx the {@link HttpRequestContext
+     * @param ctx the {@link HttpRequestContext}
      * @return a new {@link SseEventStreamBuilder} with the specified
      * {@link HttpRequestContext} given.
      */

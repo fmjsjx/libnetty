@@ -181,7 +181,8 @@ class DefaultSseEventStream implements SseEventStream {
                 }
             };
             var channel = this.channel;
-            return channel.writeAndFlush(EMPTY_LAST_CONTENT).addListeners(resetOnSuccess, READ_NEXT);
+            var listeners = new ChannelFutureListener[] { resetOnSuccess, READ_NEXT };
+            return channel.writeAndFlush(EMPTY_LAST_CONTENT).addListeners(listeners);
         }
         // do nothing but set closed
         state.set(2);
