@@ -264,6 +264,42 @@ public class RouterUtil {
         };
     }
 
+    private static final BiFunction<SseEventStream, Throwable, CompletionStage<HttpResult>> eventStreamResponseHandler(
+            HttpRequestContext ctx) {
+        return (result, cause) -> {
+            if (cause != null) {
+                if (cause.getClass() == CompletionException.class) {
+                    var e = cause.getCause();
+                    if (e != null) {
+                        return handleError(ctx, e);
+                    }
+                }
+                return handleError(ctx, cause);
+            }
+            try {
+                return result.start();
+            } catch (Exception e) {
+                return handleError(ctx, e);
+            }
+        };
+    }
+
+    private static final BiFunction<HttpResult, Throwable, CompletionStage<HttpResult>> httpResultHandler(
+            HttpRequestContext ctx) {
+        return (result, cause) -> {
+            if (cause != null) {
+                if (cause.getClass() == CompletionException.class) {
+                    var e = cause.getCause();
+                    if (e != null) {
+                        return handleError(ctx, e);
+                    }
+                }
+                return handleError(ctx, cause);
+            }
+            return CompletableFuture.completedStage(result);
+        };
+    }
+
     private static final class ResponseConstants {
 
         private static final AsciiString APPLICATION_JSON_UTF8 = contentType(APPLICATION_JSON, UTF_8);
@@ -1624,74 +1660,74 @@ public class RouterUtil {
         }
 
         private static final HttpServiceInvoker toEventStreamResultInvoker(Object controller, Method method) {
-            return ctx -> FutureKt.<CompletableFuture<HttpResult>>future(
+            return ctx -> FutureKt.<SseEventStream>future(
                     GlobalScope.INSTANCE,
                     ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT,
                     (coroutineScope, continuation) -> {
                         try {
-                            return ((SseEventStream) method.invoke(controller, continuation)).start();
+                            return method.invoke(controller, continuation);
                         } catch (IllegalAccessException e) {
                             throw new CompletionException(e);
                         } catch (InvocationTargetException e) {
                             throw new CompletionException(e.getTargetException());
                         }
                     }
-            ).thenCompose(Function.identity());
+            ).handle(eventStreamResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
         private static final HttpServiceInvoker toEventStreamResultInvoker(Object controller, Method method, Parameter[] params) {
             var parametersMapper = toParametersMapper(params);
-            return ctx -> FutureKt.<CompletableFuture<HttpResult>>future(
+            return ctx -> FutureKt.<SseEventStream>future(
                     GlobalScope.INSTANCE,
                     ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT,
                     (coroutineScope, continuation) -> {
                         try {
                             var args = parametersMapper.apply(ctx, continuation);
-                            return ((SseEventStream) method.invoke(controller, args)).start();
+                            return method.invoke(controller, args);
                         } catch (IllegalAccessException e) {
                             throw new CompletionException(e);
                         } catch (InvocationTargetException e) {
                             throw new CompletionException(e.getTargetException());
                         }
                     }
-            ).thenCompose(Function.identity());
+            ).handle(eventStreamResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
         private static final HttpServiceInvoker toHttpResultInvoker(Object controller, Method method) {
-            return ctx -> FutureKt.future(
+            return ctx -> FutureKt.<HttpResult>future(
                     GlobalScope.INSTANCE,
                     ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT,
                     (coroutineScope, continuation) -> {
                         try {
-                            return (HttpResult) method.invoke(controller, continuation);
+                            return method.invoke(controller, continuation);
                         } catch (IllegalAccessException e) {
                             throw new CompletionException(e);
                         } catch (InvocationTargetException e) {
                             throw new CompletionException(e.getTargetException());
                         }
                     }
-            );
+            ).handle(httpResultHandler(ctx)).thenCompose(Function.identity());
         }
 
         private static final HttpServiceInvoker toHttpResultInvoker(Object controller, Method method, Parameter[] params) {
             var parametersMapper = toParametersMapper(params);
-            return ctx -> FutureKt.future(
+            return ctx -> FutureKt.<HttpResult>future(
                     GlobalScope.INSTANCE,
                     ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT,
                     (coroutineScope, continuation) -> {
                         try {
-                            return (HttpResult) method.invoke(controller, parametersMapper.apply(ctx, continuation));
+                            return method.invoke(controller, parametersMapper.apply(ctx, continuation));
                         } catch (IllegalAccessException e) {
                             throw new CompletionException(e);
                         } catch (InvocationTargetException e) {
                             throw new CompletionException(e.getTargetException());
                         }
                     }
-            );
+            ).handle(httpResultHandler(ctx)).thenCompose(Function.identity());
         }
 
     }
