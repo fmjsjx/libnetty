@@ -32,6 +32,9 @@ dependencies {
     compileOnly("com.github.fmjsjx:libcommon-json-jsoniter-kotlin")
     compileOnly("com.github.fmjsjx:libcommon-json-fastjson2")
     compileOnly("com.github.fmjsjx:libcommon-json-fastjson2-kotlin")
+    compileOnly("tools.jackson.core:jackson-databind")
+    compileOnly("com.github.fmjsjx:libcommon-json-jackson3")
+    compileOnly("com.github.fmjsjx:libcommon-json-jackson3-kotlin")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.mockito:mockito-core")
