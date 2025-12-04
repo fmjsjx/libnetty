@@ -59,7 +59,7 @@ public class TestBlockingServer {
                 .corsConfig(corsConfig) // CORS support
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
-                .supportJson() // Support JSON using Jackson2
+                .supportJson() // Support JSON using embedded json library
                 .component(new DefaultWorkerPool(1)) // support blocking APIs
                 .component(new TestExceptionHandler()) // support test error handler
                 .soBackLog(1024).tcpNoDelay() // channel options

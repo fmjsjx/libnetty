@@ -248,22 +248,32 @@ final class JsonLibraries {
                         .forName(libraryClassName);
                 return libraryClass.getConstructor().newInstance();
             } catch (Exception e) {
-                logger.warn("Create specified JSON library {} failed, use default library (jackson2) instead.",
-                        libraryClassName, e);
+                logger.warn("Create specified JSON library {} failed, lookup embedded libraries instead.", libraryClassName, e);
             }
+        }
+        logger.debug("Lookup jackson3 in classpath at first.");
+        try {
+            Class.forName("tools.jackson.databind.json.JsonMapper");
+            logger.info("Jackson3 json library found.");
+            return new Jackson3JsonLibrary();
+        } catch (ClassNotFoundException e) {
+            // skip
         }
         logger.debug("Lookup jackson2 in classpath.");
         try {
             Class.forName("com.fasterxml.jackson.databind.ObjectMapper");
+            logger.info("Jackson2 json library found.");
             return new Jackson2JsonLibrary();
         } catch (ClassNotFoundException e) {
-            logger.debug("Lookup fastjson2 in classpath.");
-            try {
-                Class.forName("com.alibaba.fastjson2.JSON");
-                return new Fastjson2JsonLibrary();
-            } catch (ClassNotFoundException ex) {
-                throw new IllegalArgumentException("Can't find any available JsonLibrary in class path.", e);
-            }
+            // skip
+        }
+        logger.debug("Lookup fastjson2 in classpath.");
+        try {
+            Class.forName("com.alibaba.fastjson2.JSON");
+            logger.info("Fastjson2 json library found.");
+            return new Fastjson2JsonLibrary();
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Can't find any available JsonLibrary in class path.");
         }
     }
 
