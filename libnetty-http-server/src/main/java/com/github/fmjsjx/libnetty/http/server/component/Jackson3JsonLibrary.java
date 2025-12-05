@@ -52,6 +52,10 @@ public class Jackson3JsonLibrary extends AbstractJsonLibrary {
 
     private final JsonMapper jsonMapper;
 
+    /**
+     * Constructs a new {@link Jackson3JsonLibrary} with a default
+     * {@link JsonMapper} and the {@link EmptyWay#NULL} value as default.
+     */
     public Jackson3JsonLibrary() {
         this(createDefaultMapper());
     }
