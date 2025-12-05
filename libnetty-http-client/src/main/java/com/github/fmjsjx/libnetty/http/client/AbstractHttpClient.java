@@ -11,6 +11,7 @@ import static io.netty.handler.codec.http.HttpMethod.DELETE;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -88,7 +89,17 @@ public abstract class AbstractHttpClient implements HttpClient {
         public static final AsciiString GZIP_DEFLATE_BR_ZSTD = AsciiString.cached("gzip,deflate,br,zstd");
     }
 
-    protected static final AsciiString DEFAULT_USER_AGENT_VALUE = AsciiString.cached("Libnetty/3.10.0-RC1-SNAPSHOT");
+    protected static final AsciiString DEFAULT_USER_AGENT_VALUE;
+
+    static {
+        try (var in = AbstractHttpClient.class.getResourceAsStream("/default-user-agent")) {
+            assert in != null;
+            var content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            DEFAULT_USER_AGENT_VALUE = AsciiString.cached(content.trim());
+        } catch (Exception e) {
+            throw new RuntimeException("Unexpected error occurs when loading file default-user-agent.", e);
+        }
+    }
 
     protected final EventLoopGroup group;
     protected final Class<? extends Channel> channelClass;
