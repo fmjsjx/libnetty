@@ -11,19 +11,17 @@ repositories {
 
 dependencies {
     // netty-bom
-    api(platform("io.netty:netty-bom:4.2.7.Final"))
+    api(platform("io.netty:netty-bom:4.2.6.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:3.17.0-RC1"))
+    api(platform("com.github.fmjsjx:libcommon-bom:3.16.1"))
     // jackson2-bom
-    api(platform("com.fasterxml.jackson:jackson-bom:2.20.1"))
-    // jackson3-bom
-    api(platform("tools.jackson:jackson-bom:3.0.3"))
+    api(platform("com.fasterxml.jackson:jackson-bom:2.20.0"))
     // junit-bom
-    testImplementation(platform("org.junit:junit-bom:6.0.1"))
+    testImplementation(platform("org.junit:junit-bom:5.13.4"))
     // mockito
-    testImplementation(platform("org.mockito:mockito-bom:5.20.0"))
+    testImplementation(platform("org.mockito:mockito-bom:5.19.0"))
     // log4j2
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.25.2"))
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.25.1"))
     // kotlin coroutines
     implementation(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.10.2"))
     // brotli4j
@@ -33,16 +31,16 @@ dependencies {
 
     constraints {
         api("org.slf4j:slf4j-api:2.0.17")
-        val lombokVersion = "1.18.42"
+        val lombokVersion = "1.18.40"
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-        implementation("ch.qos.logback:logback-classic:1.5.21")
+        implementation("ch.qos.logback:logback-classic:1.5.18")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
-        val fastjson2Version = "2.0.60"
+        val fastjson2Version = "2.0.58"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
-        implementation("com.github.luben:zstd-jni:1.5.7-6")
+        implementation("com.github.luben:zstd-jni:1.5.7-4")
 	}
 
 }
