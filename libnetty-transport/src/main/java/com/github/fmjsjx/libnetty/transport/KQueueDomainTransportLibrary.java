@@ -31,6 +31,12 @@ public class KQueueDomainTransportLibrary implements TransportLibrary {
         return InstanceHolder.instance;
     }
 
+    /**
+     * Constructs a new {@link KQueueDomainIoTransportLibrary} instance.
+     */
+    public KQueueDomainTransportLibrary() {
+    }
+
     @Override
     public Class<KQueueDomainSocketChannel> channelClass() {
         return KQueueDomainSocketChannel.class;

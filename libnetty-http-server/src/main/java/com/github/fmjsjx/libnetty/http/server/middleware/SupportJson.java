@@ -149,6 +149,12 @@ public class SupportJson implements Middleware {
 
     }
 
+    /**
+     * Constructs a new {@link SupportJson} instance.
+     */
+    public SupportJson() {
+    }
+
     @Override
     public CompletionStage<HttpResult> apply(HttpRequestContext ctx, MiddlewareChain next) {
         return next.doNext(ctx);

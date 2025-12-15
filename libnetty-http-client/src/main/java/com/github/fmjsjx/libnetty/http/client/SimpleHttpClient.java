@@ -21,8 +21,6 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.resolver.NoopAddressResolverGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,8 +44,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
      * @author MJ Fang
      * @since 1.0
      */
-    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Builder extends AbstractBuilder<SimpleHttpClient, Builder> {
+
+        private Builder() {}
 
         /**
          * Returns a new {@link SimpleHttpClient} built from the current state of this

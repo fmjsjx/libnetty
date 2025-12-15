@@ -212,10 +212,10 @@ public interface HttpClient extends AutoCloseable {
 
     /**
      * Builder for {@link Request}
-     * 
-     * @since 1.0
-     * 
+     *
+     * @param <Self> the type of the super class
      * @author MJ Fang
+     * @since 1.0
      */
     @SuppressWarnings("unchecked")
     abstract class RequestBuilder<Self extends RequestBuilder<?>> {
@@ -226,12 +226,19 @@ public interface HttpClient extends AutoCloseable {
         protected HttpHeaders trailingHeaders;
         protected HttpContentHolder<?> contentHolder;
         protected Duration timeout;
+
         /**
          * Stores {@link MultipartBody} value.
          *
          * @since 3.0
          */
         protected MultipartBody multipartBody;
+
+        /**
+         * Constructs a new {@link RequestBuilder} instance.
+         */
+        protected RequestBuilder() {
+        }
 
         /**
          * Sets the {@code URI} for this request.

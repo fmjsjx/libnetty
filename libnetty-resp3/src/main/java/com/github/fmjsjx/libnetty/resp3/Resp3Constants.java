@@ -78,4 +78,7 @@ public class Resp3Constants {
      */
     public static final byte FALSE_VALUE = 'f';
 
+    private Resp3Constants() {
+    }
+
 }

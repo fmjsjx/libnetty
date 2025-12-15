@@ -90,6 +90,9 @@ public class ProxyHandlerFactories {
         return new Socks4ProxyHandlerFactory(host, port, username);
     }
 
+    private ProxyHandlerFactories() {
+    }
+
 }
 
 class ProxyCredentials {

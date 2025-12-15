@@ -58,6 +58,9 @@ public class TestServer {
         }
     }
 
+    private TestServer() {
+    }
+
 }
 
 class TestServerHandler extends SimpleChannelInboundHandler<FcgiMessage> {

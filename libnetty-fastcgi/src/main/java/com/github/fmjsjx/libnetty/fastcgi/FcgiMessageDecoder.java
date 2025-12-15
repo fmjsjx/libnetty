@@ -25,6 +25,11 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
 
     private final IntObjectMap<FcgiMessageBuilder<?, ?>> map = new IntObjectHashMap<>();
 
+    /**
+     * Constructs a new {@link FcgiMessageDecoder} instance.
+     */
+    public FcgiMessageDecoder() {}
+
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         try {
@@ -159,15 +164,13 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
     private static final FcgiBeginRequest decodeBeginRequest(ByteBuf in, FcgiVersion version, int requestId) {
         FcgiRole role = FcgiRole.valueOf(in.readUnsignedShort());
         int flags = in.readUnsignedByte();
-        FcgiBeginRequest beginRequest = new FcgiBeginRequest(version, requestId, role, flags);
-        return beginRequest;
+        return new FcgiBeginRequest(version, requestId, role, flags);
     }
 
     private static final FcgiEndRequest decodeEndRequest(FcgiVersion version, int requestId, ByteBuf content) {
         int appStatus = content.readInt();
         FcgiProtocolStatus protocolStatus = FcgiProtocolStatus.valueOf(content.readUnsignedByte());
-        FcgiEndRequest endRequest = new FcgiEndRequest(version, requestId, appStatus, protocolStatus);
-        return endRequest;
+        return new FcgiEndRequest(version, requestId, appStatus, protocolStatus);
     }
 
     private static final FcgiUnknownType decodeUnknownType(FcgiVersion version, int requestId, ByteBuf content) {
@@ -188,6 +191,7 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
             throw new UnsupportedOperationException();
         }
 
+        @SuppressWarnings("unused")
         Self beginRequest(FcgiBeginRequest beginRequest) {
             throw new UnsupportedOperationException();
         }
@@ -212,6 +216,7 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
             throw new UnsupportedOperationException();
         }
 
+        @SuppressWarnings("unused")
         FcgiEndRequest endRequest() {
             throw new UnsupportedOperationException();
         }
@@ -221,7 +226,7 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
         }
 
         ByteBuf wrapped(List<ByteBuf> bufs) {
-            return Unpooled.wrappedBuffer(bufs.stream().toArray(ByteBuf[]::new));
+            return Unpooled.wrappedBuffer(bufs.toArray(ByteBuf[]::new));
         }
 
         abstract T build();
@@ -230,8 +235,8 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
     static final class FcgiRequestBuilder extends FcgiMessageBuilder<FcgiRequest, FcgiRequestBuilder> {
 
         private FcgiBeginRequest beginRequest;
-        private final List<ByteBuf> paramsBufs = new ArrayList<ByteBuf>();
-        private final List<ByteBuf> stdinBufs = new ArrayList<ByteBuf>();
+        private final List<ByteBuf> paramsBufs = new ArrayList<>();
+        private final List<ByteBuf> stdinBufs = new ArrayList<>();
         private List<ByteBuf> dataBufs;
 
         FcgiRequestBuilder(FcgiBeginRequest beginRequest) {
@@ -265,7 +270,7 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
         @Override
         FcgiRequestBuilder data(ByteBuf content) {
             if (dataBufs == null) {
-                dataBufs = new ArrayList<ByteBuf>();
+                dataBufs = new ArrayList<>();
             }
             dataBufs.add(content);
             return this;
@@ -284,7 +289,7 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
 
         private FcgiParams buildParams() {
             FcgiParams params = new FcgiParams(protocolVersion, requestId);
-            if (paramsBufs.size() > 0) {
+            if (!paramsBufs.isEmpty()) {
                 ByteBuf content = wrapped(paramsBufs);
                 try {
                     for (; content.isReadable();) {
@@ -310,7 +315,7 @@ public class FcgiMessageDecoder extends ByteToMessageDecoder {
     static final class FcgiResponseBuilder extends FcgiMessageBuilder<FcgiResponse, FcgiResponseBuilder> {
 
         private FcgiEndRequest endRequest;
-        private final List<ByteBuf> stdoutBufs = new ArrayList<ByteBuf>();
+        private final List<ByteBuf> stdoutBufs = new ArrayList<>();
         private List<ByteBuf> stderrBufs;
 
         FcgiResponseBuilder(FcgiVersion version, int requestId) {

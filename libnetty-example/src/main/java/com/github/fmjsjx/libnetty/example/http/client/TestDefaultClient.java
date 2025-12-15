@@ -104,4 +104,7 @@ public class TestDefaultClient {
         }
     }
 
+    private TestDefaultClient() {
+    }
+
 }

@@ -416,6 +416,12 @@ public class ServeStatic implements Middleware {
         private int chunkSize = DEFAULT_CHUNK_SIZE;
 
         /**
+         * Constructs a new {@link Options} instance.
+         */
+        public Options() {
+        }
+
+        /**
          * Set index.
          * 
          * @param index the filename of the index

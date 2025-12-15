@@ -24,6 +24,12 @@ import io.netty.util.AbstractReferenceCounted;
 public abstract class AbstractRespAggregateMessage<E extends RespObject, Self extends AbstractRespAggregateMessage<E, ?>>
         extends AbstractReferenceCounted implements RespAggregateMessage<E> {
 
+    /**
+     * Constructs a new {@link AbstractRespAggregateMessage} instance.
+     */
+    protected AbstractRespAggregateMessage() {
+    }
+
     @Override
     public Self retain() {
         super.retain();
@@ -54,7 +60,7 @@ public abstract class AbstractRespAggregateMessage<E extends RespObject, Self ex
         }
     }
 
-    protected void encodeHeader(ByteBufAllocator alloc, List<Object> out) throws Exception {
+    protected void encodeHeader(ByteBufAllocator alloc, List<Object> out) {
         byte[] sizeBytes = RespCodecUtil.longToAsciiBytes(size());
         ByteBuf header = alloc.buffer(TYPE_LENGTH + sizeBytes.length + EOL_LENGTH).writeByte(type().value())
                 .writeBytes(sizeBytes).writeShort(EOL_SHORT);

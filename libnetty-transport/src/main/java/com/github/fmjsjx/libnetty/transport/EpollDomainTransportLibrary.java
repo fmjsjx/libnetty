@@ -32,6 +32,12 @@ public class EpollDomainTransportLibrary implements TransportLibrary {
         return InstanceHolder.instance;
     }
 
+    /**
+     * Constructs a new {@link EpollDomainTransportLibrary} instance.
+     */
+    public EpollDomainTransportLibrary() {
+    }
+
     @Override
     public Class<EpollDomainSocketChannel> channelClass() {
         return EpollDomainSocketChannel.class;

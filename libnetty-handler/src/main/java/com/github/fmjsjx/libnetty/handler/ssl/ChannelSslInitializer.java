@@ -6,9 +6,9 @@ import io.netty.handler.ssl.SslHandler;
 
 /**
  * Interface to support SSL feature when initialize a {@link Channel}.
- * 
- * @author MJ Fang
  *
+ * @param <C> the type of the {@link Channel}
+ * @author MJ Fang
  * @since 2.3
  */
 @FunctionalInterface

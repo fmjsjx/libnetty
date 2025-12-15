@@ -35,6 +35,12 @@ public class AutoReadNextHandler extends ChannelOutboundHandlerAdapter {
         return InstanceHolder.instance;
     }
 
+    /**
+     * Constructs a new {@link AutoReadNextHandler} instance.
+     */
+    public AutoReadNextHandler() {
+    }
+
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof FullHttpResponse resp) {

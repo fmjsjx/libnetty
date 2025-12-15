@@ -307,6 +307,12 @@ public class RespCodecUtil {
 
         private int value;
 
+        /**
+         * Constructs a new {@link ToPositiveIntProcessor} instance.
+         */
+        public ToPositiveIntProcessor() {
+        }
+
         @Override
         public boolean process(byte value) {
             int num = this.value;
@@ -362,6 +368,12 @@ public class RespCodecUtil {
                 "number overflow for 64-bit integer");
 
         private long value;
+
+        /**
+         * Constructs a new {@link ToPositiveLongProcessor} instance.
+         */
+        public ToPositiveLongProcessor() {
+        }
 
         @Override
         public boolean process(byte value) {

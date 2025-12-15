@@ -52,6 +52,9 @@ public class TestClient {
         }
     }
 
+    private TestClient() {
+    }
+
 }
 
 class TestClientHandler extends SimpleChannelInboundHandler<RespMessage> {
