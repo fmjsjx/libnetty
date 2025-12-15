@@ -75,7 +75,6 @@ public class TestDefaultServer {
                 .applyCompressionOptions( // compression support
                         HttpContentCompressorProvider.defaultOptions())
         ;
-        //noinspection resource
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
                 .addLast("/static/auth", new AuthBasic(passwords(), "test")) // HTTP Basic Authentication
@@ -95,6 +94,9 @@ public class TestDefaultServer {
                 log.info("Server {} stopped.", server);
             }
         }
+    }
+
+    private TestDefaultServer() {
     }
 
 }

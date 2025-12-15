@@ -72,4 +72,7 @@ public class TestSniServer {
         }
     }
 
+    private TestSniServer() {
+    }
+
 }

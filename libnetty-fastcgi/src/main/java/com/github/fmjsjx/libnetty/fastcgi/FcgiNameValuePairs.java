@@ -12,9 +12,9 @@ import java.util.function.Consumer;
 
 /**
  * The abstract implementation of {@code FastCGI Name-Value Pairs}.
- * 
- * @since 1.0
  *
+ * @param <Self> the type of the super class
+ * @since 1.0
  * @author MJ Fang
  */
 public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> extends AbstractFcgiRecord {
@@ -172,12 +172,26 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
         private final String name;
         private final String value;
 
-        protected NameValuePair(String name, Object value) {
+        /**
+         * Constructs a new {@link NameValuePair} instance with the
+         * specified name and the specified value object given.
+         *
+         * @param name  the name
+         * @param value the value object
+         */
+        public NameValuePair(String name, Object value) {
             this.name = Objects.requireNonNull(name, "name must not be null");
             this.value = Objects.requireNonNull(value, "value must not be null").toString();
         }
 
-        protected NameValuePair(String name, String value) {
+        /**
+         * Constructs a new {@link NameValuePair} instance with the
+         * specified name and the specified value string given.
+         *
+         * @param name  the name
+         * @param value the value string
+         */
+        public NameValuePair(String name, String value) {
             this.name = Objects.requireNonNull(name, "name must not be null");
             this.value = Objects.requireNonNull(value, "value must not be null");
         }
@@ -227,8 +241,7 @@ public abstract class FcgiNameValuePairs<Self extends FcgiNameValuePairs<?>> ext
 
         @Override
         public boolean equals(Object obj) {
-            if (obj instanceof NameValuePair) {
-                NameValuePair other = (NameValuePair) obj;
+            if (obj instanceof NameValuePair other) {
                 return name.equals(other.name) && value.equals(other.value);
             }
             return false;

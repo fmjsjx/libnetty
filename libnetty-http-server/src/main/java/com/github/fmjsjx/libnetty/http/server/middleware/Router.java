@@ -48,6 +48,12 @@ public class Router implements Middleware {
 
     private volatile ServiceRouter serviceRouter;
 
+    /**
+     * Constructs a new {@link Router} instance.
+     */
+    public Router() {
+    }
+
     @Override
     public CompletionStage<HttpResult> apply(HttpRequestContext ctx, MiddlewareChain next) {
         if (state != RUNNING) {
@@ -363,7 +369,7 @@ public class Router implements Middleware {
         /**
          * The property key constants.
          */
-        static final Class<MatchedRoute> KEY = MatchedRoute.class;
+        Class<MatchedRoute> KEY = MatchedRoute.class;
 
         @Override
         default Class<MatchedRoute> key() {
@@ -607,7 +613,7 @@ public class Router implements Middleware {
             return next.doNext(ctx);
         }
 
-        private static final record RoutingResult(int pathMatchedCount, Optional<MethodRoute> hit) {
+        private record RoutingResult(int pathMatchedCount, Optional<MethodRoute> hit) {
         }
 
         private static final class Node {
@@ -640,6 +646,7 @@ public class Router implements Middleware {
                         this.children = children = new LinkedHashMap<>();
                     }
                     var child = children.get(pathKey);
+                    //noinspection Java8MapApi
                     if (child == null) {
                         children.put(pathKey, child = new Node(depthLevel + 1));
                     }
@@ -671,6 +678,7 @@ public class Router implements Middleware {
                             this.children = children = new LinkedHashMap<>();
                         }
                         var child = children.get(pathKey);
+                        //noinspection Java8MapApi
                         if (child == null) {
                             children.put(pathKey, child = new Node(depthLevel + 1));
                         }

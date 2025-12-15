@@ -42,4 +42,7 @@ public class TestHttpProxy {
         }
     }
 
+    private TestHttpProxy() {
+    }
+
 }

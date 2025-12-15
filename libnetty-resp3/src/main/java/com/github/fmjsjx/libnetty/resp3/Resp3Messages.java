@@ -328,4 +328,7 @@ public class Resp3Messages {
         return NoauthHelloInstanceHolder.INSTANCE;
     }
 
+    private Resp3Messages() {
+    }
+
 }

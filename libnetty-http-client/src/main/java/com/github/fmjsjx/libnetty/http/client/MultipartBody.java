@@ -79,6 +79,12 @@ public final class MultipartBody {
         private final List<DataEntry> entries = new ArrayList<>();
 
         /**
+         * Constructs a new {@link Builder} instance,
+         */
+        public Builder() {
+        }
+
+        /**
          * Sets the charset.
          *
          * @param charset the charset

@@ -7,10 +7,10 @@ import io.netty.util.CharsetUtil;
 
 /**
  * The abstract implementation of {@link FcgiContent}.
- * 
- * @since 1.0
  *
+ * @param <Self> the type of the super class
  * @author MJ Fang
+ * @since 1.0
  */
 public abstract class AbstractFcgiContent<Self extends AbstractFcgiContent<?>> extends AbstractFcgiRecord
         implements FcgiContent {

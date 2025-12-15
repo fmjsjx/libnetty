@@ -32,4 +32,8 @@ public class TestSimpleClient {
             testUpload(client);
         }
     }
+
+    private TestSimpleClient() {
+    }
+
 }

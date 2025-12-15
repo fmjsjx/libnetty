@@ -79,4 +79,7 @@ public class SniHandlerProviders {
 
     }
 
+    private SniHandlerProviders() {
+    }
+
 }

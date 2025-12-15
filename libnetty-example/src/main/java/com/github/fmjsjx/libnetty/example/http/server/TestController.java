@@ -60,6 +60,12 @@ public class TestController {
     static final AsciiString ASCII_OK = AsciiString.cached("OK");
 
     /**
+     * Constructs a new {@link TestController} instance.
+     */
+    public TestController() {
+    }
+
+    /**
      * GET /api/test
      *
      * @param ctx request context
@@ -113,7 +119,7 @@ public class TestController {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         query.parameters().forEach((key, values) -> {
             if (values.size() == 1) {
-                node.put(key, values.get(0));
+                node.put(key, values.getFirst());
             } else {
                 node.putPOJO(key, values);
             }

@@ -64,7 +64,6 @@ public class TestWatchingSslServer {
                 System.in.read();
             } catch (Exception e) {
                 System.err.println("Unexpected error occurs when startup " + server);
-                e.printStackTrace();
             } finally {
                 if (server.isRunning()) {
                     server.shutdown();
@@ -73,18 +72,21 @@ public class TestWatchingSslServer {
         }
     }
 
+    private TestWatchingSslServer() {
+    }
+
 }
 
 @Sharable
 class TestHandler extends HttpRequestContextHandler {
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         ctx.close();
     }
 
     @Override
-    protected void messageReceived(ChannelHandlerContext ctx, HttpRequestContext msg) throws Exception {
+    protected void messageReceived(ChannelHandlerContext ctx, HttpRequestContext msg) {
         System.out.println("-- test --");
         System.out.println(msg);
         System.out.println();

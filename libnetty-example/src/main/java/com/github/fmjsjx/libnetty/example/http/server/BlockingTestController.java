@@ -26,6 +26,12 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 public class BlockingTestController {
 
     /**
+     * Constructs a new {@link BlockingTestController} instance.
+     */
+    public BlockingTestController() {
+    }
+
+    /**
      * GET /api/jsons
      *
      * @param query query
@@ -40,7 +46,7 @@ public class BlockingTestController {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         query.parameters().forEach((key, values) -> {
             if (values.size() == 1) {
-                node.put(key, values.get(0));
+                node.put(key, values.getFirst());
             } else {
                 node.putPOJO(key, values);
             }

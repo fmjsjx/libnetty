@@ -25,8 +25,28 @@ import io.netty.util.CharsetUtil;
 @Sharable
 public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
 
+    private static final class InstanceHolder {
+        private static final FcgiMessageEncoder INSTANCE = new FcgiMessageEncoder();
+    }
+
+    /**
+     * Returns the singleton {@link FcgiMessageEncoder} instance.
+     *
+     * @return the singleton {@link FcgiMessageEncoder} instance.
+     * @since 4.0
+     */
+    public static final FcgiMessageEncoder getInstance() {
+        return InstanceHolder.INSTANCE;
+    }
+
+    /**
+     * Constructs a new {@link FcgiMessageEncoder} instance.
+     */
+    public FcgiMessageEncoder() {
+    }
+
     @Override
-    protected void encode(ChannelHandlerContext ctx, FcgiMessage msg, List<Object> out) throws Exception {
+    protected void encode(ChannelHandlerContext ctx, FcgiMessage msg, List<Object> out) {
         if (msg instanceof FcgiRequest) {
             encode(ctx, (FcgiRequest) msg, out);
         } else if (msg instanceof FcgiResponse) {
@@ -43,7 +63,7 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         // no other more FcgiMessage
     }
 
-    private static final void encode(ChannelHandlerContext ctx, FcgiRequest msg, List<Object> out) throws Exception {
+    private static final void encode(ChannelHandlerContext ctx, FcgiRequest msg, List<Object> out) {
         ByteBuf buf = ctx.alloc().buffer();
         encodeFcgiRecord(msg.beginRequest(), buf);
         encodeFcgiRecord(msg.params(), buf);
@@ -102,7 +122,7 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
     }
 
     private static final ByteBuf encodeFcgiContent(ChannelHandlerContext ctx, FcgiContent msg, ByteBuf buf,
-            List<Object> out, int nextLength) throws Exception {
+            List<Object> out, int nextLength) {
         ByteBuf content = msg.content();
         int contentLength = content.readableBytes();
         if (contentLength > 0) {
@@ -132,18 +152,18 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         return buf;
     }
 
-    private static final void encode(ChannelHandlerContext ctx, FcgiResponse msg, List<Object> out) throws Exception {
+    private static final void encode(ChannelHandlerContext ctx, FcgiResponse msg, List<Object> out) {
         FcgiStdout stdout = msg.stdout();
         boolean hasStderr = msg.stderr().isPresent();
         ByteBuf buf;
         if (stdout.contentLength() == 0) {
+            int capacity;
             if (hasStderr) {
-                int capacity = FCGI_HEADER_LEN + FCGI_HEADER_LEN;
-                buf = ctx.alloc().buffer(capacity, capacity);
+                capacity = FCGI_HEADER_LEN + FCGI_HEADER_LEN;
             } else {
-                int capacity = FCGI_HEADER_LEN + FCGI_HEADER_LEN + 8;
-                buf = ctx.alloc().buffer(capacity, capacity);
+                capacity = FCGI_HEADER_LEN + FCGI_HEADER_LEN + 8;
             }
+            buf = ctx.alloc().buffer(capacity, capacity);
         } else {
             buf = ctx.alloc().buffer(FCGI_HEADER_LEN, FCGI_HEADER_LEN);
         }
@@ -165,15 +185,13 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         buf.writeZero(3);
     }
 
-    private static final void encode(ChannelHandlerContext ctx, FcgiAbortRequest msg, List<Object> out)
-            throws Exception {
+    private static final void encode(ChannelHandlerContext ctx, FcgiAbortRequest msg, List<Object> out) {
         ByteBuf buf = ctx.alloc().buffer(FCGI_HEADER_LEN, FCGI_HEADER_LEN);
         FcgiCodecUtil.encodeRecordHeader(msg, buf);
         out.add(buf);
     }
 
-    private static final void encode(ChannelHandlerContext ctx, FcgiUnknownType msg, List<Object> out)
-            throws Exception {
+    private static final void encode(ChannelHandlerContext ctx, FcgiUnknownType msg, List<Object> out) {
         ByteBuf buf = ctx.alloc().buffer(FCGI_HEADER_LEN + 8, FCGI_HEADER_LEN + 8);
         FcgiCodecUtil.encodeRecordHeader(msg, buf);
         buf.writeByte(msg.value());
@@ -181,7 +199,7 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         out.add(buf);
     }
 
-    private static final void encode(ChannelHandlerContext ctx, FcgiGetValues msg, List<Object> out) throws Exception {
+    private static final void encode(ChannelHandlerContext ctx, FcgiGetValues msg, List<Object> out) {
         if (msg.size() == 0) {
             ByteBuf buf = ctx.alloc().buffer(FCGI_HEADER_LEN, FCGI_HEADER_LEN);
             FcgiCodecUtil.encodeRecordHeaderWithoutLengths(msg, buf);
@@ -205,8 +223,7 @@ public class FcgiMessageEncoder extends MessageToMessageEncoder<FcgiMessage> {
         }
     }
 
-    private static final void encode(ChannelHandlerContext ctx, FcgiGetValuesResult msg, List<Object> out)
-            throws Exception {
+    private static final void encode(ChannelHandlerContext ctx, FcgiGetValuesResult msg, List<Object> out) {
         if (msg.size() == 0) {
             ByteBuf buf = ctx.alloc().buffer(FCGI_HEADER_LEN, FCGI_HEADER_LEN);
             FcgiCodecUtil.encodeRecordHeaderWithoutLengths(msg, buf);

@@ -31,6 +31,12 @@ public class SseEventEncoder extends MessageToMessageEncoder<SseEventSerializabl
         return InstanceHolder.INSTANCE;
     }
 
+    /**
+     * Constructs a new {@link SseEventEncoder} instance.
+     */
+    public SseEventEncoder() {
+    }
+
     @Override
     protected void encode(ChannelHandlerContext ctx, SseEventSerializable msg, List<Object> out) {
         var buf = msg.serialize(ctx.alloc());

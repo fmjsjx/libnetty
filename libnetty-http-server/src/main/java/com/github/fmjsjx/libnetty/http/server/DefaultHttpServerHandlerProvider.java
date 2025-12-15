@@ -36,8 +36,14 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
 
     private volatile DefaultHttpServerHandler value;
 
+    /**
+     * Constructs a new {@link DefaultHttpServerHandlerProvider} instance.
+     */
+    public DefaultHttpServerHandlerProvider() {
+    }
+
     @Override
-    public DefaultHttpServerHandler get() {
+    public HttpServerHandler get() {
         DefaultHttpServerHandler value = this.value;
         if (value == null) {
             synchronized (this) {

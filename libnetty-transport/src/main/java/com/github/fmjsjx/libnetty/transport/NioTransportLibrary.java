@@ -34,6 +34,12 @@ public class NioTransportLibrary implements TransportLibrary {
         return InstanceHolder.instance;
     }
 
+    /**
+     * Constructs a new {@link NioTransportLibrary} instance.
+     */
+    public NioTransportLibrary() {
+    }
+
     @Override
     public Class<NioSocketChannel> channelClass() {
         return NioSocketChannel.class;

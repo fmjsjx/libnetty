@@ -13,6 +13,12 @@ import io.netty.channel.SimpleChannelInboundHandler;
 public abstract class HttpRequestContextHandler extends SimpleChannelInboundHandler<HttpRequestContext>
         implements HttpServerHandler {
 
+    /**
+     * Constructs a new {@link HttpRequestContextHandler} instance
+     */
+    protected HttpRequestContextHandler() {
+    }
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, HttpRequestContext msg) throws Exception {
         messageReceived(ctx, msg);

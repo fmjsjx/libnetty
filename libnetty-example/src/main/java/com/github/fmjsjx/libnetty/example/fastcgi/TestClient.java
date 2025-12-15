@@ -70,6 +70,9 @@ public class TestClient {
         channel.writeAndFlush(request);
     }
 
+    private TestClient() {
+    }
+
 }
 
 class TestClientHandler extends SimpleChannelInboundHandler<FcgiMessage> {

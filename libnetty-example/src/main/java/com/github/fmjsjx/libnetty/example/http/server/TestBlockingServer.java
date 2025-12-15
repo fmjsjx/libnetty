@@ -86,6 +86,9 @@ public class TestBlockingServer {
         }
     }
 
+    private TestBlockingServer() {
+    }
+
 }
 
 class TestException extends RuntimeException {
@@ -93,20 +96,8 @@ class TestException extends RuntimeException {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    public TestException() {
-        super();
-    }
-
-    public TestException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
     public TestException(String message) {
         super(message);
-    }
-
-    public TestException(Throwable cause) {
-        super(cause);
     }
 
 }

@@ -20,6 +20,12 @@ public abstract class AbstractSimpleRespMessage implements RespMessage {
 
     protected abstract byte[] encodedValue() throws Exception;
 
+    /**
+     * Constructs a new {@link AbstractSimpleRespMessage} instance.
+     */
+    protected AbstractSimpleRespMessage() {
+    }
+
     @Override
     public void encode(ByteBufAllocator alloc, List<Object> out) throws Exception {
         byte[] encodedValue = encodedValue();
