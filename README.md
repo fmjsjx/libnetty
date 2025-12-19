@@ -2,7 +2,7 @@
 
 A set of some useful libraries based on netty4.2.x.
 
-> Since version 3.0, All modules are compiled based on JDK-17.
+> Since version 4.0, All modules are compiled based on JDK-21.
 
 ## Add Dependencies
 
@@ -16,7 +16,7 @@ A set of some useful libraries based on netty4.2.x.
       <dependency>
         <groupId>com.github.fmjsjx</groupId>
         <artifactId>libnetty-bom</artifactId>
-        <version>4.0.0-RC-SNAPSHOT</version>
+        <version>4.0.0-RC</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -42,7 +42,7 @@ repositories {
 
 dependencies {
     // BOM
-    implementation platform('com.github.fmjsjx:libnetty-bom:4.0.0-RC-SNAPSHOT')
+    implementation platform('com.github.fmjsjx:libnetty-bom:4.0.0-RC')
     // HTTP server
     implementation 'com.github.fmjsjx:libnetty-http-server'
 }
@@ -56,7 +56,7 @@ repositories {
 
 dependencies {
     // BOM
-    implementation(platform("com.github.fmjsjx:libnetty-bom:4.0.0-RC-SNAPSHOT"))
+    implementation(platform("com.github.fmjsjx:libnetty-bom:4.0.0-RC"))
     // HTTP server
     implementation("com.github.fmjsjx:libnetty-http-server")
 }
