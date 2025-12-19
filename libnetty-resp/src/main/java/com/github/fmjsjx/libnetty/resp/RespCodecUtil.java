@@ -245,20 +245,6 @@ public class RespCodecUtil {
     }
 
     /**
-     * Decode a long value from the specified {@link ByteBuf}.
-     * 
-     * @param content         the content
-     * @param numberProcessor a processor to parse numbers
-     * @return decoded long value
-     * 
-     * @deprecated please always use {@link #decodeLong(ByteBuf)}
-     */
-    @Deprecated
-    public static final long decodeLong(ByteBuf content, ToPositiveLongProcessor numberProcessor) {
-        return decodeLong(content);
-    }
-
-    /**
      * Not a number exception.
      */
     public static final NumberFormatException NaN = new NumberFormatException("value is not a number");

@@ -82,17 +82,6 @@ public class DefaultHttpClient extends AbstractHttpClient {
     }
 
     /**
-     * Returns the maximum cached connection size.
-     * 
-     * @return always {@code 0}
-     * @deprecated This method is deprecated and always returns {@code 0}.
-     */
-    @Deprecated
-    public int maxCachedSize() {
-        return 0;
-    }
-
-    /**
      * Returns the maximum cached connection size for each domain.
      * 
      * @return the maximum cached connection size for each domain
@@ -420,24 +409,6 @@ public class DefaultHttpClient extends AbstractHttpClient {
         private IntFunction<CachedPool<HttpConnection>> cachedPoolFactory = ConcurrentCachedPool::new;
 
         private Builder() {
-        }
-
-        /**
-         * Sets the number of maximum cached connections size.
-         * <p>
-         * The default value is {@code 256}.
-         * <p>
-         * The minimum value is {@code 16}.
-         * 
-         * @param maxCachedSize the number of maximum cached connections size
-         * @return this builder
-         * 
-         * @since 2.0
-         * @deprecated Please always use {@link #maxCachedSizeEachDomain(int)}.
-         */
-        @Deprecated
-        public Builder maxCachedSize(int maxCachedSize) {
-            return this;
         }
 
         /**

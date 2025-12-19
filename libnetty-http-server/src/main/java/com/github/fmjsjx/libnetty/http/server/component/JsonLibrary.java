@@ -106,35 +106,12 @@ public interface JsonLibrary extends HttpServerComponent {
         @Serial
         private static final long serialVersionUID = 4697052174693197902L;
 
-        /**
-         * Constructs a new JSON exception with the specified detail message and cause.
-         *
-         * @param message the detail message
-         * @param cause   the cause
-         * @deprecated please use {@link JsonReadException} or {@link JsonWriteException} instead
-         */
-        @Deprecated
-        public JsonException(String message, Throwable cause) {
-            this(message, cause, null);
-        }
-
         /*
          * Package private constructor.  Trailing Void argument is there for
          * disambiguating it against other (public) constructors.
          */
         JsonException(String message, Throwable cause, @SuppressWarnings("unused") Void sig) {
             super(message, cause);
-        }
-
-        /**
-         * Constructs a new JSON exception with the specified cause.
-         *
-         * @param cause the cause
-         * @deprecated please use {@link JsonReadException} or {@link JsonWriteException} instead
-         */
-        @Deprecated
-        public JsonException(Throwable cause) {
-            this(cause, null);
         }
 
         /*

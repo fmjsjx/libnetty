@@ -16,7 +16,8 @@ import java.util.concurrent.ThreadFactory;
  * @since 1.0
  * @deprecated since 3.8, please use {@link EpollIoTransportLibrary} instead
  */
-@Deprecated
+@Deprecated(since = "3.8", forRemoval = true)
+@SuppressWarnings("removal")
 public class EpollDomainTransportLibrary implements TransportLibrary {
 
     private static final class InstanceHolder {
