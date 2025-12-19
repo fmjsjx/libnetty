@@ -13,7 +13,8 @@ import org.slf4j.LoggerFactory;
  * @since 1.0
  * @deprecated since 3.8
  */
-@Deprecated
+@Deprecated(since = "3.8", forRemoval = true)
+@SuppressWarnings("removal")
 final class TransportLibraries {
 
     private static final Logger log = LoggerFactory.getLogger(TransportLibraries.class);

@@ -13,7 +13,8 @@ import io.netty.channel.*;
  * @since 1.0
  * @deprecated since 3.8, please use {@link IoTransportLibrary} instead
  */
-@Deprecated
+@Deprecated(since = "3.8", forRemoval = true)
+@SuppressWarnings("removal")
 public interface TransportLibrary {
 
     /**

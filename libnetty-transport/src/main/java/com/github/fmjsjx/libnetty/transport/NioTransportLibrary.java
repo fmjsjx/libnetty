@@ -18,7 +18,8 @@ import io.netty.channel.socket.nio.NioSocketChannel;
  * @author MJ Fang
  * @deprecated since 3.8, please use {@link NioIoTransportLibrary} instead
  */
-@Deprecated
+@Deprecated(since = "3.8", forRemoval = true)
+@SuppressWarnings("removal")
 public class NioTransportLibrary implements TransportLibrary {
 
     private static final class InstanceHolder {

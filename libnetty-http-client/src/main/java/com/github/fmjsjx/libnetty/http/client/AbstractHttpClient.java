@@ -73,8 +73,7 @@ public abstract class AbstractHttpClient implements HttpClient {
          *
          * @since 3.8
          */
-        @SuppressWarnings("deprecation")
-        public static final AsciiString GZIP_DEFLATE_BR = HttpClient.GZIP_DEFLATE_BR;
+        public static final AsciiString GZIP_DEFLATE_BR = AsciiString.cached("gzip,deflate,br");
         /**
          * {@code "gzip,deflate,zstd"}
          *
