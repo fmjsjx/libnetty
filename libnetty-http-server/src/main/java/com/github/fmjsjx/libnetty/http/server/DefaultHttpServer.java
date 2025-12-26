@@ -24,10 +24,7 @@ import com.github.fmjsjx.libnetty.handler.ssl.SniHandlerProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
-import com.github.fmjsjx.libnetty.http.server.component.ExceptionHandler;
-import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
-import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
-import com.github.fmjsjx.libnetty.http.server.component.WorkerPool;
+import com.github.fmjsjx.libnetty.http.server.component.*;
 import com.github.fmjsjx.libnetty.transport.io.IoTransportLibrary;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -719,14 +716,11 @@ public class DefaultHttpServer implements HttpServer {
      * @since 1.3
      */
     public DefaultHttpServer component(HttpServerComponent component) {
-        if (component instanceof JsonLibrary) {
-            components.put(JsonLibrary.class, component);
-        } else if (component instanceof WorkerPool) {
-            components.put(WorkerPool.class, component);
-        } else if (component instanceof ExceptionHandler) {
-            components.put(ExceptionHandler.class, component);
-        } else {
-            components.put(component.componentType(), component);
+        switch (component) {
+            case JsonLibrary jsonLibrary -> components.put(JsonLibrary.class, jsonLibrary);
+            case WorkerPool workerPool -> components.put(WorkerPool.class, workerPool);
+            case ExceptionHandler exceptionHandler -> components.put(ExceptionHandler.class, exceptionHandler);
+            default -> components.put(component.componentType(), component);
         }
         return this;
     }
@@ -742,6 +736,30 @@ public class DefaultHttpServer implements HttpServer {
      */
     public DefaultHttpServer supportJson() {
         return component(JsonLibrary.getInstance());
+    }
+
+    /**
+     * Use virtual thread worker pool with the default pool name.
+     *
+     * @return this server
+     * @see #virtualWorkerPool(String)
+     * @since 4.0
+     */
+    public DefaultHttpServer virtualWorkerPool() {
+        return virtualWorkerPool(null);
+    }
+
+    /**
+     * Use virtual thread worker pool with the specified pool name given.
+     *
+     * @param poolName the pool name
+     * @return this server
+     * @see #virtualWorkerPool()
+     * @since 4.0
+     */
+    public DefaultHttpServer virtualWorkerPool(String poolName) {
+        var workerPool = poolName == null ? new VirtualThreadWorkerPool() : new VirtualThreadWorkerPool(poolName);
+        return component(workerPool);
     }
 
     /**
