@@ -16,7 +16,7 @@ A set of some useful libraries based on netty4.2.x.
       <dependency>
         <groupId>com.github.fmjsjx</groupId>
         <artifactId>libnetty-bom</artifactId>
-        <version>4.0.0-SNAPSHOT</version>
+        <version>4.0.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -42,7 +42,7 @@ repositories {
 
 dependencies {
     // BOM
-    implementation platform('com.github.fmjsjx:libnetty-bom:4.0.0-SNAPSHOT')
+    implementation platform('com.github.fmjsjx:libnetty-bom:4.0.0')
     // HTTP server
     implementation 'com.github.fmjsjx:libnetty-http-server'
 }
@@ -56,7 +56,7 @@ repositories {
 
 dependencies {
     // BOM
-    implementation(platform("com.github.fmjsjx:libnetty-bom:4.0.0-SNAPSHOT"))
+    implementation(platform("com.github.fmjsjx:libnetty-bom:4.0.0"))
     // HTTP server
     implementation("com.github.fmjsjx:libnetty-http-server")
 }
