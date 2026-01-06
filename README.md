@@ -1,8 +1,14 @@
 # LibNetty Project
 
-A set of some useful libraries based on netty4.2.x.
+A set of some useful libraries based on Netty4.
 
-> Since version 4.0, All modules are compiled based on JDK-21.
+## JDK version compatibility list
+| version | JDK version |
+|---------|-------------|
+| 4.x     | JDK 21+     |
+| 3.x     | JDK 17+     |
+| 2.x     | JDK 11+     |
+| older   | JDK 8+      |
 
 ## Add Dependencies
 
