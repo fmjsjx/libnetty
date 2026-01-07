@@ -7,14 +7,9 @@ dependencies {
 
     implementation("org.slf4j:slf4j-api")
     api("io.netty:netty-transport")
-    compileOnlyApi(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-aarch_64")
-    compileOnlyApi(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-riscv64")
-    compileOnlyApi(group = "io.netty", name = "netty-transport-native-epoll", classifier = "linux-x86_64")
-    compileOnlyApi(group = "io.netty", name = "netty-transport-native-io_uring", classifier = "linux-aarch_64")
-    compileOnlyApi(group = "io.netty", name = "netty-transport-native-io_uring", classifier = "linux-riscv64")
-    compileOnlyApi(group = "io.netty", name = "netty-transport-native-io_uring", classifier = "linux-x86_64")
-    compileOnlyApi(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-x86_64")
-    compileOnlyApi(group = "io.netty", name = "netty-transport-native-kqueue", classifier = "osx-aarch_64")
+    compileOnlyApi("io.netty:netty-transport-classes-io_uring")
+    compileOnlyApi("io.netty:netty-transport-classes-epoll")
+    compileOnlyApi("io.netty:netty-transport-classes-kqueue")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
