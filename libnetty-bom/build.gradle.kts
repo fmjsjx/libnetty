@@ -15,6 +15,7 @@ dependencies {
         api(project(":libnetty-resp"))
         api(project(":libnetty-resp3"))
         api(project(":libnetty-transport"))
+        api(project(":libnetty-http2-server"))
     }
 }
 

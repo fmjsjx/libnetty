@@ -1,0 +1,89 @@
+# Image types
+image/apng      apng
+image/bmp       bmp
+image/gif       gif
+image/jpeg      jpg jpeg jfif pjp pjpeg
+image/png       png
+image/svg+xml   svg svgz
+image/tiff      tif tiff
+image/webp      webp
+image/x-cursor  cur
+image/x-icon    ico
+image/x-xwindowdump xwd
+
+# Audio and video types
+audio/aac       aac
+audio/basic     au
+audio/flac      flac
+audio/midi      mid midi kar
+audio/mp4       m4p
+audio/mpeg      mp3 m2a m3a
+audio/ogg       oga ogg
+audio/opus      opus
+audio/wav       wav
+audio/webm      weba
+audio/x-aiff    aif aiff aifc
+video/3gpp      3gp
+video/3gpp2     3g2
+video/mp4       mp4
+video/mpeg      mpeg mpg mpe m2v
+video/ogg       ogv
+video/quicktime mov qt
+video/webm      webm
+video/x-m4v     m4v
+video/x-msvideo     avi
+
+# Other types
+application/epub+zip    epub
+application/gzip    gz
+application/java-archive    jar
+application/json    json
+application/ld+json jsonld
+application/msword  doc
+application/ogg ogx
+application/pdf pdf
+application/pem-certificate-chain   pem
+application/postscript  ai eps ps
+application/rtf rft
+application/sql sql
+application/vnd.amazon.ebook    azw
+application/vnd.apple.installer+xml mpkg
+vnd.mozilla.xul+xml xul
+application/vnd.ms-fontobject   eto
+application/vnd.ms-powerpoint   ppt
+application/vnd.ms-excel    xls
+application/vnd.oasis.opendocument.presentation odp
+application/vnd.oasis.opendocument.spreadsheet  ods
+application/vnd.oasis.opendocument.text odt
+application/vnd.openxmlformats-officedocument.wordprocessingml.document docx
+application/vnd.openxmlformats-officedocument.presentationml.presentation pptx
+application/vnd.openxmlformats-officedocument.spreadsheetml.sheet   xlsx
+application/vnd.rar rar
+application/vnd.visio   vsd
+application/xhtml+xml   xhtml
+application/x-7z-compressed 7z
+application/x-abiword   abw
+application/x-bzip  bz
+application/x-bzip2 bz2
+application/x-csh   csh
+application/x-freearc   arc
+application/x-httpd-php php
+application/x-sh    sh
+application/x-shockwave-flash   swf
+application/x-tar   tar
+application/x-tex   tex
+application/x-texinfo   texinfo texi
+application/x-troff t tr roff
+application/zip zip
+font/otf        otf
+font/ttf        ttf
+font/woff       woff
+font/woff2      woff2
+text/calendar   isc
+text/csv        csv
+text/css        css
+text/html       html htm
+text/javascript js mjs ts
+text/markdown   md
+text/plain      txt text
+text/tab-separated-values   tsv

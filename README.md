@@ -104,3 +104,6 @@ The [`libnetty-resp3`](libnetty-resp3) module provides codec components for [`RE
 
 The [`libnetty-transport`](libnetty-transport) module provides additional features, such as `auto-selection of java/native transport`, for `netty-transport`.
 
+### libnetty-http2-server
+
+The [`libnetty-http2-server`](libnetty-http2-server) module provides a simplified HTTP2 server framework.
