@@ -6,6 +6,32 @@ import static io.netty.handler.codec.http.HttpHeaderValues.IDENTITY;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.nio.file.StandardOpenOption.*;
 
+import com.github.fmjsjx.libnetty.http.server.DefaultHttpResult;
+import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
+import com.github.fmjsjx.libnetty.http.server.HttpResult;
+import com.github.fmjsjx.libnetty.http.server.HttpServerHandler;
+import com.github.fmjsjx.libnetty.http.server.util.MimeTypesUtil;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.DefaultFileRegion;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpChunkedInput;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedNioFile;
+import io.netty.util.AsciiString;
+import io.netty.util.internal.StringUtil;
+import io.netty.util.internal.SystemPropertyUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -28,43 +54,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.github.fmjsjx.libnetty.http.server.DefaultHttpResult;
-import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
-import com.github.fmjsjx.libnetty.http.server.HttpResult;
-import com.github.fmjsjx.libnetty.http.server.HttpServerHandler;
-import com.github.fmjsjx.libnetty.http.server.MimeTypeUtil;
-
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.DefaultFileRegion;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpChunkedInput;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.stream.ChunkedNioFile;
-import io.netty.util.AsciiString;
-import io.netty.util.internal.StringUtil;
-import io.netty.util.internal.SystemPropertyUtil;
-
 /**
  * A {@link Middleware} serves static resources.
- * 
- * @since 1.1
  *
  * @author MJ Fang
- * 
  * @see Middleware
  * @see MiddlewareChain
+ * @since 1.1
  */
 public class ServeStatic implements Middleware {
 
@@ -104,7 +100,7 @@ public class ServeStatic implements Middleware {
     /**
      * Constructs a new {@link ServeStatic} with the specified {@code path} and
      * {@code locationMapping}.
-     * 
+     *
      * @param path            the URI prefix path
      * @param locationMapping the location mapping of the resources
      */
@@ -115,7 +111,7 @@ public class ServeStatic implements Middleware {
     /**
      * Constructs a new {@link ServeStatic} with the specified {@code path},
      * {@code locationMapping} and {@link Options}.
-     * 
+     *
      * @param path            the URI prefix path
      * @param locationMapping the location mapping of the resources
      * @param options         the options
@@ -127,7 +123,7 @@ public class ServeStatic implements Middleware {
     /**
      * Constructs a new {@link ServeStatic} with the multiply {@code path}s,
      * {@code locationMapping}s and the specified {@link Options}.
-     * 
+     *
      * @param path1            the first URI prefix path
      * @param locationMapping1 the first location mapping of the resources
      * @param path2            the second URI prefix path
@@ -141,7 +137,7 @@ public class ServeStatic implements Middleware {
     /**
      * Constructs a new {@link ServeStatic} with the multiply
      * {@code locationMapping}s and the specified {@link Options}.
-     * 
+     *
      * @param options              the options
      * @param pathLocationMappings the array contains the URI prefix paths and the
      *                             location mappings, the length of array must be
@@ -154,7 +150,7 @@ public class ServeStatic implements Middleware {
     /**
      * Constructs a new {@link ServeStatic} with the multiply
      * {@code locationMapping}s and the specified {@link Options}.
-     * 
+     *
      * @param locationMappings the map contains the URI prefix paths and the
      *                         location mappings
      * @param options          the options
@@ -258,17 +254,17 @@ public class ServeStatic implements Middleware {
                 HttpResponse response = new DefaultHttpResponse(version, OK);
                 HttpUtil.setKeepAlive(response, keepAlive);
                 HttpUtil.setContentLength(response, contentLength);
-                response.headers().set(CONTENT_TYPE, MimeTypeUtil.probeContentType(p));
+                response.headers().set(CONTENT_TYPE, MimeTypesUtil.probeContentType(p));
                 setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
                 CompletableFuture<HttpResult> future = new CompletableFuture<>();
                 var resultLength = isHead ? 0 : contentLength;
-                ChannelFutureListener[] cbs = new ChannelFutureListener[] { cf -> {
+                ChannelFutureListener[] cbs = new ChannelFutureListener[]{cf -> {
                     if (cf.isSuccess()) {
                         future.complete(new DefaultHttpResult(ctx, resultLength, OK));
                     } else if (cf.cause() != null) {
                         future.completeExceptionally(cf.cause());
                     }
-                }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE };
+                }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE};
                 Channel channel = ctx.channel();
                 var noSsl = channel.pipeline().get(SslHandler.class) == null;
                 if (noSsl) {
@@ -324,10 +320,7 @@ public class ServeStatic implements Middleware {
         }
     }
 
-    private static final class StaticLocationMapping {
-
-        private final String uri;
-        private final String location;
+    private record StaticLocationMapping(String uri, String location) {
 
         private StaticLocationMapping(Entry<String, String> entry) {
             this(entry.getKey(), entry.getValue());
@@ -350,19 +343,13 @@ public class ServeStatic implements Middleware {
             return uri;
         }
 
-        @Override
-        public String toString() {
-            return "(" + uri + " => " + location + ")";
-        }
-
     }
 
     /**
      * Function to generate {@code E-TAG}s.
-     * 
-     * @since 1.1
      *
      * @author MJ Fang
+     * @since 1.1
      */
     @FunctionalInterface
     public interface EtagGenerator {
@@ -371,7 +358,7 @@ public class ServeStatic implements Middleware {
          * The basic generator.
          * <p>
          * Algorithm:
-         * 
+         *
          * <pre>
          * "${hex(file.lastModifiedInSeconds)}-${hex(file.size)}"
          * </pre>
@@ -384,12 +371,10 @@ public class ServeStatic implements Middleware {
 
         /**
          * Generate the {@code E-TAG}.
-         * 
+         *
          * @param path           the path of the file
          * @param fileAttributes the basic attributes associated with the file
-         * 
          * @return the {@code E-TAG} string
-         * 
          * @throws IOException if any IO error occurs
          */
         String generate(Path path, BasicFileAttributes fileAttributes) throws IOException;
@@ -398,10 +383,9 @@ public class ServeStatic implements Middleware {
 
     /**
      * The options of {@link ServeStatic}.
-     * 
-     * @since 1.1
      *
      * @author MJ Fang
+     * @since 1.1
      */
     public static class Options {
 
@@ -423,7 +407,7 @@ public class ServeStatic implements Middleware {
 
         /**
          * Set index.
-         * 
+         *
          * @param index the filename of the index
          * @return this {@code Options}
          */
@@ -433,7 +417,7 @@ public class ServeStatic implements Middleware {
 
         /**
          * Set multiply indexes.
-         * 
+         *
          * @param indexes the array contains the filenames of the indexes
          * @return this {@code Options}
          */
@@ -451,7 +435,7 @@ public class ServeStatic implements Middleware {
          * Allow clients to access hidden files.
          * <p>
          * The default is {@code false}.
-         * 
+         *
          * @return this {@code Options}
          */
         public Options showHidden() {
@@ -462,7 +446,7 @@ public class ServeStatic implements Middleware {
          * Set if clients are allowed to access hidden files.
          * <p>
          * The default is {@code false}.
-         * 
+         *
          * @param showHidden {@code true} to allow clients to access hidden files
          * @return this {@code Options}
          */
@@ -475,7 +459,7 @@ public class ServeStatic implements Middleware {
          * Set if redirect to trailing "/" when the pathname is a directory or not.
          * <p>
          * The default is {@code true}.
-         * 
+         *
          * @param redirectDirectory {@code false} to disable
          * @return this {@code Options}
          */
@@ -488,7 +472,7 @@ public class ServeStatic implements Middleware {
          * Set cacheControl.
          * <p>
          * The default is {@code "no-cache"}.
-         * 
+         *
          * @param cacheControl the value of the cache-control
          * @return this {@code Options}
          */
@@ -509,7 +493,7 @@ public class ServeStatic implements Middleware {
          * Set if {@code E-TAG} is enabled or not.
          * <p>
          * The default is {@code true}.
-         * 
+         *
          * @param etag {@code false} to disable {@code E-TEG} feature
          * @return this {@code Options}
          */
@@ -522,7 +506,7 @@ public class ServeStatic implements Middleware {
          * Set the function to generate {@code E-TAG}s.
          * <p>
          * The default is {@link EtagGenerator#BASIC}.
-         * 
+         *
          * @param etagGenerator the function to generate {@code E-TAG}s
          * @return this {@code Options}
          */
@@ -535,7 +519,7 @@ public class ServeStatic implements Middleware {
          * Set if header {@code last-modified} is enabled or not.
          * <p>
          * The default is {@code true}.
-         * 
+         *
          * @param lastModified {@code false} to disable {@code last-modified} header
          * @return this {@code Options}
          */
@@ -546,7 +530,7 @@ public class ServeStatic implements Middleware {
 
         /**
          * Set the function set custom headers on response.
-         * 
+         *
          * @param addHeaders the function set custom headers on response
          * @return this {@code Options}
          */
@@ -557,10 +541,9 @@ public class ServeStatic implements Middleware {
 
         /**
          * Set the number of bytes to fetch for each chunk.
-         * 
+         *
          * @param chunkSize the number of bytes to fetch for each chunk
          * @return this {@code Options}
-         * 
          * @since 2.3
          */
         public Options chunkSize(int chunkSize) {

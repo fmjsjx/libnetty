@@ -10,6 +10,7 @@ import io.netty.util.AsciiString;
 
 public class MimeTypeUtilTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testProbeContentType() {
         assertEquals(AsciiString.of("text/javascript"), MimeTypeUtil.probeContentType(Paths.get("test.js")));
@@ -25,7 +26,7 @@ public class MimeTypeUtilTest {
         assertEquals(AsciiString.of("image/gif"), MimeTypeUtil.probeContentType(Paths.get("test.gif")));
         assertEquals(AsciiString.of("image/svg+xml"), MimeTypeUtil.probeContentType(Paths.get("test.svg")));
         assertEquals(AsciiString.of("audio/mpeg"), MimeTypeUtil.probeContentType(Paths.get("test.mp3")));
-        assertEquals(AsciiString.of("video/mpeg"), MimeTypeUtil.probeContentType(Paths.get("test.mp4")));
+        assertEquals(AsciiString.of("video/mp4"), MimeTypeUtil.probeContentType(Paths.get("test.mp4")));
         assertEquals(AsciiString.of("video/3gpp"), MimeTypeUtil.probeContentType(Paths.get("test.3gp")));
         assertEquals(AsciiString.of("video/quicktime"), MimeTypeUtil.probeContentType(Paths.get("test.mov")));
     }
