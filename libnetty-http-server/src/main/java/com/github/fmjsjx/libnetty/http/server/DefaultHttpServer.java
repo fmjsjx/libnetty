@@ -35,10 +35,9 @@ import java.util.stream.Collectors;
 
 /**
  * The default implementation of {@link HttpServer}.
- * 
- * @since 1.1
  *
  * @author MJ Fang
+ * @since 1.1
  */
 public class DefaultHttpServer implements HttpServer {
 
@@ -50,6 +49,7 @@ public class DefaultHttpServer implements HttpServer {
 
     private static final int DEFAULT_MAX_CONTENT_LENGTH = Integer.MAX_VALUE;
     private static final int DEFAULT_TIMEOUT_SECONDS = 60;
+    private static final boolean DEFAULT_HTTP2_ENABLED = false;
 
     private static final Consumer<HttpHeaders> defaultAddHeaders = headers -> headers.set(SERVER, "libnetty");
 
@@ -58,6 +58,7 @@ public class DefaultHttpServer implements HttpServer {
     private InetAddress address;
     private int port;
     private int ioThreads;
+    private boolean http2Enabled = DEFAULT_HTTP2_ENABLED;
 
     private final AtomicBoolean running = new AtomicBoolean();
 
@@ -87,7 +88,7 @@ public class DefaultHttpServer implements HttpServer {
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified {@code name}
      * and {@code port}.
-     * 
+     *
      * @param name the name of the server
      * @param port the port
      */
@@ -97,7 +98,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified {@code port}.
-     * 
+     *
      * @param port the port
      */
     public DefaultHttpServer(int port) {
@@ -115,7 +116,7 @@ public class DefaultHttpServer implements HttpServer {
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified {@code name}
      * and default HTTP port ({@code 80}).
-     * 
+     *
      * @param name the name of the server
      */
     public DefaultHttpServer(String name) {
@@ -125,9 +126,8 @@ public class DefaultHttpServer implements HttpServer {
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified
      * {@code channelSslInitializer} and default HTTPs port ({@code 443}).
-     * 
+     *
      * @param channelSslInitializer the {@code ChannelSslInitializer}
-     * 
      * @since 2.4
      */
     public DefaultHttpServer(ChannelSslInitializer<Channel> channelSslInitializer) {
@@ -137,10 +137,9 @@ public class DefaultHttpServer implements HttpServer {
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified {@code name},
      * {@code channelSslInitializer} and default HTTPs port ({@code 443}).
-     * 
+     *
      * @param name                  the name of the server
      * @param channelSslInitializer the {@code ChannelSslInitializer}
-     * 
      * @since 2.4
      */
     public DefaultHttpServer(String name, ChannelSslInitializer<Channel> channelSslInitializer) {
@@ -150,11 +149,10 @@ public class DefaultHttpServer implements HttpServer {
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified {@code name},
      * {@code channelSslInitializer} and port.
-     * 
+     *
      * @param name                  the name of the server
      * @param channelSslInitializer the {@code ChannelSslInitializer}
      * @param port                  the port
-     * 
      * @since 2.4
      */
     public DefaultHttpServer(String name, ChannelSslInitializer<Channel> channelSslInitializer, int port) {
@@ -171,7 +169,7 @@ public class DefaultHttpServer implements HttpServer {
      * Set the name of this server.
      * <p>
      * The default value is {@code "default"}.
-     * 
+     *
      * @param name the name string
      * @return this server
      */
@@ -193,7 +191,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Returns the listening port of this server.
-     * 
+     *
      * @return the port
      */
     public int port() {
@@ -208,7 +206,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Set the listening port of this server.
-     * 
+     *
      * @param port the port
      * @return this server
      */
@@ -220,7 +218,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Returns the host name to which the server should bind.
-     * 
+     *
      * @return the host name
      */
     public String host() {
@@ -231,7 +229,7 @@ public class DefaultHttpServer implements HttpServer {
      * Set the host name to which the server should bind.
      * <p>
      * The default value, {@code null}, means any address.
-     * 
+     *
      * @param host the host name
      * @return this server
      */
@@ -244,7 +242,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Returns the network address to which the server should bind.
-     * 
+     *
      * @return the network address to which the server should bind
      */
     public InetAddress address() {
@@ -255,7 +253,7 @@ public class DefaultHttpServer implements HttpServer {
      * Set the network address to which the server should bind
      * <p>
      * The default value, {@code null}, means any address.
-     * 
+     *
      * @param address the network address
      * @return this server
      */
@@ -270,7 +268,7 @@ public class DefaultHttpServer implements HttpServer {
      * Returns the number of I/O threads to create for this server. When the value
      * is {@code 0}, the default, the number is derived from the number of available
      * processors x {@code 2}.
-     * 
+     *
      * @return the number of I/O threads to create for this server
      */
     public int ioThreads() {
@@ -279,7 +277,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Set the number of I/O threads to create for this server.
-     * 
+     *
      * @param ioThreads the number of I/O threads to create for this server
      * @return this server
      */
@@ -294,7 +292,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Specify the transport components of this server.
-     * 
+     *
      * @param group        a {@code EventLoopGroup} used for both the parent
      *                     (acceptor) and the child (client)
      * @param channelClass a {@code Class} which is used to create {@code Channel}
@@ -307,7 +305,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Specify the transport components of this server.
-     * 
+     *
      * @param parentGroup  a {@code EventLoopGroup} used for the parent (acceptor)
      * @param childGroup   a {@code EventLoopGroup} used for the child (client)
      * @param channelClass a {@code Class} which is used to create {@code Channel}
@@ -315,7 +313,7 @@ public class DefaultHttpServer implements HttpServer {
      * @return this server
      */
     public DefaultHttpServer transport(EventLoopGroup parentGroup, EventLoopGroup childGroup,
-            Class<? extends ServerChannel> channelClass) {
+                                       Class<? extends ServerChannel> channelClass) {
         ensureNotStarted();
         this.parentGroup = requireNonNull(parentGroup, "parentGroup must not be null");
         this.childGroup = requireNonNull(childGroup, "childGroup must not be null");
@@ -328,7 +326,7 @@ public class DefaultHttpServer implements HttpServer {
      * <p>
      * The default value, {@code null}, means this server does not allow cross
      * domain.
-     * 
+     *
      * @param corsConfig the {@code CorsConfig} to be set
      * @return this server
      */
@@ -340,7 +338,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Returns the maximum length of HTTP content.
-     * 
+     *
      * @return the maximum length of HTTP content
      */
     public int maxContentLength() {
@@ -351,7 +349,7 @@ public class DefaultHttpServer implements HttpServer {
      * Set the maximum length of HTTP content.
      * <p>
      * The default value is {@code 2147483647(Integer.MAX_VALUE)}.
-     * 
+     *
      * @param maxContentLength the maximum length of HTTP content
      * @return this server
      */
@@ -364,7 +362,7 @@ public class DefaultHttpServer implements HttpServer {
     /**
      * Returns the time in seconds that connectors wait for another HTTP request
      * before closing the connection.
-     * 
+     *
      * @return the time in seconds
      */
     public int timeoutSeconds() {
@@ -376,7 +374,7 @@ public class DefaultHttpServer implements HttpServer {
      * connection.
      * <p>
      * The default value is {@code 60} seconds.
-     * 
+     *
      * @param timeout time as {@link Duration} type
      * @return this server
      */
@@ -391,7 +389,7 @@ public class DefaultHttpServer implements HttpServer {
      * closing the connection.
      * <p>
      * The default value is {@code 60}.
-     * 
+     *
      * @param timeoutSeconds time in seconds
      * @return this server
      */
@@ -408,19 +406,19 @@ public class DefaultHttpServer implements HttpServer {
      * Let connections never timeout.
      * <p>
      * This method is equivalent to:
-     * 
+     *
      * <pre>
      * {@code
      *     timeoutSeconds(0);
      * }
-     * 
+     *
      * or
-     * 
+     *
      * {@code
      *     timeout(Duration.ZERO);
      * }
      * </pre>
-     * 
+     *
      * @return this server
      */
     public DefaultHttpServer neverTimeout() {
@@ -436,9 +434,7 @@ public class DefaultHttpServer implements HttpServer {
      *               {@code ChannelOption}
      * @param option a {@code ChannelOption}
      * @param value  the value
-     * 
      * @return this server
-     * 
      * @see ChannelOption
      */
     public <T> DefaultHttpServer option(ChannelOption<T> option, T value) {
@@ -450,7 +446,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Set {@code SO_BACKLOG}.
-     * 
+     *
      * @param value the value
      * @return this server
      */
@@ -464,14 +460,12 @@ public class DefaultHttpServer implements HttpServer {
      * {@link Channel} instances once they get created (after the acceptor accepted
      * the {@link Channel}). Use a value of {@code null} to remove a previous set
      * {@link ChannelOption}.
-     * 
+     *
      * @param <T>         the type of the value which is valid for the
      *                    {@code ChannelOption}
      * @param childOption a {@code ChannelOption}
      * @param value       the value
-     * 
      * @return this server
-     * 
      * @see ChannelOption
      */
     public <T> DefaultHttpServer childOption(ChannelOption<T> childOption, T value) {
@@ -483,7 +477,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Enable {@code TCP_NODELAY} (disable/enable Nagle's algorithm).
-     * 
+     *
      * @return this server
      */
     public DefaultHttpServer tcpNoDelay() {
@@ -498,7 +492,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Enable SSL support and set the {@link ChannelSslInitializer}
-     * 
+     *
      * @param channelSslInitializer a {@code ChannelSslInitializer}
      * @return this server
      * @since 2.4
@@ -512,7 +506,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Disable SSL support.
-     * 
+     *
      * @return this server
      */
     public DefaultHttpServer disableSsl() {
@@ -521,9 +515,47 @@ public class DefaultHttpServer implements HttpServer {
         return this;
     }
 
+    @Override
+    public boolean isHttp2Enabled() {
+        return http2Enabled;
+    }
+
+    /**
+     * Enable/disable HTTP2 support.
+     *
+     * @param http2Enabled whether to enable HTTP2 or not
+     * @return this server
+     * @since 4.1
+     */
+    public DefaultHttpServer http2Enabled(boolean http2Enabled) {
+        ensureNotStarted();
+        this.http2Enabled = http2Enabled;
+        return this;
+    }
+
+    /**
+     * Enable HTTP2 support.
+     *
+     * @return this server
+     * @since 4.1
+     */
+    public DefaultHttpServer enableHttp2() {
+        return http2Enabled(true);
+    }
+
+    /**
+     * Disable HTTP2 support.
+     *
+     * @return this server
+     * @since 4.1
+     */
+    public DefaultHttpServer disableHttp2() {
+        return http2Enabled(false);
+    }
+
     /**
      * Enable HTTP content compression feature and apply compression options.
-     * 
+     *
      * @param action the apply action
      * @return this server
      */
@@ -535,11 +567,11 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Set the singleton {@link HttpServerHandler} of this server.
-     * 
+     *
      * <p>
      * To use singleton handler, the implementation of {@link HttpServerHandler}
      * must be {@link Sharable}.
-     * 
+     *
      * @param handler an {@code HttpServerHandler}
      * @return this server
      */
@@ -555,7 +587,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Set the {@link HttpServerHandlerProvider} of this server.
-     * 
+     *
      * @param handlerProvider an {@code HttpServerHandlerProvider}
      * @return this server
      */
@@ -567,7 +599,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Use and returns the {@link DefaultHttpServerHandlerProvider} for this server.
-     * 
+     *
      * @return the {@code DefaultHttpServerHandlerProvider}
      */
     public DefaultHttpServerHandlerProvider defaultHandlerProvider() {
@@ -577,10 +609,9 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Set an {@link HttpServerComponent}.
-     * 
+     *
      * @param component the component
      * @return this server
-     * 
      * @since 1.3
      */
     public DefaultHttpServer component(HttpServerComponent component) {
@@ -597,9 +628,8 @@ public class DefaultHttpServer implements HttpServer {
      * Support JSON features.
      * <p>
      * This method is equivalent to: {@code component(JsonLibrary.getInstance())}.
-     * 
+     *
      * @return this server
-     * 
      * @since 1.3
      */
     public DefaultHttpServer supportJson() {
@@ -634,11 +664,11 @@ public class DefaultHttpServer implements HttpServer {
      * Set the function to add HTTP response headers. Include default headers.
      * <p>
      * The default headers:
-     * 
+     *
      * <pre>
      * {@code server: libnetty}
      * </pre>
-     * 
+     *
      * @param addHeaders the function to add HTTP response headers
      * @return this server
      */
@@ -650,11 +680,11 @@ public class DefaultHttpServer implements HttpServer {
      * Set the function to add HTTP response headers.
      * <p>
      * The default headers:
-     * 
+     *
      * <pre>
      * {@code server: libnetty}
      * </pre>
-     * 
+     *
      * @param addHeaders the function to add HTTP response headers
      * @param force      if {@code true} then only invoke given function, if
      *                   {@code false} then will invoke both default function and
@@ -674,7 +704,7 @@ public class DefaultHttpServer implements HttpServer {
 
     /**
      * Reset all settings of this server.
-     * 
+     *
      * @return this server
      */
     public DefaultHttpServer reset() {
@@ -723,7 +753,7 @@ public class DefaultHttpServer implements HttpServer {
             bootstrap.group(parentGroup, childGroup).channel(channelClass);
             Map<Class<?>, Object> components = this.components.entrySet().stream()
                     .collect(Collectors.toMap(Entry::getKey, e -> Optional.ofNullable(e.getValue())));
-            var initializer = createChildInitializer(components);
+            var initializer = createChannelInitializer(components);
 
             bootstrap.childHandler(initializer);
 
@@ -752,7 +782,11 @@ public class DefaultHttpServer implements HttpServer {
         }
     }
 
-    private ChannelInitializer<? extends Channel> createChildInitializer(Map<Class<?>, Object> components) {
+    private ChannelInitializer<? extends Channel> createChannelInitializer(Map<Class<?>, Object> components) {
+        if (isHttp2Enabled()) {
+            log.debug("HTTP2 enabled, create and return HTTP2 server channel initializer.");
+            // TODO create and returns Http2ServerChannelInitializer.
+        }
         return new DefaultHttpServerChannelInitializer(timeoutSeconds, maxContentLength, corsConfig,
                 channelSslInitializer(), httpContentCompressorProvider, handlerProvider, components, addHeaders);
     }
