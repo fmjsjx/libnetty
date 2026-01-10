@@ -9,6 +9,7 @@ dependencies {
     api(project(":libnetty-handler"))
     api(project(":libnetty-http"))
     api(project(":libnetty-transport"))
+    api("io.netty:netty-codec-http2")
     implementation("com.github.fmjsjx:libcommon-util")
     compileOnly("io.netty:netty-tcnative-boringssl-static::linux-aarch_64")
     compileOnly("io.netty:netty-tcnative-boringssl-static::linux-x86_64")
