@@ -3,6 +3,7 @@ package com.github.fmjsjx.libnetty.http.server.sse;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageEncoder;
+import io.netty.handler.codec.http.DefaultHttpContent;
 
 import java.util.List;
 
@@ -40,7 +41,7 @@ public class SseEventEncoder extends MessageToMessageEncoder<SseEventSerializabl
     @Override
     protected void encode(ChannelHandlerContext ctx, SseEventSerializable msg, List<Object> out) {
         var buf = msg.serialize(ctx.alloc());
-        out.add(buf);
+        out.add(new DefaultHttpContent(buf));
     }
 
 }

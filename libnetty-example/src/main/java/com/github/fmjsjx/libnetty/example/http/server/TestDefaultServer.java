@@ -6,10 +6,6 @@ import static io.netty.handler.codec.http.HttpMethod.PATCH;
 import static io.netty.handler.codec.http.HttpMethod.POST;
 import static io.netty.handler.codec.http.HttpMethod.PUT;
 import static io.netty.handler.codec.http.websocketx.WebSocketCloseStatus.INVALID_MESSAGE_TYPE;
-
-import java.util.Collections;
-import java.util.Map;
-
 import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
@@ -23,7 +19,6 @@ import com.github.fmjsjx.libnetty.http.server.middleware.AccessLogger.Slf4jLogge
 import com.github.fmjsjx.libnetty.http.server.middleware.AuthBasic;
 import com.github.fmjsjx.libnetty.http.server.middleware.Router;
 import com.github.fmjsjx.libnetty.http.server.middleware.ServeStatic;
-
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -31,6 +26,9 @@ import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.handler.codec.http.websocketx.*;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Test class for default server.
@@ -81,6 +79,7 @@ public class TestDefaultServer {
                 .addLast(new ServeStatic("/static/", "libnetty-example/src/main/resources/static/")) // static resources
                 .addLast(new Router().register(controller).register(kotlinController).init()) // router
         ;
+        //noinspection DuplicatedCode
         try {
             server.startup();
             log.info("Server {} started.", server);
