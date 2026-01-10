@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http2.Http2StreamChannel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedNioFile;
 import io.netty.util.AsciiString;
@@ -276,7 +277,7 @@ public class ServeStatic implements Middleware {
                     channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
                 } else {
                     FileChannel file = FileChannel.open(p, READ);
-                    if (noSsl) {
+                    if (noSsl && supportZeroCopyTransfer(channel)) {
                         // Use zero-copy file transfer
                         channel.write(new DefaultFileRegion(file, 0, contentLength));
                         // Write the end marker.
@@ -318,6 +319,11 @@ public class ServeStatic implements Middleware {
         if (addHeaders != null) {
             addHeaders.accept(headers);
         }
+    }
+
+    private boolean supportZeroCopyTransfer(Channel channel) {
+        // Http2StreamChannel doesn't support ByteBuf
+        return !(channel instanceof Http2StreamChannel);
     }
 
     private record StaticLocationMapping(String uri, String location) {
