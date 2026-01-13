@@ -174,6 +174,16 @@ public class AccessLoggerTest {
             public Stream<String> propertyKeyNames() {
                 return Stream.empty();
             }
+
+            @Override
+            public String protocolVersion() {
+                return request().protocolVersion().toString();
+            }
+
+            @Override
+            public boolean sslEnabled() {
+                return false;
+            }
         };
     }
 
