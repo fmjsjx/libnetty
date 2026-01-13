@@ -10,6 +10,9 @@ Provides a simplified HTTP server framework.
 - Non-blocking, asynchronous, API
 - Optional support for JSON
 - Blocking mode API for JSON responses
+- Support suspend function API for kotlin coroutine
+- Support event-stream(SSE)
+- Support HTTP2
 
 ## Quick Start
 
@@ -50,18 +53,21 @@ public class HelloServer {
         CorsConfig corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
                 .allowedRequestHeaders("*").allowNullOrigin().build();
         DefaultHttpServer server = new DefaultHttpServer("test", 8443) // server name and port
-                .enableSsl(SslContextProviders.selfSignedForServer()) // SSL
+                .enableSsl(ChannelSslInitializer.of(SslContextProviders.selfSignedForServer())) // SSL
                 .neverTimeout() // never timeout
                 .corsConfig(corsConfig) // CORS support
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
+                // support JSON using MixedJsonLibrary
+                .component(MixedJsonLibrary.Builder.recommended().emptyWay(JsonLibrary.EmptyWay.EMPTY)
+                        .beforeWrite((ctx, content) -> content.replace("test", "hello"))
+                        .build())
                 .soBackLog(1024).tcpNoDelay() // channel options
-                .applyCompressionSettings( // compression support
-                        HttpContentCompressorFactory.defaultSettings()) // default settings
+                .applyCompressionOptions( // compression support
+                        HttpContentCompressorProvider.defaultOptions())
         ;
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
-                .addLast(new SupportJson()) // JSON support
                 .addLast("/static/auth", new AuthBasic(passwds(), "test")) // HTTP Basic Authentication
                 .addLast(new ServeStatic("/static/", "src/main/resources/static/")) // static resources
                 .addLast(new Router().register(controller).init()) // router
