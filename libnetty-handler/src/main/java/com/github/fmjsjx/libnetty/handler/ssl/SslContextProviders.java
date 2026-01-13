@@ -35,8 +35,22 @@ public class SslContextProviders {
      * @throws SSLRuntimeException if any SSL error occurs
      */
     public static final SslContextProvider selfSignedForServer() throws SSLRuntimeException {
-        var x509Bundle = X509BundleHolder.instance;
+        return selfSignedForServer(X509BundleHolder.instance);
+    }
 
+    /**
+     * Returns a simple implementation of {@link SslContextProvider} which holding a
+     * self-signed certificate {@link SslContext} for server.
+     *
+     * @param x509Bundle the X.509 bundle
+     *
+     * @return a {@code SslContextProvider} holding a self-signed certificate
+     *         {@code SslContext} for server
+     *
+     * @throws SSLRuntimeException if any SSL error occurs
+     * @since 4.1
+     */
+    public static final SslContextProvider selfSignedForServer(X509Bundle x509Bundle) throws SSLRuntimeException {
         SslContextBuilder builder = SslContextBuilder.forServer(x509Bundle.getKeyPair().getPrivate(), x509Bundle.getCertificatePath());
         try {
             SslContext sslContext = chooseProvider(builder).build();

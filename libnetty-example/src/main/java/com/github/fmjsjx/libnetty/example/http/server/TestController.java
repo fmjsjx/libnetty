@@ -53,6 +53,7 @@ import io.netty.util.CharsetUtil;
 /**
  * Test controller
  */
+@SuppressWarnings({"DuplicatedCode", "OptionalUsedAsFieldOrParameterType"})
 @HttpPath("/api")
 @HttpPath("/api_dup")
 public class TestController {
@@ -307,8 +308,8 @@ public class TestController {
         int messageSize = len == null ? 100 : len;
         var channel = ctx.channel();
         var pipeline = channel.pipeline();
-        var timeoutHandler = (ReadTimeoutHandler) pipeline.get(TIMEOUT_HANDLER);
-        if (timeoutHandler != null) {
+        var timeoutHandler = pipeline.get(TIMEOUT_HANDLER);
+        if (timeoutHandler instanceof ReadTimeoutHandler) {
             pipeline.remove(TIMEOUT_HANDLER);
         }
         var response = ctx.responseFactory().create(OK);
@@ -350,8 +351,8 @@ public class TestController {
                     content.writeBytes(data.getBytes(CharsetUtil.UTF_8));
                     channel.writeAndFlush(content);
                     channel.writeAndFlush(EMPTY_LAST_CONTENT).addListener(READ_NEXT);
-                    if (timeoutHandler != null) {
-                        channel.pipeline().addFirst(TIMEOUT_HANDLER, new ReadTimeoutHandler(timeoutHandler.getReaderIdleTimeInMillis(), TimeUnit.MILLISECONDS));
+                    if (timeoutHandler instanceof ReadTimeoutHandler readTimeoutHandler) {
+                        channel.pipeline().addFirst(TIMEOUT_HANDLER, new ReadTimeoutHandler(readTimeoutHandler.getReaderIdleTimeInMillis(), TimeUnit.MILLISECONDS));
                     }
                 }
             }
@@ -381,9 +382,13 @@ public class TestController {
         int messageSize = len == null ? 100 : len;
         var channel = ctx.channel();
         var pipeline = channel.pipeline();
-        var timeoutHandler = (ReadTimeoutHandler) pipeline.get(TIMEOUT_HANDLER);
-        if (timeoutHandler != null) {
+        var timeoutHandler = pipeline.get(TIMEOUT_HANDLER);
+        boolean hasReadTimeout;
+        if (timeoutHandler instanceof ReadTimeoutHandler) {
             pipeline.remove(TIMEOUT_HANDLER);
+            hasReadTimeout = true;
+        } else {
+            hasReadTimeout = false;
         }
         var response = ctx.responseFactory().create(OK);
         HttpUtil.setTransferEncodingChunked(response, true);
@@ -414,8 +419,9 @@ public class TestController {
                 } else {
                     channel.writeAndFlush(SseEventBuilder.create().event(SSE_EVENT_CLOSE).build().serialize(channel.alloc()));
                     channel.writeAndFlush(EMPTY_LAST_CONTENT).addListener(READ_NEXT);
-                    if (timeoutHandler != null) {
-                        channel.pipeline().addFirst(TIMEOUT_HANDLER, new ReadTimeoutHandler(timeoutHandler.getReaderIdleTimeInMillis(), TimeUnit.MILLISECONDS));
+                    if (hasReadTimeout) {
+                        var readTimeoutHandler = (ReadTimeoutHandler) timeoutHandler;
+                        channel.pipeline().addFirst(TIMEOUT_HANDLER, new ReadTimeoutHandler(readTimeoutHandler.getReaderIdleTimeInMillis(), TimeUnit.MILLISECONDS));
                     }
                 }
             }

@@ -235,18 +235,18 @@ public class AccessLogger implements Middleware {
         /**
          * The minimal output.
          *
-         * <pre>
+         * <pre>{@code
          * :method :path :status :result-length - :response-time ms
-         * </pre>
+         * }</pre>
          */
         TINY(":method :path :status :result-length - :response-time ms"),
 
         /**
          * Shorter than default, also including response time.
          *
-         * <pre>
+         * <pre>{@code
          * :remote-addr :remote-user :method :path :http-version :status :result-length - :response-time ms
-         * </pre>
+         * }</pre>
          */
         SHORT(":remote-addr :remote-user :method :path :http-version :status :result-length - :response-time ms"),
 
@@ -256,27 +256,27 @@ public class AccessLogger implements Middleware {
          * yellow for client error codes, cyan for redirection codes, and uncolored for
          * information codes.
          *
-         * <pre>
+         * <pre>{@code
          * :method :path :status :response-time ms - :result-length
-         * </pre>
+         * }</pre>
          */
         DEV(":method :path :status :response-time ms - :result-length"),
 
         /**
          * Standard Apache common log output.
          *
-         * <pre>
+         * <pre>{@code
          * :remote-addr - :remote-user [:datetime] \":method :path :http-version\" :status :result-length
-         * </pre>
+         * }</pre>
          */
         COMMON(":remote-addr - :remote-user [:datetime] \":method :path :http-version\" :status :result-length"),
 
         /**
          * Standard Apache combined log output.
          *
-         * <pre>
+         * <pre>{@code
          * :remote-addr - :remote-user [:datetime] ":method :path :http-version" :status :result-length ":referrer" ":user-agent"
-         * </pre>
+         * }</pre>
          */
         COMBINED(
                 ":remote-addr - :remote-user [:datetime] \":method :path :http-version\" :status :result-length \":referrer\" \":user-agent\""),
@@ -284,18 +284,18 @@ public class AccessLogger implements Middleware {
         /**
          * Basic log output.
          *
-         * <pre>
+         * <pre>{@code
          * :datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length
-         * </pre>
+         * }</pre>
          */
         BASIC(":datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length"),
 
         /**
          * Another basic log output, make result length human-readable.
          *
-         * <pre>
+         * <pre>{@code
          * :datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length-humanreadable
-         * </pre>
+         * }</pre>
          */
         BASIC2(":datetime :method :path :http-version :remote-addr - :status :response-time ms :result-length-humanreadable");
 
@@ -356,7 +356,7 @@ public class AccessLogger implements Middleware {
 
     private static final Function<HttpResult, Object> symbolMapper(String symbol) {
         return switch (symbol) {
-            case ":version", ":http-version" -> result -> result.requestContext().version();
+            case ":version", ":http-version" -> result -> result.requestContext().protocolVersion();
             case ":method", ":http-method" -> result -> result.requestContext().method();
             case ":uri" -> result -> result.requestContext().uri();
             case ":url", ":path" -> result -> result.requestContext().path();
