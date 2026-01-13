@@ -31,19 +31,21 @@ class HttpRequestContextDecoder extends MessageToMessageDecoder<FullHttpRequest>
 
     private final Map<Class<?>, Object> components;
     private final Consumer<HttpHeaders> addHeaders;
+    private final boolean sslEnabled;
 
-    HttpRequestContextDecoder(Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders) {
+    HttpRequestContextDecoder(Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders, boolean sslEnabled) {
         this.components = components;
         this.addHeaders = addHeaders;
+        this.sslEnabled = sslEnabled;
     }
 
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    public void channelActive(ChannelHandlerContext ctx) {
         ctx.read();
     }
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, FullHttpRequest msg, List<Object> out) throws Exception {
+    protected void decode(ChannelHandlerContext ctx, FullHttpRequest msg, List<Object> out) {
         DecoderResult decoderResult = msg.decoderResult();
         Consumer<HttpHeaders> addHeaders = this.addHeaders;
         if (decoderResult.isFailure()) {
@@ -66,7 +68,7 @@ class HttpRequestContextDecoder extends MessageToMessageDecoder<FullHttpRequest>
                 cf.addListener(ChannelFutureListener.CLOSE);
             }
         } else {
-            out.add(new DefaultHttpRequestContext(ctx.channel(), msg.retain(), components, addHeaders));
+            out.add(new DefaultHttpRequestContext(ctx.channel(), msg.retain(), components, addHeaders, sslEnabled));
         }
     }
 

@@ -68,7 +68,7 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
         this.autoCompressionEnabled = httpContentCompressorProvider != null;
         this.httpContentCompressorProvider = httpContentCompressorProvider;
         this.handlerProvider = handlerProvider;
-        this.contextDecoder = new HttpRequestContextDecoder(components, addHeaders);
+        this.contextDecoder = new HttpRequestContextDecoder(components, addHeaders, sslEnabled);
         if (components.get(WebSocketSupport.componentKey()) instanceof Optional<?> o && o.isPresent()) {
             this.webSocketInitializer = new WebSocketInitializer((WebSocketSupport) o.get());
         } else {

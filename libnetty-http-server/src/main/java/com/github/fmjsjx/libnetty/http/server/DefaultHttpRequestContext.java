@@ -31,6 +31,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http2.Http2StreamChannel;
 
 /**
  * The default implementation of {@link DefaultHttpRequestContext}.
@@ -62,14 +63,22 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     private final ConcurrentMap<Object, Object> properties = new ConcurrentHashMap<>();
     private final HttpResponseFactoryImpl responseFactory = new HttpResponseFactoryImpl();
     private final Optional<Consumer<HttpHeaders>> addHeaders;
+    private final boolean sslEnabled;
+    private final String protocolVersion;
 
     DefaultHttpRequestContext(Channel channel, FullHttpRequest request, Map<Class<?>, Object> components,
-                              Consumer<HttpHeaders> addHeaders) {
+                              Consumer<HttpHeaders> addHeaders, boolean sslEnabled) {
         this.channel = channel;
         this.request = request;
         this.contentLength = request.content().readableBytes();
         this.components = components;
         this.addHeaders = Optional.ofNullable(addHeaders);
+        this.sslEnabled = sslEnabled;
+        if (channel instanceof Http2StreamChannel) {
+            protocolVersion = sslEnabled ? "h2" : "h2c";
+        } else {
+            protocolVersion = version().text();
+        }
     }
 
     @Override
@@ -117,6 +126,16 @@ class DefaultHttpRequestContext implements HttpRequestContext {
             keepAliveFlag = flag = HttpUtil.isKeepAlive(request()) ? 1 : 0;
         }
         return flag == 1;
+    }
+
+    @Override
+    public String protocolVersion() {
+        return protocolVersion;
+    }
+
+    @Override
+    public boolean sslEnabled() {
+        return sslEnabled;
     }
 
     @Override

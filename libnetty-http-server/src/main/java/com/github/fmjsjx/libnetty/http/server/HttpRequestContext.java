@@ -166,6 +166,28 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     }
 
     /**
+     * Returns the protocol version of the HTTP/HTTP2 request.
+     * <p>
+     * Unlike {@link #version()}, this method returns the protocol
+     * version string of the HTTP/HTTP2 request. The possible values are:
+     * <pre>{@code
+     * "HTTP/1.0", "HTTP/1.1", "h2", "h2c"}</pre>
+     *
+     * @return the protocol version of the HTTP/HTTP2 request
+     * @since 4.1
+     */
+    String protocolVersion();
+
+    /**
+     * Returns if the connection is encrypted or not.
+     *
+     * @return {@code true} if the connection is encrypted, {@code false}
+     * otherwise
+     * @since 4.1
+     */
+    boolean sslEnabled();
+
+    /**
      * Returns the method of the HTTP request.
      *
      * @return the method of the HTTP request
