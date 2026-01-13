@@ -16,16 +16,19 @@ import io.netty.channel.ChannelHandlerContext;
 
 /**
  * The default implementation of {@link HttpServerHandlerProvider}.
- * 
- * @since 1.1
  *
  * @author MJ Fang
+ * @since 1.1
  */
 public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvider {
 
     private static final MiddlewareChain DEFAULT_LAST_CHAIN = MiddlewareChains.notFound();
-    // default just close the channel when any error occurs
-    private static final BiConsumer<ChannelHandlerContext, Throwable> DEFAULT_EXCEPTION_HANDLER = (ctx, e) -> ctx
+
+    /**
+     * The default exception handler. Just close the channel when any
+     * error occurs.
+     */
+    static final BiConsumer<ChannelHandlerContext, Throwable> DEFAULT_EXCEPTION_HANDLER = (ctx, e) -> ctx
             .channel().close();
 
     private MiddlewareChain lastChain = DEFAULT_LAST_CHAIN;
@@ -57,7 +60,7 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
 
     /**
      * Close this provider and trigger {@link DefaultHttpServerHandler#onServerClosed()}.
-     * 
+     *
      * @since 1.2
      */
     @Override
@@ -138,7 +141,7 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
      * {@code addLast(path, middleware);}
      * </pre>
      *
-     * @param path the path
+     * @param path       the path
      * @param middleware the middleware
      * @return this provider
      */
@@ -148,7 +151,7 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
 
     /**
      * Add the specified {@link Middleware} at the end of the middleware list.
-     * 
+     *
      * @param pathFilter the path filter
      * @param middleware the middleware
      * @return this provider
@@ -160,7 +163,7 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
     /**
      * Add the specified {@link Middleware} at the end of the middleware list.
      *
-     * @param path the path
+     * @param path       the path
      * @param middleware the middleware
      * @return this provider
      */
@@ -213,6 +216,16 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
      */
     public DefaultHttpServerHandlerProvider addFirst(String path, Middleware middleware) {
         return addFirst(toFilter(path), middleware);
+    }
+
+    /**
+     * Returns the exception handler.
+     *
+     * @return the exception handler
+     * @since 4.1
+     */
+    public BiConsumer<ChannelHandlerContext, Throwable> getExceptionHandler() {
+        return exceptionHandler;
     }
 
 }

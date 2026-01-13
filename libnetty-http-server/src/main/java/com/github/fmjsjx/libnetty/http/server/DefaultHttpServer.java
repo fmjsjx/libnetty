@@ -785,7 +785,8 @@ public class DefaultHttpServer implements HttpServer {
     private ChannelInitializer<? extends Channel> createChannelInitializer(Map<Class<?>, Object> components) {
         if (isHttp2Enabled()) {
             log.debug("HTTP2 enabled, create and return HTTP2 server channel initializer.");
-            // TODO create and returns Http2ServerChannelInitializer.
+            return new DefaultHttp2ServerChannelInitializer(timeoutSeconds, maxContentLength, corsConfig,
+                    channelSslInitializer(), httpContentCompressorProvider, handlerProvider, components, addHeaders);
         }
         return new DefaultHttpServerChannelInitializer(timeoutSeconds, maxContentLength, corsConfig,
                 channelSslInitializer(), httpContentCompressorProvider, handlerProvider, components, addHeaders);

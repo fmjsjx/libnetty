@@ -1,6 +1,6 @@
 (() => {
-    const eventSource = new EventSource('https://localhost:8443/api/test/event-stream?len=64')
-    // const eventSource = new EventSource('http://localhost:8080/api/test/event-stream')
+    const eventSource = new EventSource('https://localhost:8443/api/test/sse-event-stream?len=64')
+    // const eventSource = new EventSource('http://localhost:8080/api/test/sse-event-stream')
     eventSource.addEventListener('close', (event) => {
         console.log('event.type:', event.type)
         eventSource.close()

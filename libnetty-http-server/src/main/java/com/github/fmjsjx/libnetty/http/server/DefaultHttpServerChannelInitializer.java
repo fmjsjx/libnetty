@@ -32,8 +32,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final int timeoutSeconds;
     private final int maxContentLength;
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private final Optional<CorsConfig> corsConfig;
+    private final CorsConfig corsConfig;
 
     private final boolean sslEnabled;
     private final ChannelSslInitializer<Channel> channelSslInitializer;
@@ -44,7 +43,6 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final HttpServerHandlerProvider handlerProvider;
 
     private final HttpRequestContextDecoder contextDecoder;
-    private final WebSocketSupport webSocketSupport;
     private final WebSocketInitializer webSocketInitializer;
 
     DefaultHttpServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
@@ -53,7 +51,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
                                         Consumer<HttpHeaders> addHeaders) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
-        this.corsConfig = Optional.ofNullable(corsConfig);
+        this.corsConfig = corsConfig;
         this.sslEnabled = channelSslInitializer != null;
         this.channelSslInitializer = channelSslInitializer;
         this.autoCompressionEnabled = httpContentCompressorProvider != null;
@@ -61,9 +59,8 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         this.handlerProvider = handlerProvider;
         this.contextDecoder = new HttpRequestContextDecoder(components, addHeaders);
         if (components.get(WebSocketSupport.componentKey()) instanceof Optional<?> o && o.isPresent()) {
-            this.webSocketInitializer = new WebSocketInitializer(this.webSocketSupport = (WebSocketSupport) o.get());
+            this.webSocketInitializer = new WebSocketInitializer((WebSocketSupport) o.get());
         } else {
-            this.webSocketSupport = null;
             this.webSocketInitializer = null;
         }
     }
@@ -84,29 +81,38 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         }
         pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
         pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
-        var webSocketSupport = this.webSocketSupport;
-        if (webSocketSupport != null) {
-            pipeline.addLast(new WebSocketServerCompressionHandler(0));
-            pipeline.addLast(new WebSocketServerProtocolHandler(webSocketSupport.protocolConfig()));
-            pipeline.addLast(webSocketInitializer);
-        }
+        addWebSocketSupport(pipeline, webSocketInitializer);
         pipeline.addLast(AUTO_READ_NEXT_HANDLER, AutoReadNextHandler.getInstance());
         if (sslEnabled) {
             pipeline.addLast(HSTS_HANDLER, HstsHandler.getInstance());
         }
-        corsConfig.map(CorsHandler::new).ifPresent(pipeline::addLast);
+        if (corsConfig != null) {
+            pipeline.addLast(CORS_HANDLER, new CorsHandler(corsConfig));
+        }
         pipeline.addLast(CHUNKED_WRITE_HANDLER, new ChunkedWriteHandler());
         pipeline.addLast(HTTP_REQUEST_CONTEXT_DECODER, contextDecoder);
         pipeline.addLast(HTTP_REQUEST_CONTEXT_HANDLER, handlerProvider.get());
     }
 
+    static void addWebSocketSupport(ChannelPipeline pipeline, WebSocketInitializer webSocketInitializer) {
+        if (webSocketInitializer != null) {
+            pipeline.addLast(new WebSocketServerCompressionHandler(0));
+            pipeline.addLast(webSocketInitializer.createProtocolHandler());
+            pipeline.addLast(webSocketInitializer);
+        }
+    }
+
     @Sharable
-    private static final class WebSocketInitializer extends ChannelInboundHandlerAdapter {
+    static final class WebSocketInitializer extends ChannelInboundHandlerAdapter {
 
         private final WebSocketSupport webSocketSupport;
 
-        private WebSocketInitializer(WebSocketSupport webSocketSupport) {
+        WebSocketInitializer(WebSocketSupport webSocketSupport) {
             this.webSocketSupport = webSocketSupport;
+        }
+
+        WebSocketServerProtocolHandler createProtocolHandler() {
+            return new WebSocketServerProtocolHandler(webSocketSupport.protocolConfig());
         }
 
         @Override

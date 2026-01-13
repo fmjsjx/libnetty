@@ -2,6 +2,7 @@ package com.github.fmjsjx.libnetty.http.server;
 
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.cors.CorsHandler;
 
 /**
  * Constants of HTTP server.
@@ -49,6 +50,13 @@ public final class Constants {
      * {@code "HstsHandler"}, the name of the {@link HstsHandler}.
      */
     public static final String HSTS_HANDLER = "HstsHandler";
+
+    /**
+     * {@code "CorsHandler"}, the name of the {@link CorsHandler}.
+     *
+     * @since 4.1
+     */
+    public static final String CORS_HANDLER = "CorsHandler";
 
     /**
      * {@code "HttpRequestContextDecoder"}, the name of the
