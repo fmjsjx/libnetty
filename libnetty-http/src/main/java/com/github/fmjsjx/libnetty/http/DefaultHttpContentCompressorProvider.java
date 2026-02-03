@@ -1,27 +1,18 @@
 package com.github.fmjsjx.libnetty.http;
 
+import io.netty.handler.codec.compression.*;
+import io.netty.handler.codec.http.HttpContentCompressor;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
 
-import io.netty.handler.codec.compression.Brotli;
-import io.netty.handler.codec.compression.BrotliOptions;
-import io.netty.handler.codec.compression.CompressionOptions;
-import io.netty.handler.codec.compression.DeflateOptions;
-import io.netty.handler.codec.compression.GzipOptions;
-import io.netty.handler.codec.compression.StandardCompressionOptions;
-import io.netty.handler.codec.compression.Zstd;
-import io.netty.handler.codec.compression.ZstdOptions;
-import io.netty.handler.codec.http.HttpContentCompressor;
-
 /**
  * The default implementation of {@link HttpContentCompressorProvider}.
- * 
+ *
  * @author MJ Fang
- * 
  * @see HttpContentCompressor
  * @see HttpContentCompressorProvider
- * 
  * @since 2.6
  */
 public class DefaultHttpContentCompressorProvider implements HttpContentCompressorProvider {
@@ -30,7 +21,7 @@ public class DefaultHttpContentCompressorProvider implements HttpContentCompress
 
     /**
      * Creates a new {@link DefaultHttpContentCompressorProvider.Builder} instance.
-     * 
+     *
      * @return a {@code DefaultHttpContentCompressorProvider.Builder}
      */
     public static final Builder builder() {
@@ -39,15 +30,18 @@ public class DefaultHttpContentCompressorProvider implements HttpContentCompress
 
     /**
      * A builder to build {@link HttpContentCompressorProvider}s.
-     * 
+     *
      * @see HttpContentCompressorProvider.Builder
      */
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static final class Builder implements HttpContentCompressorProvider.Builder {
 
         private int contentSizeThreshold = DEFAULT_CONTENT_SIZE_THRESHOLD;
 
         private Optional<GzipOptions> gzipOptions = Optional.of(StandardCompressionOptions.gzip());
         private Optional<DeflateOptions> deflateOptions = Optional.of(StandardCompressionOptions.deflate());
+        // Since 4.1, snappy is supported
+        private Optional<SnappyOptions> snappyOptions = Optional.of(StandardCompressionOptions.snappy());
         private Optional<BrotliOptions> brotliOptions = Brotli.isAvailable()
                 ? Optional.of(StandardCompressionOptions.brotli())
                 : Optional.empty();
@@ -115,6 +109,26 @@ public class DefaultHttpContentCompressorProvider implements HttpContentCompress
         @Override
         public Builder disableDeflate() {
             deflateOptions = Optional.empty();
+            return this;
+        }
+
+        @Override
+        public HttpContentCompressorProvider.Builder snappy() {
+            if (snappyOptions.isEmpty()) {
+                snappyOptions = Optional.of(StandardCompressionOptions.snappy());
+            }
+            return this;
+        }
+
+        @Override
+        public HttpContentCompressorProvider.Builder snappy(SnappyOptions options) {
+            snappyOptions = Optional.ofNullable(options);
+            return this;
+        }
+
+        @Override
+        public Builder disableSnappy() {
+            snappyOptions = Optional.empty();
             return this;
         }
 

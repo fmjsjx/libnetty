@@ -1,22 +1,17 @@
 package com.github.fmjsjx.libnetty.http;
 
+import io.netty.handler.codec.compression.*;
+import io.netty.handler.codec.http.HttpContentCompressor;
+
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import io.netty.handler.codec.compression.BrotliOptions;
-import io.netty.handler.codec.compression.DeflateOptions;
-import io.netty.handler.codec.compression.GzipOptions;
-import io.netty.handler.codec.compression.ZstdOptions;
-import io.netty.handler.codec.http.HttpContentCompressor;
-
 /**
  * Interface to provide {@link HttpContentCompressor}s.
- * 
- * @since 2.6
  *
  * @author MJ Fang
- * 
  * @see HttpContentCompressor
+ * @since 2.6
  */
 @FunctionalInterface
 public interface HttpContentCompressorProvider extends Supplier<HttpContentCompressor> {
@@ -24,7 +19,7 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
     /**
      * Returns an apply action that just create builder with default options but do
      * nothing.
-     * 
+     *
      * @return a {@code Consumer<HttpContentCompressorProvider.Builder>}
      */
     static Consumer<Builder> defaultOptions() {
@@ -35,7 +30,7 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
 
     /**
      * Creates a default {@link HttpContentCompressorProvider.Builder} instance.
-     * 
+     *
      * @return a {@code HttpContentCompressorProvider.Builder}
      */
     static Builder builder() {
@@ -44,7 +39,7 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
 
     /**
      * Creates and returns a new {@link HttpContentCompressor} instance.
-     * 
+     *
      * @return a new {@code HttpContentCompressor} instance
      */
     HttpContentCompressor create();
@@ -53,7 +48,7 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
      * Get a new {@link HttpContentCompressor} instance.
      * <p>
      * This method is equivalent to {@link #create}.
-     * 
+     *
      * @return a new {@code HttpContentCompressor} instance
      */
     @Override
@@ -69,7 +64,7 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
         /**
          * Creates a new {@link HttpContentCompressorProvider} with the current
          * settings.
-         * 
+         *
          * @return a {@code HttpContentCompressorProvider}
          */
         HttpContentCompressorProvider build();
@@ -79,7 +74,7 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
          * of the response body exceeds the threshold. The value should be a non-negative
          * number. {@code 0} will enable compression for all responses. The default value
          * is {@code 1024}.
-         * 
+         *
          * @param contentSizeThreshold the content size threshold
          * @return this builder
          */
@@ -87,14 +82,14 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
 
         /**
          * Enable gzip with default options.
-         * 
+         *
          * @return this builder
          */
         Builder gzip();
 
         /**
          * Enable gzip with given options.
-         * 
+         *
          * @param options {@link GzipOptions}
          * @return this builder
          */
@@ -102,21 +97,21 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
 
         /**
          * Disable gzip.
-         * 
+         *
          * @return this builder
          */
         Builder disableGzip();
 
         /**
          * Enable deflate with default options.
-         * 
+         *
          * @return this builder
          */
         Builder deflate();
 
         /**
          * Enable deflate with given options.
-         * 
+         *
          * @param options {@link DeflateOptions}
          * @return this builder
          */
@@ -124,21 +119,46 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
 
         /**
          * Disable deflate.
-         * 
+         *
          * @return this builder
          */
         Builder disableDeflate();
 
         /**
+         * Enable snappy with default options.
+         *
+         * @return this builder
+         * @since 4.1
+         */
+        Builder snappy();
+
+        /**
+         * Enable snappy with given options.
+         *
+         * @param options {@link SnappyOptions}
+         * @return this builder
+         * @since 4.1
+         */
+        Builder snappy(SnappyOptions options);
+
+        /**
+         * Disable snappy.
+         *
+         * @return this builder
+         * @since 4.1
+         */
+        Builder disableSnappy();
+
+        /**
          * Enable brotli with default options.
-         * 
+         *
          * @return this builder
          */
         Builder brotli();
 
         /**
          * Enable brotli with given options.
-         * 
+         *
          * @param options {@link BrotliOptions}
          * @return this builder
          */
@@ -146,21 +166,21 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
 
         /**
          * Disable brotli.
-         * 
+         *
          * @return this builder
          */
         Builder disableBrotli();
 
         /**
          * Enable zstd with default options.
-         * 
+         *
          * @return this builder
          */
         Builder zstd();
 
         /**
          * Enable brotli with given options.
-         * 
+         *
          * @param options {@link ZstdOptions}
          * @return this builder
          */
@@ -168,7 +188,7 @@ public interface HttpContentCompressorProvider extends Supplier<HttpContentCompr
 
         /**
          * Disable brotli.
-         * 
+         *
          * @return this builder
          */
         Builder disableZstd();
