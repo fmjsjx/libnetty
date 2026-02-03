@@ -32,7 +32,7 @@ dependencies {
     compileOnly("com.github.fmjsjx:libcommon-json-fastjson2")
     compileOnly("com.github.fmjsjx:libcommon-json-fastjson2-kotlin")
     compileOnly("tools.jackson.core:jackson-databind")
-    compileOnly("com.github.fmjsjx:libcommon-json-jackson3")
+    implementation("com.github.fmjsjx:libcommon-json-jackson3")
     compileOnly("com.github.fmjsjx:libcommon-json-jackson3-kotlin")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
@@ -41,6 +41,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl")
     testImplementation("org.apache.logging.log4j:log4j-core")
+    testImplementation("com.github.fmjsjx:libcommon-json-fastjson2")
 
 }
 

@@ -1,8 +1,10 @@
 package com.github.fmjsjx.libnetty.http.server.component;
 
-import static java.util.Objects.requireNonNull;
-
-import com.github.fmjsjx.libcommon.json.*;
+import com.github.fmjsjx.libcommon.json.Fastjson2Library;
+import com.github.fmjsjx.libcommon.json.Jackson3Library;
+import com.github.fmjsjx.libcommon.json.JsonDecoder;
+import com.github.fmjsjx.libcommon.json.JsonEncoder;
+import com.github.fmjsjx.libcommon.util.ReflectUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -15,6 +17,8 @@ import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.util.function.BiFunction;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * The mixed implementation of {@link JsonLibrary}.
  *
@@ -22,6 +26,36 @@ import java.util.function.BiFunction;
  * @since 3.6
  */
 public class MixedJsonLibrary extends AbstractJsonLibrary {
+
+    private static final JsonEncoder DEFAULT_ENCODER;
+    private static final JsonDecoder<?> DEFAULT_DECODER;
+
+    static {
+        com.github.fmjsjx.libcommon.json.JsonLibrary<?> jsonLibrary;
+        var jackson3Class = ReflectUtil.findForName("com.github.fmjsjx.libcommon.json.Jackson3Library").orElse(null);
+        if (jackson3Class != null) {
+            jsonLibrary = ReflectUtil.callStaticMethod(jackson3Class, "getInstance");
+        } else {
+            var jackson2Class = ReflectUtil.findForName("com.github.fmjsjx.libcommon.json.Jackson2Library").orElse(null);
+            if (jackson2Class != null) {
+                jsonLibrary = ReflectUtil.callStaticMethod(jackson2Class, "getInstance");
+            } else {
+                var fastjson2Class = ReflectUtil.findForName("com.github.fmjsjx.libcommon.json.Fastjson2Library").orElse(null);
+                if (fastjson2Class != null) {
+                    jsonLibrary = ReflectUtil.callStaticMethod(fastjson2Class, "getInstance");
+                } else {
+                    var jsoniterClass = ReflectUtil.findForName("com.github.fmjsjx.libcommon.json.JsoniterLibrary").orElse(null);
+                    if (jsoniterClass != null) {
+                        jsonLibrary = ReflectUtil.callStaticMethod(jsoniterClass, "getInstance");
+                    } else {
+                        throw new UnsupportedOperationException("No JSON library found");
+                    }
+                }
+            }
+        }
+        DEFAULT_ENCODER = jsonLibrary;
+        DEFAULT_DECODER = jsonLibrary;
+    }
 
     /**
      * The builder builds {@link MixedJsonLibrary}s.
@@ -44,16 +78,16 @@ public class MixedJsonLibrary extends AbstractJsonLibrary {
         /**
          * Creates and returns a new {@link Builder} with the
          * recommended combination, the {@link Fastjson2Library} as the
-         * encoder and the {@link JsoniterLibrary} as the decoder.
+         * encoder and the {@link Fastjson2Library} as the decoder.
          *
          * @return a new {@link Builder}
          */
         public static Builder recommended() {
-            return builder().encoder(Fastjson2Library.getInstance()).decoder(JsoniterLibrary.getInstance());
+            return builder().codec(Fastjson2Library.getInstance());
         }
 
-        private JsonEncoder encoder = Jackson2Library.getInstance();
-        private JsonDecoder<?> decoder = Jackson2Library.getInstance();
+        private JsonEncoder encoder = DEFAULT_ENCODER;
+        private JsonDecoder<?> decoder = DEFAULT_DECODER;
         private EmptyWay emptyWay = EmptyWay.NULL;
         private BiFunction<HttpRequestContext, String, String> beforeRead;
         private BiFunction<HttpRequestContext, Object, Object> beforeEncode;
@@ -65,7 +99,7 @@ public class MixedJsonLibrary extends AbstractJsonLibrary {
         /**
          * Sets the specified {@link JsonEncoder} and returns this builder.
          * <p>
-         * The default is {@link Jackson2Library}.
+         * The default is {@link Jackson3Library}.
          *
          * @param encoder the {@link JsonEncoder}
          * @return this {@link Builder}
@@ -78,7 +112,7 @@ public class MixedJsonLibrary extends AbstractJsonLibrary {
         /**
          * Sets the specified {@link JsonDecoder} and returns this builder.
          * <p>
-         * The default is {@link Jackson2Library}.
+         * The default is {@link Jackson3Library}.
          *
          * @param decoder the {@link JsonDecoder}
          * @return this {@link Builder}
@@ -86,6 +120,19 @@ public class MixedJsonLibrary extends AbstractJsonLibrary {
         public Builder decoder(JsonDecoder<?> decoder) {
             this.decoder = requireNonNull(decoder, "the decoder must not be null");
             return this;
+        }
+
+        /**
+         * Sets the specified codec and returns this builder.
+         * <p>
+         * The default is {@link Jackson3Library}.
+         *
+         * @param codec the {@link com.github.fmjsjx.libcommon.json.JsonLibrary}
+         * @return this {@link Builder}
+         * @since 4.1
+         */
+        public Builder codec(com.github.fmjsjx.libcommon.json.JsonLibrary<?> codec) {
+            return encoder(codec).decoder(codec);
         }
 
         /**
@@ -207,7 +254,7 @@ public class MixedJsonLibrary extends AbstractJsonLibrary {
                     return encodeJsonBody(ctx, object, jsonEncoder);
                 };
             }
-            return  (ctx, value) -> encodeJsonBody(ctx, value, jsonEncoder);
+            return (ctx, value) -> encodeJsonBody(ctx, value, jsonEncoder);
         }
 
     }
@@ -272,7 +319,7 @@ public class MixedJsonLibrary extends AbstractJsonLibrary {
     /**
      * Creates and returns a new {@link MixedJsonLibrary} instance with the
      * recommended combination, the {@link Fastjson2Library} as the encoder
-     * and the {@link JsoniterLibrary} as the decoder.
+     * and the {@link Fastjson2Library} as the decoder.
      *
      * @return a {@code MixedJsonLibrary}
      */
@@ -283,7 +330,7 @@ public class MixedJsonLibrary extends AbstractJsonLibrary {
     /**
      * Creates and returns a new {@link MixedJsonLibrary} instance with the
      * recommended combination, the {@link Fastjson2Library} as the encoder
-     * and the {@link JsoniterLibrary} as the decoder.
+     * and the {@link Fastjson2Library} as the decoder.
      *
      * @param emptyWay the {@code EmptyWay}
      * @return a {@code MixedJsonLibrary}
