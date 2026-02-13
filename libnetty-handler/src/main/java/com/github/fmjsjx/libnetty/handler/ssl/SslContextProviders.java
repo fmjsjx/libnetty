@@ -1,20 +1,16 @@
 package com.github.fmjsjx.libnetty.handler.ssl;
 
-import java.io.File;
-import java.io.IOException;
-import java.time.Instant;
-import java.util.concurrent.atomic.AtomicReference;
-
-import javax.net.ssl.SSLException;
-
-import io.netty.handler.ssl.OpenSsl;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.ssl.*;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.pkitesting.CertificateBuilder;
 import io.netty.pkitesting.X509Bundle;
 import io.netty.util.internal.StringUtil;
+
+import javax.net.ssl.SSLException;
+import java.io.File;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Implementations of {@link SslContextProvider}.
@@ -294,6 +290,105 @@ public class SslContextProviders {
             return sslContextRef.getAndSet(sslContext);
         }
 
+    }
+
+    /**
+     * Returns a simple implementation of {@link SslContextProvider}
+     * which holding a {@code server-side} {@link SslContext} for H2
+     * (HTTP 2) server.
+     *
+     * @return a {@code SslContextProvider} holding a self-signed
+     * certificate {@code SslContext} for server
+     * @throws SSLRuntimeException if any SSL error occurs
+     * @since 4.1
+     */
+    public static final SslContextProvider selfSignedForH2Server() throws SSLRuntimeException {
+        return selfSignedForH2Server(X509BundleHolder.instance);
+    }
+
+    /**
+     * Returns a simple implementation of {@link SslContextProvider} which holding a
+     * self-signed certificate {@link SslContext} for server.
+     *
+     * @param x509Bundle the X.509 bundle
+     * @return a {@code SslContextProvider} holding a self-signed certificate
+     * {@code SslContext} for server
+     * @throws SSLRuntimeException if any SSL error occurs
+     * @since 4.1
+     */
+    public static final SslContextProvider selfSignedForH2Server(X509Bundle x509Bundle) throws SSLRuntimeException {
+        var builder = SslContextBuilder.forServer(x509Bundle.getKeyPair().getPrivate(), x509Bundle.getCertificatePath());
+        try {
+            return simple(buildForH2Server(builder));
+        } catch (SSLException e) {
+            throw new SSLRuntimeException("Create self-signed certificate SslContext failed!", e);
+        }
+    }
+
+
+    /**
+     * Returns a simple implementation of {@link SslContextProvider}
+     * which holding a {@code server-side} {@link SslContext} for H2
+     * (HTTP 2) server.
+     *
+     * @param keyCertChainFile an X.509 certificate chain file in PEM format
+     * @param keyFile          a PKCS#8 private key file in PEM format
+     * @return a {@code SslContextProvider}
+     * @throws SSLRuntimeException if any SSL error occurs
+     * @see #forH2Server(File, File, String)
+     * @since 4.1
+     */
+    public static final SslContextProvider forH2Server(File keyCertChainFile, File keyFile) throws SSLRuntimeException {
+        return forH2Server(keyCertChainFile, keyFile, null);
+    }
+
+    /**
+     * Returns a simple implementation of {@link SslContextProvider}
+     * which holding a {@code server-side} {@link SslContext} for H2
+     * (HTTP 2) server.
+     *
+     * @param keyCertChainFile an X.509 certificate chain file in PEM format
+     * @param keyFile          a PKCS#8 private key file in PEM format
+     * @param keyPassword      the password of the {@code keyFile}, or
+     *                         {@code null} if it's not password-protected
+     * @return a {@code SslContextProvider}
+     * @throws SSLRuntimeException if any SSL error occurs
+     * @see #forH2Server(File, File)
+     * @since 4.1
+     */
+    public static final SslContextProvider forH2Server(File keyCertChainFile, File keyFile, String keyPassword)
+            throws SSLRuntimeException {
+        var builder = SslContextBuilder.forServer(keyCertChainFile, keyFile, keyPassword);
+        try {
+            return simple(buildForH2Server(builder));
+        } catch (SSLException e) {
+            throw new SSLRuntimeException("Create SslContext for server failed!", e);
+        }
+    }
+
+    private static SslContext buildForH2Server(SslContextBuilder builder) throws SSLException {
+        return buildForH2Server(builder, null);
+    }
+
+    private static SslContext buildForH2Server(SslContextBuilder builder, SslProvider sslProvider) throws SSLException {
+        if (sslProvider == null) {
+            sslProvider = SslProvider.isAlpnSupported(SslProvider.OPENSSL_REFCNT)
+                    ? SslProvider.OPENSSL_REFCNT
+                    : SslProvider.JDK;
+        }
+        return builder.sslProvider(sslProvider)
+                /* NOTE: the cipher filter may not include all ciphers required by the HTTP/2 specification.
+                 * Please refer to the HTTP/2 specification for cipher requirements. */
+                .ciphers(io.netty.handler.codec.http2.Http2SecurityUtil.CIPHERS, SupportedCipherSuiteFilter.INSTANCE)
+                .applicationProtocolConfig(new ApplicationProtocolConfig(
+                        ApplicationProtocolConfig.Protocol.ALPN,
+                        // NO_ADVERTISE is currently the only mode supported by both OpenSsl and JDK providers.
+                        ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
+                        // ACCEPT is currently the only mode supported by both OpenSsl and JDK providers.
+                        ApplicationProtocolConfig.SelectedListenerFailureBehavior.ACCEPT,
+                        ApplicationProtocolNames.HTTP_2,
+                        ApplicationProtocolNames.HTTP_1_1))
+                .build();
     }
 
     private SslContextProviders() {
