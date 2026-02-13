@@ -29,7 +29,7 @@ dependencies {
     // brotli4j
     implementation(platform("com.aayushatharva.brotli4j:all:1.20.0"))
     // kotlin
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.2.0"))
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.3.0"))
 
     constraints {
         api("org.slf4j:slf4j-api:2.0.17")
