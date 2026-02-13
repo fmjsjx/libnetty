@@ -39,7 +39,7 @@ dependencies {
         implementation("ch.qos.logback:logback-classic:1.5.27")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
-        val fastjson2Version = "2.0.60"
+        val fastjson2Version = "2.0.61"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
         implementation("com.github.luben:zstd-jni:1.5.7-6")
