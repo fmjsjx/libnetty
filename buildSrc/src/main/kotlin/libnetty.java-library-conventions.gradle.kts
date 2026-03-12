@@ -17,7 +17,7 @@ dependencies {
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.21.1"))
     // jackson3-bom
-    api(platform("tools.jackson:jackson-bom:3.0.4"))
+    api(platform("tools.jackson:jackson-bom:3.1.0"))
     // junit-bom
     testImplementation(platform("org.junit:junit-bom:6.0.2"))
     // mockito
