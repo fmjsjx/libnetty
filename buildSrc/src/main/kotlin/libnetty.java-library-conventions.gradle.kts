@@ -36,7 +36,7 @@ dependencies {
         val lombokVersion = "1.18.44"
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-        implementation("ch.qos.logback:logback-classic:1.5.27")
+        implementation("ch.qos.logback:logback-classic:1.5.32")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
         val fastjson2Version = "2.0.61"
