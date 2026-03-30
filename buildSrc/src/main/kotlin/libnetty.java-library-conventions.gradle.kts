@@ -27,7 +27,7 @@ dependencies {
     // kotlin coroutines
     implementation(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.10.2"))
     // brotli4j
-    implementation(platform("com.aayushatharva.brotli4j:all:1.20.0"))
+    implementation(platform("com.aayushatharva.brotli4j:all:1.22.0"))
     // kotlin
     implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.3.0"))
 
