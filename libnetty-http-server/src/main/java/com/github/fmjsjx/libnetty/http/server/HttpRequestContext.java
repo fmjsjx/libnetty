@@ -471,7 +471,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
     }
 
     /**
-     * Returns a {@link Stream} contains the key name of each property in thie
+     * Returns a {@link Stream} contains the key name of each property in the
      * {@link HttpRequestContext}.
      *
      * @return a {@code Stream<String>}
