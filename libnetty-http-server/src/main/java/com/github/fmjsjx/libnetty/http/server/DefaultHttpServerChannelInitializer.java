@@ -45,6 +45,9 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final HttpRequestContextDecoder contextDecoder;
     private final WebSocketInitializer webSocketInitializer;
 
+    private final Map<Class<?>, Object> components;
+    private final Consumer<HttpHeaders> addHeaders;
+
     DefaultHttpServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
                                         ChannelSslInitializer<Channel> channelSslInitializer, HttpContentCompressorProvider httpContentCompressorProvider,
                                         HttpServerHandlerProvider handlerProvider, Map<Class<?>, Object> components,
@@ -57,6 +60,8 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         this.autoCompressionEnabled = httpContentCompressorProvider != null;
         this.httpContentCompressorProvider = httpContentCompressorProvider;
         this.handlerProvider = handlerProvider;
+        this.components = components;
+        this.addHeaders = addHeaders;
         this.contextDecoder = new HttpRequestContextDecoder(components, addHeaders, sslEnabled);
         if (components.get(WebSocketSupport.componentKey()) instanceof Optional<?> o && o.isPresent()) {
             this.webSocketInitializer = new WebSocketInitializer((WebSocketSupport) o.get());
@@ -80,6 +85,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast(HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
         }
         pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
+        pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
         pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
         addWebSocketSupport(pipeline, webSocketInitializer);
         pipeline.addLast(AUTO_READ_NEXT_HANDLER, AutoReadNextHandler.getInstance());
