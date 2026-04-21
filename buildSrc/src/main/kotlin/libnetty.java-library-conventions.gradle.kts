@@ -23,7 +23,7 @@ dependencies {
     // mockito
     testImplementation(platform("org.mockito:mockito-bom:5.23.0"))
     // log4j2
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.25.3"))
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.25.4"))
     // kotlin coroutines
     implementation(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.10.2"))
     // brotli4j
