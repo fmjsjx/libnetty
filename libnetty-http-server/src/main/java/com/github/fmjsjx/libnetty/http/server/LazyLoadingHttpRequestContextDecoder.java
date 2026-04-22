@@ -5,10 +5,12 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 import io.netty.util.AsciiString;
+import io.netty.util.ReferenceCountUtil;
 
 import java.util.List;
 import java.util.Map;
@@ -18,6 +20,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 
 import static io.netty.handler.codec.http.DefaultHttpHeadersFactory.trailersFactory;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -26,12 +29,25 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
 
     private static final AsciiString MULTIPART = AsciiString.cached("multipart");
 
+    private static final FullHttpResponse TOO_LARGE_CLOSE = new DefaultFullHttpResponse(
+            HttpVersion.HTTP_1_1, HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, Unpooled.EMPTY_BUFFER);
+    private static final FullHttpResponse TOO_LARGE = new DefaultFullHttpResponse(
+            HttpVersion.HTTP_1_1, HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, Unpooled.EMPTY_BUFFER);
+
+    static {
+        TOO_LARGE.headers().set(CONTENT_LENGTH, 0);
+
+        TOO_LARGE_CLOSE.headers().set(CONTENT_LENGTH, 0);
+        TOO_LARGE_CLOSE.headers().set(CONNECTION, HttpHeaderValues.CLOSE);
+    }
+
     private final Map<Class<?>, Object> components;
     private final Consumer<HttpHeaders> addHeaders;
     private final boolean sslEnabled;
 
     private LazyLoadingHttpRequestContextImpl currentCtx;
     private boolean loading;
+    private long loadedLength;
 
     LazyLoadingHttpRequestContextDecoder(Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders,
                                          boolean sslEnabled) {
@@ -69,6 +85,7 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
                         request.uri(), Unpooled.EMPTY_BUFFER, request.headers(), trailersFactory().newHeaders());
                 currentCtx = new LazyLoadingHttpRequestContextImpl(request, ctx.channel(), fullRequest, components, addHeaders, sslEnabled);
                 loading = true;
+                loadedLength = 0;
                 out.add(currentCtx);
             } else {
                 out.add(request);
@@ -76,25 +93,61 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
             return;
         }
         if (loading && msg instanceof HttpContent chunk) {
-            if (chunk instanceof LastHttpContent lastChunk) {
-                var currentCtx = this.currentCtx;
+            var currentCtx = this.currentCtx;
+            var future = currentCtx.postDataFuture;
+            var maxContentLength = currentCtx.maxContentLength;
+            if (maxContentLength >= 0 && chunk.content().readableBytes() + loadedLength > maxContentLength) {
+                currentCtx.postDataFuture = null;
                 this.currentCtx = null;
                 loading = false;
-                var decoder = currentCtx.decoder;
-                decoder.offer(lastChunk);
+                loadedLength = 0;
+                future.completeExceptionally(new TooLongFrameException("content length exceeded " + maxContentLength + " bytes."));
+                closeChannelAsync(ctx);
+                return;
+            }
+            var decoder = currentCtx.decoder;
+            if (chunk instanceof LastHttpContent lastChunk) {
+                this.currentCtx = null;
+                loading = false;
+                loadedLength = 0;
+                try {
+                    decoder.offer(lastChunk);
+                } catch (RuntimeException e) {
+                    future.completeExceptionally(e);
+                    closeChannelAsync(ctx);
+                    return;
+                }
                 if (!lastChunk.trailingHeaders().isEmpty()) {
                     currentCtx.request().trailingHeaders().setAll(lastChunk.trailingHeaders());
                 }
-                var future = currentCtx.postDataFuture;
                 currentCtx.postDataFuture = null;
                 future.complete(decoder);
                 return;
             }
-            currentCtx.decoder.offer(chunk);
+            try {
+                decoder.offer(chunk);
+            } catch (RuntimeException e) {
+                future.completeExceptionally(e);
+                closeChannelAsync(ctx);
+                return;
+            }
             ctx.read();
             return;
         }
-        out.add(msg);
+        out.add(ReferenceCountUtil.retain(msg));
+    }
+
+    private void closeChannelAsync(ChannelHandlerContext ctx) {
+        var channel = ctx.channel();
+        if (!channel.isActive()) {
+            return;
+        }
+        // We should close the channel in even loop because the business layer may not close the channel.
+        channel.eventLoop().execute(() -> {
+            if (channel.isActive()) {
+                channel.close();
+            }
+        });
     }
 
     private boolean isMultipart(CharSequence mimeType) {
@@ -120,6 +173,7 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
         private final HttpRequest currentRequest;
         private HttpPostMultipartRequestDecoder decoder;
         private CompletableFuture<HttpPostMultipartRequestDecoder> postDataFuture;
+        private long maxContentLength = -1;
 
         private LazyLoadingHttpRequestContextImpl(HttpRequest currentRequest, Channel channel, FullHttpRequest request,
                                                   Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders,
@@ -129,7 +183,8 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
         }
 
         @Override
-        public CompletionStage<? extends InterfaceHttpPostRequestDecoder> awaitPostData() {
+        public CompletionStage<? extends InterfaceHttpPostRequestDecoder> awaitPostData(long maxContentLength) {
+            this.maxContentLength = maxContentLength;
             var req = currentRequest;
             decoder = new HttpPostMultipartRequestDecoder(req);
             postDataFuture = new CompletableFuture<>();

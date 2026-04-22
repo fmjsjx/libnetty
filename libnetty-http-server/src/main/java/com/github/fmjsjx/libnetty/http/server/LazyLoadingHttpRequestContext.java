@@ -20,7 +20,19 @@ public interface LazyLoadingHttpRequestContext extends HttpRequestContext {
      * {@link InterfaceHttpPostRequestDecoder} when the HTTP post data is
      * completely loaded
      */
-    CompletionStage<? extends InterfaceHttpPostRequestDecoder> awaitPostData();
+    default CompletionStage<? extends InterfaceHttpPostRequestDecoder> awaitPostData() {
+        return awaitPostData(-1);
+    }
+
+    /**
+     * Waits for the HTTP post data to be completely loaded.
+     *
+     * @param maxContentLength the maximum length of the content in bytes
+     * @return a {@link CompletionStage} that will be completed with the
+     * {@link InterfaceHttpPostRequestDecoder} when the HTTP post data is
+     * completely loaded
+     */
+    CompletionStage<? extends InterfaceHttpPostRequestDecoder> awaitPostData(long maxContentLength);
 
     /**
      * Returns the {@link InterfaceHttpPostRequestDecoder} handling the
