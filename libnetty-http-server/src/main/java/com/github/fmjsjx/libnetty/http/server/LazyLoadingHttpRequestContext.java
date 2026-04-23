@@ -38,7 +38,7 @@ public interface LazyLoadingHttpRequestContext extends HttpRequestContext {
      * Returns the {@link InterfaceHttpPostRequestDecoder} handling the
      * HTTP post data.
      *
-     * @return an Optional<InterfaceHttpPostRequestDecoder>
+     * @return an {@code Optional<InterfaceHttpPostRequestDecoder>}
      */
     Optional<? extends InterfaceHttpPostRequestDecoder> postData();
 
