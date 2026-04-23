@@ -53,6 +53,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
 
     private String remoteAddress;
     private int keepAliveFlag = -1;
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private Optional<CharSequence> contentType;
     private QueryStringDecoder queryStringDecoder;
     private String rawPath;
@@ -62,6 +63,7 @@ class DefaultHttpRequestContext implements HttpRequestContext {
     private final Map<Class<?>, Object> components;
     private final ConcurrentMap<Object, Object> properties = new ConcurrentHashMap<>();
     private final HttpResponseFactoryImpl responseFactory = new HttpResponseFactoryImpl();
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Consumer<HttpHeaders>> addHeaders;
     private final boolean sslEnabled;
     private final String protocolVersion;

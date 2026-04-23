@@ -692,7 +692,7 @@ public class RouterUtil {
     private static final Function<HttpRequestContext, Object> remoteAddrMapper = HttpRequestContext::remoteAddress;
 
     private static final Function<HttpRequestContext, Object> toParameterMapper(Parameter param) {
-        if (param.getType() == HttpRequestContext.class || param.getType() == HttpResponder.class) {
+        if (HttpResponder.class.isAssignableFrom(param.getType())) {
             return contextMapper;
         } else if (param.getType() == HttpResponseFactory.class) {
             return responseFactoryMapper;
