@@ -4,13 +4,13 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 import io.netty.util.AsciiString;
-import io.netty.util.ReferenceCountUtil;
 
 import java.util.List;
 import java.util.Map;
@@ -77,19 +77,41 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
     }
 
     @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
+        if (loading) {
+            var currentCtx = this.currentCtx;
+            var future = currentCtx.postDataFuture;
+            this.currentCtx = null;
+            currentCtx.postDataFuture = null;
+            if (future != null) {
+                future.completeExceptionally(new DecoderException("Channel closed when loading post data: " + ctx.channel()));
+            }
+        }
+    }
+
+    @Override
+    public boolean acceptInboundMessage(Object msg) {
+        if (loading) {
+            return msg instanceof HttpContent;
+        }
+        if (msg instanceof HttpRequest req && !(req instanceof FullHttpRequest)) {
+            var mimeType = HttpUtil.getMimeType(req);
+            return isMultipart(mimeType);
+        }
+        return false;
+    }
+
+    @Override
     protected void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         if (msg instanceof HttpRequest request) {
-            var mimeType = HttpUtil.getMimeType(request);
-            if (isMultipart(mimeType)) {
-                var fullRequest = new DefaultFullHttpRequest(request.protocolVersion(), request.method(),
-                        request.uri(), Unpooled.EMPTY_BUFFER, request.headers(), trailersFactory().newHeaders());
-                currentCtx = new LazyLoadingHttpRequestContextImpl(request, ctx.channel(), fullRequest, components, addHeaders, sslEnabled);
-                loading = true;
-                loadedLength = 0;
-                out.add(currentCtx);
-            } else {
-                out.add(request);
-            }
+            // is multipart request
+            var fullRequest = new DefaultFullHttpRequest(request.protocolVersion(), request.method(),
+                    request.uri(), Unpooled.EMPTY_BUFFER, request.headers(), trailersFactory().newHeaders());
+            currentCtx = new LazyLoadingHttpRequestContextImpl(request, ctx.channel(), fullRequest, components, addHeaders, sslEnabled);
+            loading = true;
+            loadedLength = 0;
+            out.add(currentCtx);
             return;
         }
         if (loading && msg instanceof HttpContent chunk) {
@@ -132,9 +154,7 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
                 return;
             }
             ctx.read();
-            return;
         }
-        out.add(ReferenceCountUtil.retain(msg));
     }
 
     private void closeChannelAsync(ChannelHandlerContext ctx) {

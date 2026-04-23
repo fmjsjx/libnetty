@@ -250,7 +250,12 @@ public class TestController {
     @StringBody
     public CompletionStage<CharSequence> postUpload(LazyLoadingHttpRequestContext ctx) {
         System.out.println("-- upload --");
-        return ctx.awaitPostData().thenApplyAsync(decoder -> {
+        return ctx.awaitPostData().handleAsync((decoder, cause) -> {
+            if (cause != null) {
+                System.err.println("-- error --");
+                cause.printStackTrace(System.err);
+                return cause.toString();
+            }
             try {
                 var fileUpload = decoder.getBodyHttpData("file");
                 if (fileUpload == null || fileUpload.getHttpDataType() != FileUpload) {
