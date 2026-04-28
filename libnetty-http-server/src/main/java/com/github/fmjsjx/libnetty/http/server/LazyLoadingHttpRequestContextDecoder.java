@@ -62,7 +62,12 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        if (!bufferedContents.isEmpty()) {
+            safeReleaseAllBufferedContents();
+            bufferedContents.clear();
+        }
         var currentCtx = this.currentCtx;
+        this.currentCtx = null;
         if (currentCtx != null) {
             var currentFuture = currentCtx.postDataFuture;
             if (currentFuture != null) {
@@ -84,10 +89,13 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
         if (loading) {
+            if (!bufferedContents.isEmpty()) {
+                safeReleaseAllBufferedContents();
+                bufferedContents.clear();
+            }
             var currentCtx = this.currentCtx;
-            var future = currentCtx.postDataFuture;
-
             this.currentCtx = null;
+            var future = currentCtx.postDataFuture;
             currentCtx.postDataFuture = null;
             if (future != null) {
                 future.completeExceptionally(new DecoderException("Channel closed when loading post data: " + ctx.channel()));
@@ -150,9 +158,9 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
                 } catch (RuntimeException e) {
                     future.completeExceptionally(e);
                     closeChannelAsync(ctx);
-                    safeReleaseAllBufferedContents();
                     return;
                 } finally {
+                    safeReleaseAllBufferedContents();
                     bufferedContents.clear();
                 }
             }
@@ -165,8 +173,6 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
                 } catch (RuntimeException e) {
                     future.completeExceptionally(e);
                     closeChannelAsync(ctx);
-                    safeReleaseAllBufferedContents();
-                    bufferedContents.clear();
                     return;
                 }
                 if (!lastChunk.trailingHeaders().isEmpty()) {
@@ -181,8 +187,6 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
             } catch (RuntimeException e) {
                 future.completeExceptionally(e);
                 closeChannelAsync(ctx);
-                safeReleaseAllBufferedContents();
-                bufferedContents.clear();
                 return;
             }
             ctx.read();
