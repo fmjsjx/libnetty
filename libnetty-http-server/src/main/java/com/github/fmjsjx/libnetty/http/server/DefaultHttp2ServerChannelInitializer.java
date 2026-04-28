@@ -55,14 +55,16 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
     private final UpgradeEventHandler upgradeEventHandler;
     private final HttpMessageHandler httpMessageHandler;
     private final Http2ParentChannelExceptionHandler http2ParentChannelExceptionHandler;
+    private final boolean lazyLoadingEnabled;
 
     private final Map<Class<?>, Object> components;
     private final Consumer<HttpHeaders> addHeaders;
 
     DefaultHttp2ServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
-                                         ChannelSslInitializer<Channel> channelSslInitializer, HttpContentCompressorProvider httpContentCompressorProvider,
-                                         HttpServerHandlerProvider handlerProvider, Map<Class<?>, Object> components,
-                                         Consumer<HttpHeaders> addHeaders) {
+                                         ChannelSslInitializer<Channel> channelSslInitializer,
+                                         HttpContentCompressorProvider httpContentCompressorProvider,
+                                         boolean lazyLoadingEnabled, HttpServerHandlerProvider handlerProvider,
+                                         Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.corsConfig = corsConfig;
@@ -70,6 +72,7 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
         this.channelSslInitializer = channelSslInitializer;
         this.autoCompressionEnabled = httpContentCompressorProvider != null;
         this.httpContentCompressorProvider = httpContentCompressorProvider;
+        this.lazyLoadingEnabled = lazyLoadingEnabled;
         this.handlerProvider = handlerProvider;
         this.components = components;
         this.addHeaders = addHeaders;
@@ -169,7 +172,9 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
                 pipeline.addLast(HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
             }
             pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
-            pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+            if (lazyLoadingEnabled) {
+                pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+            }
             pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
             addWebSocketSupport(pipeline, webSocketInitializer);
             pipeline.addLast(AUTO_READ_NEXT_HANDLER, AutoReadNextHandler.getInstance());
@@ -216,7 +221,9 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
                 pipeline.addAfter(ctx.name(), HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
             }
             pipeline.replace(this, HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
-            pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+            if (lazyLoadingEnabled) {
+                pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+            }
             pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
             addWebSocketSupport(pipeline, webSocketInitializer);
             pipeline.addLast(AUTO_READ_NEXT_HANDLER, AutoReadNextHandler.getInstance());
@@ -243,7 +250,9 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
             if (autoCompressionEnabled) {
                 pipeline.addLast(HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
             }
-            pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+            if (lazyLoadingEnabled) {
+                pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+            }
             pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
             if (corsConfig != null) {
                 pipeline.addLast(CORS_HANDLER, new CorsHandler(corsConfig));
