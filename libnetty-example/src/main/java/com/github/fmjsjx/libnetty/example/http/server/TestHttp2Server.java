@@ -51,6 +51,7 @@ public class TestHttp2Server {
                 .ioThreads(1) // IO threads (event loop)
                 .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
                 .enableHttp2()
+                .enableLazyLoading()
                 // support JSON using MixedJsonLibrary
                 .component(MixedJsonLibrary.Builder.recommended().emptyWay(JsonLibrary.EmptyWay.EMPTY)
                         .beforeWrite((ctx, content) -> content.replace("test", "hello"))
