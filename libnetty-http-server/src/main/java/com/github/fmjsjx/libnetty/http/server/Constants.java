@@ -87,6 +87,38 @@ public final class Constants {
      */
     public static final String SSE_EVENT_ENCODER = "SseEventEncoder";
 
+    /**
+     * {@code "WebSocketServerCompressionHandler"}, the name of the
+     * websocket server compression handler.
+     *
+     * @since 4.2
+     */
+    public static final String WEB_SOCKET_SERVER_COMPRESSION_HANDLER = "WebSocketServerCompressionHandler";
+
+    /**
+     * {@code "WebSocketServerProtocolHandler"}, the name of the
+     * websocket server protocol handler.
+     *
+     * @since 4.2
+     */
+    public static final String WEB_SOCKET_SERVER_PROTOCOL_HANDLER = "WebSocketServerProtocolHandler";
+
+    /**
+     * {@code "WebSocketInitializer"}, the name of the websocket
+     * initializer.
+     *
+     * @since 4.2
+     */
+    public static final String WEB_SOCKET_INITIALIZER = "WebSocketInitializer";
+
+    /**
+     * {@code "WebSocketPipelineInitializer"}, the name of the websocket
+     * pipeline initializer.
+     *
+     * @since 4.2
+     */
+    public static final String WEB_SOCKET_PIPELINE_INITIALIZER = "WebSocketPipelineInitializer";
+
     private Constants() {
     }
 }
