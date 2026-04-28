@@ -11,7 +11,9 @@ import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 import io.netty.util.AsciiString;
+import io.netty.util.ReferenceCountUtil;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,6 +46,7 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
     private final Map<Class<?>, Object> components;
     private final Consumer<HttpHeaders> addHeaders;
     private final boolean sslEnabled;
+    private final List<HttpContent> bufferedContents;
 
     private LazyLoadingHttpRequestContextImpl currentCtx;
     private boolean loading;
@@ -54,6 +57,7 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
         this.components = components;
         this.addHeaders = addHeaders;
         this.sslEnabled = sslEnabled;
+        this.bufferedContents = new LinkedList<>();
     }
 
     @Override
@@ -82,6 +86,7 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
         if (loading) {
             var currentCtx = this.currentCtx;
             var future = currentCtx.postDataFuture;
+
             this.currentCtx = null;
             currentCtx.postDataFuture = null;
             if (future != null) {
@@ -111,6 +116,10 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
             currentCtx = new LazyLoadingHttpRequestContextImpl(request, ctx.channel(), fullRequest, components, addHeaders, sslEnabled);
             loading = true;
             loadedLength = 0;
+            if (!bufferedContents.isEmpty()) {
+                safeReleaseAllBufferedContents();
+                bufferedContents.clear();
+            }
             out.add(currentCtx);
             return;
         }
@@ -128,6 +137,25 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
                 return;
             }
             var decoder = currentCtx.decoder;
+            if (decoder == null) {
+                loadedLength += chunk.content().readableBytes();
+                bufferedContents.add(chunk.retain());
+                return;
+            }
+            if (!bufferedContents.isEmpty()) {
+                try {
+                    for (var buffered : bufferedContents) {
+                        decoder.offer(buffered);
+                    }
+                } catch (RuntimeException e) {
+                    future.completeExceptionally(e);
+                    closeChannelAsync(ctx);
+                    safeReleaseAllBufferedContents();
+                    return;
+                } finally {
+                    bufferedContents.clear();
+                }
+            }
             if (chunk instanceof LastHttpContent lastChunk) {
                 this.currentCtx = null;
                 loading = false;
@@ -137,6 +165,8 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
                 } catch (RuntimeException e) {
                     future.completeExceptionally(e);
                     closeChannelAsync(ctx);
+                    safeReleaseAllBufferedContents();
+                    bufferedContents.clear();
                     return;
                 }
                 if (!lastChunk.trailingHeaders().isEmpty()) {
@@ -151,9 +181,17 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
             } catch (RuntimeException e) {
                 future.completeExceptionally(e);
                 closeChannelAsync(ctx);
+                safeReleaseAllBufferedContents();
+                bufferedContents.clear();
                 return;
             }
             ctx.read();
+        }
+    }
+
+    private void safeReleaseAllBufferedContents() {
+        for (var buffered : bufferedContents) {
+            ReferenceCountUtil.safeRelease(buffered);
         }
     }
 
