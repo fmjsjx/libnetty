@@ -39,7 +39,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
 
     private final boolean autoCompressionEnabled;
     private final HttpContentCompressorProvider httpContentCompressorProvider;
-
+    private final boolean lazyLoadingEnabled;
     private final HttpServerHandlerProvider handlerProvider;
 
     private final HttpRequestContextDecoder contextDecoder;
@@ -49,9 +49,10 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
     private final Consumer<HttpHeaders> addHeaders;
 
     DefaultHttpServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
-                                        ChannelSslInitializer<Channel> channelSslInitializer, HttpContentCompressorProvider httpContentCompressorProvider,
-                                        HttpServerHandlerProvider handlerProvider, Map<Class<?>, Object> components,
-                                        Consumer<HttpHeaders> addHeaders) {
+                                        ChannelSslInitializer<Channel> channelSslInitializer,
+                                        HttpContentCompressorProvider httpContentCompressorProvider,
+                                        boolean lazyLoadingEnabled, HttpServerHandlerProvider handlerProvider,
+                                        Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.corsConfig = corsConfig;
@@ -59,6 +60,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         this.channelSslInitializer = channelSslInitializer;
         this.autoCompressionEnabled = httpContentCompressorProvider != null;
         this.httpContentCompressorProvider = httpContentCompressorProvider;
+        this.lazyLoadingEnabled = lazyLoadingEnabled;
         this.handlerProvider = handlerProvider;
         this.components = components;
         this.addHeaders = addHeaders;
@@ -85,7 +87,9 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast(HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
         }
         pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
-        pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+        if (lazyLoadingEnabled) {
+            pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+        }
         pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
         addWebSocketSupport(pipeline, webSocketInitializer);
         pipeline.addLast(AUTO_READ_NEXT_HANDLER, AutoReadNextHandler.getInstance());
