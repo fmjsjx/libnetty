@@ -5,19 +5,24 @@ import com.github.fmjsjx.libcommon.json.toFastjson2Bytes
 import com.github.fmjsjx.libnetty.example.http.server.TestController.SSE_EVENT_CLOSE
 import com.github.fmjsjx.libnetty.example.http.server.TestController.SSE_EVENT_OPEN
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext
-import com.github.fmjsjx.libnetty.http.server.annotation.HttpGet
-import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath
-import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody
-import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar
+import com.github.fmjsjx.libnetty.http.server.LazyLoadingHttpRequestContext
+import com.github.fmjsjx.libnetty.http.server.annotation.*
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException
+import com.github.fmjsjx.libnetty.http.server.exception.SimpleHttpFailureException
 import com.github.fmjsjx.libnetty.http.server.sse.SseEventBuilder
 import com.github.fmjsjx.libnetty.http.server.sse.SseEventStream
 import io.netty.handler.codec.http.HttpHeaderValues
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.codec.http.QueryStringDecoder
+import io.netty.handler.codec.http.multipart.FileUpload
+import io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType
+import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder
 import io.netty.util.AsciiString
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
 import org.slf4j.LoggerFactory
+import java.io.File
+import java.io.IOException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -92,6 +97,35 @@ class KotlinController {
             }
             eventLoop.schedule(writeStreamTask, 1000, TimeUnit.MILLISECONDS)
         }.build()
+    }
+
+
+    @HttpPost("/upload")
+    @StringBody
+    suspend fun LazyLoadingHttpRequestContext.postUpload(): CharSequence {
+        println("-- upload --")
+        try {
+            val decoder = awaitPostData().await()
+            try {
+                val fileUpload = decoder!!.getBodyHttpData("file")
+                if (fileUpload == null || fileUpload.httpDataType != HttpDataType.FileUpload) {
+                    throw SimpleHttpFailureException(HttpResponseStatus.BAD_REQUEST, "invalid file")
+                }
+                if (fileUpload is FileUpload) {
+                    val dfile = File(fileUpload.filename)
+                    fileUpload.renameTo(dfile)
+                    println("-- file --")
+                    println(dfile)
+                }
+                return TestController.ASCII_OK
+            } catch (e: IOException) {
+                return e.toString()
+            }
+        } catch (e: Exception) {
+            System.err.println("-- error --")
+            e.printStackTrace(System.err)
+            return e.toString()
+        }
     }
 
 }
