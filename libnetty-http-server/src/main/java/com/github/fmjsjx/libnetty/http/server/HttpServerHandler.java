@@ -5,7 +5,6 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ChannelHandler.Sharable;
 
 /**
  * An interface handles HTTP requests.
