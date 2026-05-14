@@ -16,7 +16,6 @@ import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.codec.http.QueryStringDecoder
 import io.netty.handler.codec.http.multipart.FileUpload
 import io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType
-import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder
 import io.netty.util.AsciiString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
@@ -26,6 +25,8 @@ import java.io.IOException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @HttpPath("/api/kotlin")
 class KotlinController {
@@ -37,7 +38,7 @@ class KotlinController {
     suspend fun getJsons(query: QueryStringDecoder): Any {
         // GET /api/jsons
         logger.info("-- kotlin jsons --")
-        delay(1)
+        delay(1.milliseconds)
         logger.info("-- delayed 1 millisecond --")
         val node = JsonNodeFactory.instance.objectNode()
         query.parameters().forEach { (key: String?, values: List<String?>) ->
@@ -68,6 +69,7 @@ class KotlinController {
         val eventLoop = eventLoop()
         val running = AtomicBoolean(false)
         val uuid = java.util.UUID.randomUUID().toString()
+        delay(1.seconds)
         return eventStreamBuilder().autoPing(Duration.ofSeconds(30)).onError { _, cause ->
             System.err.println("error occurs on SSE event stream")
             cause.printStackTrace()
@@ -119,6 +121,7 @@ class KotlinController {
                 }
                 return TestController.ASCII_OK
             } catch (e: IOException) {
+                e.printStackTrace()
                 return e.toString()
             }
         } catch (e: Exception) {
