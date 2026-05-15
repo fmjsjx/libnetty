@@ -1,26 +1,8 @@
 package com.github.fmjsjx.libnetty.http.client;
 
-import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
-import static com.github.fmjsjx.libnetty.http.client.AbstractHttpClient.AcceptEncodingValues.*;
-import static io.netty.handler.codec.http.HttpHeaderNames.*;
-import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT_ENCODING;
-import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
-import static io.netty.handler.codec.http.HttpHeaderValues.GZIP_DEFLATE;
-import static io.netty.handler.codec.http.HttpMethod.*;
-import static io.netty.handler.codec.http.HttpMethod.DELETE;
-
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.*;
-
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.client.exception.ClientClosedException;
-
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
@@ -40,6 +22,22 @@ import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.*;
+
+import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
+import static com.github.fmjsjx.libnetty.http.client.AbstractHttpClient.AcceptEncodingValues.GZIP_DEFLATE_BR_ZSTD;
+import static com.github.fmjsjx.libnetty.http.client.AbstractHttpClient.AcceptEncodingValues.GZIP_DEFLATE_ZSTD;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED;
+import static io.netty.handler.codec.http.HttpHeaderValues.GZIP_DEFLATE;
+import static io.netty.handler.codec.http.HttpMethod.*;
+
 /**
  * Abstract implementation of {@link HttpClient}.
  *
@@ -48,6 +46,7 @@ import org.slf4j.LoggerFactory;
  * @see SimpleHttpClient
  * @since 1.0
  */
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public abstract class AbstractHttpClient implements HttpClient {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
@@ -91,13 +90,17 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected static final AsciiString DEFAULT_USER_AGENT_VALUE;
 
     static {
-        try (var in = AbstractHttpClient.class.getResourceAsStream("/default-user-agent")) {
+        AsciiString defaultUserAgentValue;
+        try (var in = AbstractHttpClient.class.getResourceAsStream("/META-INF/user-agent.default")) {
             assert in != null;
             var content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            DEFAULT_USER_AGENT_VALUE = AsciiString.cached(content.trim());
+            defaultUserAgentValue = AsciiString.cached(content.trim());
         } catch (Exception e) {
-            throw new RuntimeException("Unexpected error occurs when loading file default-user-agent.", e);
+            LoggerFactory.getLogger(AbstractHttpClient.class)
+                    .warn("Failed to load resource /META-INF/user-agent.default", e);
+            defaultUserAgentValue = AsciiString.cached("LibNetty");
         }
+        DEFAULT_USER_AGENT_VALUE = defaultUserAgentValue;
     }
 
     protected final EventLoopGroup group;
@@ -214,10 +217,7 @@ public abstract class AbstractHttpClient implements HttpClient {
                                                            Optional<Executor> executor) {
         var requestTimeout = requestTimeout(request);
         var future = sendAsync0(request, contentHandler, executor);
-        if (requestTimeout.isEmpty()) {
-            return future;
-        }
-        return future.orTimeout(requestTimeout.get().toNanos(), TimeUnit.NANOSECONDS);
+        return requestTimeout.map(duration -> future.orTimeout(duration.toNanos(), TimeUnit.NANOSECONDS)).orElse(future);
     }
 
     protected abstract <T> CompletableFuture<Response<T>> sendAsync0(
