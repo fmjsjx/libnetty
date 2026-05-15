@@ -51,6 +51,7 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
     private LazyLoadingHttpRequestContextImpl currentCtx;
     private boolean loading;
     private long loadedLength;
+    private boolean completed;
 
     LazyLoadingHttpRequestContextDecoder(Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders,
                                          boolean sslEnabled) {
@@ -124,6 +125,7 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
             currentCtx = new LazyLoadingHttpRequestContextImpl(request, ctx.channel(), fullRequest, this, components, addHeaders, sslEnabled);
             loading = true;
             loadedLength = 0;
+            completed = false;
             if (!bufferedContents.isEmpty()) {
                 safeReleaseAllBufferedContents();
                 bufferedContents.clear();
@@ -140,6 +142,7 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
                 this.currentCtx = null;
                 loading = false;
                 loadedLength = 0;
+                completed = false;
                 future.completeExceptionally(new TooLongFrameException("content length exceeded " + maxContentLength + " bytes."));
                 closeChannelAsync(ctx);
                 return;
@@ -148,6 +151,9 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
             if (postDecoder == null) {
                 loadedLength += chunk.content().readableBytes();
                 bufferedContents.add(chunk.retain());
+                if (chunk instanceof LastHttpContent) {
+                    completed = true;
+                }
                 return;
             }
             if (!bufferedContents.isEmpty()) {
@@ -196,6 +202,34 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
     private void safeReleaseAllBufferedContents() {
         for (var buffered : bufferedContents) {
             ReferenceCountUtil.safeRelease(buffered);
+        }
+    }
+
+    private void completeImmediately() {
+        var currentCtx = this.currentCtx;
+        this.currentCtx = null;
+        var postDecoder = currentCtx.postDecoder;
+        currentCtx.postDecoder = null;
+        var future = currentCtx.postDataFuture;
+        currentCtx.postDataFuture = null;
+        try {
+            for (var buffered : bufferedContents) {
+                postDecoder.offer(buffered);
+            }
+            var lastChunk = (LastHttpContent) bufferedContents.getLast();
+            if (!lastChunk.trailingHeaders().isEmpty()) {
+                currentCtx.request().trailingHeaders().setAll(lastChunk.trailingHeaders());
+            }
+            future.complete(postDecoder);
+            loading = false;
+            loadedLength = 0;
+            completed = false;
+        } catch (RuntimeException e) {
+            future.completeExceptionally(e);
+            closeChannelAsync(currentCtx.channel());
+        } finally {
+            safeReleaseAllBufferedContents();
+            bufferedContents.clear();
         }
     }
 
@@ -253,41 +287,28 @@ class LazyLoadingHttpRequestContextDecoder extends MessageToMessageDecoder<HttpO
         @Override
         public CompletionStage<? extends InterfaceHttpPostRequestDecoder> awaitPostData(long maxContentLength) {
             this.maxContentLength = maxContentLength;
-            var req = currentRequest;
-            var postDecoder = this.postDecoder = new HttpPostMultipartRequestDecoder(req);
             var future = postDataFuture = new CompletableFuture<>();
+            if (channel().eventLoop().inEventLoop()) {
+                awaitPostDataInEventLoop();
+            } else {
+                channel().eventLoop().execute(this::awaitPostDataInEventLoop);
+            }
+            return future;
+        }
+
+        private void awaitPostDataInEventLoop() {
+            var req = currentRequest;
+            this.postDecoder = new HttpPostMultipartRequestDecoder(req);
             var decoder = this.decoder;
-            if (!decoder.bufferedContents.isEmpty()) {
-                var lastChunk = decoder.bufferedContents.getLast();
-                if (lastChunk instanceof LastHttpContent lastContent) {
-                    try {
-                        for (var buffered : decoder.bufferedContents) {
-                            postDecoder.offer(buffered);
-                        }
-                        future.complete(postDecoder);
-                        decoder.currentCtx = null;
-                        decoder.loading = false;
-                        decoder.loadedLength = 0;
-                        if (!lastContent.trailingHeaders().isEmpty()) {
-                            request().trailingHeaders().setAll(lastContent.trailingHeaders());
-                        }
-                        postDataFuture = null;
-                    } catch (RuntimeException e) {
-                        future.completeExceptionally(e);
-                        decoder.closeChannelAsync(channel());
-                    } finally {
-                        decoder.safeReleaseAllBufferedContents();
-                        decoder.bufferedContents.clear();
-                    }
-                    return future;
-                }
+            if (decoder.completed) {
+                decoder.completeImmediately();
+                return;
             }
             if (HttpUtil.is100ContinueExpected(req)) {
                 HttpResponse accept = ACCEPT.retainedDuplicate();
                 channel().writeAndFlush(accept).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
             }
             channel().read();
-            return future;
         }
 
         @Override
