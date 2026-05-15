@@ -16,12 +16,14 @@ import io.netty.channel.*;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cors.CorsConfig;
+import io.netty.util.AsciiString;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -52,7 +54,22 @@ public class DefaultHttpServer implements HttpServer {
     private static final boolean DEFAULT_HTTP2_ENABLED = false;
     private static final boolean DEFAULT_LAZY_LOADING_ENABLED = false;
 
-    private static final Consumer<HttpHeaders> defaultAddHeaders = headers -> headers.set(SERVER, "libnetty");
+    private static final AsciiString DEFAULT_HEADER_SERVER;
+
+    static {
+        AsciiString defaultHeaderServerContent;
+        try (var in = DefaultHttpServer.class.getResourceAsStream("/META-INF/header-server.default")) {
+            assert in != null;
+            var content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            defaultHeaderServerContent = AsciiString.cached(content.trim());
+        } catch (Exception e) {
+            log.warn("Failed to load resource /META-INF/header-server.default", e);
+            defaultHeaderServerContent = AsciiString.cached("LibNetty");
+        }
+        DEFAULT_HEADER_SERVER = defaultHeaderServerContent;
+    }
+
+    private static final Consumer<HttpHeaders> defaultAddHeaders = headers -> headers.set(SERVER, DEFAULT_HEADER_SERVER);
 
     private String name;
     private String host;
