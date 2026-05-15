@@ -25,7 +25,7 @@ dependencies {
     // log4j2
     implementation(platform("org.apache.logging.log4j:log4j-bom:2.25.4"))
     // kotlin coroutines
-    implementation(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.10.2"))
+    implementation(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.11.0"))
     // brotli4j
     implementation(platform("com.aayushatharva.brotli4j:all:1.22.0"))
     // kotlin
