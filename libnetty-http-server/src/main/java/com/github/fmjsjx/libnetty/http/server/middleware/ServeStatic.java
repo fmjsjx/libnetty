@@ -8,6 +8,7 @@ import com.github.fmjsjx.libnetty.http.server.util.MimeTypesUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
+import io.netty.handler.codec.DateFormatter;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http2.Http2StreamChannel;
 import io.netty.handler.ssl.SslHandler;
@@ -35,7 +36,7 @@ import java.util.stream.Collectors;
 
 import static io.netty.channel.ChannelFutureListener.CLOSE;
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
-import static io.netty.handler.codec.http.HttpHeaderValues.IDENTITY;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.nio.file.StandardOpenOption.READ;
 
@@ -82,6 +83,7 @@ public class ServeStatic implements Middleware {
     private final Consumer<HttpHeaders> addHeaders;
     private final int chunkSize;
     private final boolean allowPost;
+    private final boolean rangeEnabled;
 
     /**
      * Constructs a new {@link ServeStatic} with the specified {@code path} and
@@ -162,6 +164,7 @@ public class ServeStatic implements Middleware {
         this.addHeaders = opt.addHeaders;
         this.chunkSize = opt.chunkSize;
         this.allowPost = opt.allowPost;
+        this.rangeEnabled = opt.range;
     }
 
     @Override
@@ -170,6 +173,13 @@ public class ServeStatic implements Middleware {
         boolean isGet = HttpMethod.GET.equals(ctx.method());
         boolean isHead = HttpMethod.HEAD.equals(ctx.method());
         var methodNotAllow = !isGet && !isHead && !allowPost;
+        List<Range> ranges = null;
+        var rangeHeader = ctx.headers().get(RANGE);
+        logger.debug("rangeHeader: {}", rangeHeader);
+        var isRange = rangeEnabled && rangeHeader != null;
+        if (isRange) {
+            ranges = parseRange(rangeHeader);
+        }
         List<StaticLocationMapping> mappings = this.mappings;
         for (StaticLocationMapping mapping : mappings) {
             String uri = mapping.uri;
@@ -222,7 +232,29 @@ public class ServeStatic implements Middleware {
                 long maxAge = this.maxAge;
                 Instant expires = maxAge > 0 ? now.plusSeconds(maxAge) : now;
                 boolean keepAlive = HttpUtil.isKeepAlive(request);
-                if (etagEnabled) {
+                var fileSize = fileAttrs.size();
+                if (isRange) {
+                    var response = checkRange(ranges, ctx, now, etag, lastModified, expires, fileSize);
+                    if (response != null) {
+                        return ctx.sendResponse(response, 0);
+                    }
+                    var ifRange = ctx.headers().get(IF_RANGE);
+                    if (!StringUtil.isNullOrEmpty(ifRange)) {
+                        if (ifRange.charAt(0) == '"' && etag != null) { // use etag
+                            if (!etag.equals(ifRange)) {
+                                isRange = false;
+                            }
+                        } else {
+                            Date date = DateFormatter.parseHttpDate(ifRange);
+                            if (date != null && lastModified != null) {
+                                if (date.toInstant().isBefore(lastModified)) {
+                                    isRange = false;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (etag != null) {
                     List<String> ifNoneMatches = headers.getAll(IF_NONE_MATCH);
                     if (!ifNoneMatches.isEmpty()) {
                         headers.remove(IF_MODIFIED_SINCE); // skip header if-modified-since
@@ -233,7 +265,7 @@ public class ServeStatic implements Middleware {
                         }
                     }
                 }
-                if (lastModifiedEnabled) {
+                if (lastModified != null) {
                     Long ims = headers.getTimeMillis(IF_MODIFIED_SINCE);
                     if (ims != null && ims >= lastModified.toEpochMilli()) { // not modified
                         FullHttpResponse response = ctx.responseFactory().createFull(NOT_MODIFIED);
@@ -241,44 +273,33 @@ public class ServeStatic implements Middleware {
                         return ctx.sendResponse(response, 0);
                     }
                 }
-                long contentLength = fileAttrs.size();
-                HttpResponse response = new DefaultHttpResponse(version, OK);
+                var contentType = MimeTypesUtil.probeContentType(p);
+                if (isRange) {
+                    var response = new DefaultHttpResponse(version, PARTIAL_CONTENT);
+                    HttpUtil.setKeepAlive(response, keepAlive);
+                    assert ranges != null;
+                    if (ranges.size() == 1) {
+                        var range = ranges.getFirst().normalize(fileSize);
+                        response.headers().set(CONTENT_RANGE, "bytes " + range.start() + "-" + range.end() + "/" + fileSize);
+                        response.headers().set(CONTENT_TYPE, contentType);
+                        setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
+                        response.headers().set(ACCEPT_RANGES, BYTES);
+                        var contentLength = range.length();
+                        var offset = range.start();
+                        return sendResponse(ctx, response, contentLength, isHead, fileSize, keepAlive, p, offset);
+                    }
+                    // multipart/byteranges
+                    // TODO implement multipart/byteranges feature in next version
+                }
+                var response = new DefaultHttpResponse(version, OK);
                 HttpUtil.setKeepAlive(response, keepAlive);
-                HttpUtil.setContentLength(response, contentLength);
-                response.headers().set(CONTENT_TYPE, MimeTypesUtil.probeContentType(p));
+                HttpUtil.setContentLength(response, fileSize);
+                if (rangeHeader != null) {
+                    response.headers().set(ACCEPT_RANGES, NONE);
+                }
+                response.headers().set(CONTENT_TYPE, contentType);
                 setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
-                CompletableFuture<HttpResult> future = new CompletableFuture<>();
-                var resultLength = isHead ? 0 : contentLength;
-                ChannelFutureListener[] cbs = new ChannelFutureListener[]{cf -> {
-                    if (cf.isSuccess()) {
-                        future.complete(new DefaultHttpResult(ctx, resultLength, OK));
-                    } else if (cf.cause() != null) {
-                        future.completeExceptionally(cf.cause());
-                    }
-                }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE};
-                Channel channel = ctx.channel();
-                var noSsl = channel.pipeline().get(SslHandler.class) == null;
-                if (noSsl) {
-                    // disable compression feature
-                    response.headers().set(CONTENT_ENCODING, IDENTITY);
-                }
-                channel.write(response);
-                if (isHead) {
-                    channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
-                } else {
-                    FileChannel file = FileChannel.open(p, READ);
-                    if (noSsl && supportZeroCopyTransfer(channel)) {
-                        // Use zero-copy file transfer
-                        channel.write(new DefaultFileRegion(file, 0, contentLength));
-                        // Write the end marker.
-                        channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
-                    } else {
-                        ChunkedNioFile chunkedFile = new ChunkedNioFile(file, 0, contentLength, chunkSize);
-                        // HttpChunkedInput will write the end marker (LastHttpContent) for us.
-                        channel.writeAndFlush(new HttpChunkedInput(chunkedFile)).addListeners(cbs);
-                    }
-                }
-                return future;
+                return sendResponse(ctx, response, fileSize, isHead, fileSize, keepAlive, p, 0);
             } catch (IOException e) {
                 // skip any IO exception
                 return next.doNext(ctx);
@@ -286,6 +307,67 @@ public class ServeStatic implements Middleware {
         }
         // End of loop
         return next.doNext(ctx);
+    }
+
+    private CompletableFuture<HttpResult> sendResponse(HttpRequestContext ctx, DefaultHttpResponse response,
+                                                       long contentLength, boolean isHead, long fileSize,
+                                                       boolean keepAlive, Path path, long offset) throws IOException {
+        HttpUtil.setContentLength(response, contentLength);
+        CompletableFuture<HttpResult> future = new CompletableFuture<>();
+        var resultLength = isHead ? 0 : fileSize;
+        ChannelFutureListener[] cbs = new ChannelFutureListener[]{cf -> {
+            if (cf.isSuccess()) {
+                future.complete(new DefaultHttpResult(ctx, resultLength, OK));
+            } else if (cf.cause() != null) {
+                future.completeExceptionally(cf.cause());
+            }
+        }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE};
+        Channel channel = ctx.channel();
+        var noSsl = channel.pipeline().get(SslHandler.class) == null;
+        if (noSsl) {
+            // disable compression feature
+            response.headers().set(CONTENT_ENCODING, IDENTITY);
+        }
+        channel.write(response);
+        if (isHead) {
+            channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
+        } else {
+            FileChannel file = FileChannel.open(path, READ);
+            if (noSsl && supportZeroCopyTransfer(channel)) {
+                // Use zero-copy file transfer
+                channel.write(new DefaultFileRegion(file, offset, contentLength));
+                // Write the end marker.
+                channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
+            } else {
+                ChunkedNioFile chunkedFile = new ChunkedNioFile(file, offset, contentLength, chunkSize);
+                // HttpChunkedInput will write the end marker (LastHttpContent) for us.
+                channel.writeAndFlush(new HttpChunkedInput(chunkedFile)).addListeners(cbs);
+            }
+        }
+        return future;
+    }
+
+    private FullHttpResponse checkRange(List<Range> ranges, HttpRequestContext ctx, Instant now, String etag,
+                                        Instant lastModified, Instant expires, long fileSize) {
+        if (ranges == null) {
+            var response = ctx.responseFactory().createFull(REQUESTED_RANGE_NOT_SATISFIABLE);
+            setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
+            return response;
+        }
+        var anyInvalid = false;
+        for (var range : ranges) {
+            if (range.invalid() || range.outOfRange(fileSize)) {
+                anyInvalid = true;
+                break;
+            }
+        }
+        if (anyInvalid) {
+            var response = ctx.responseFactory().createFull(REQUESTED_RANGE_NOT_SATISFIABLE);
+            response.headers().add(CONTENT_RANGE, "bytes */" + fileSize);
+            setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
+            return response;
+        }
+        return null;
     }
 
     private void setDateAndCacheHeaders(Instant date, String etag, Instant lastModified, Instant expires,
@@ -395,6 +477,7 @@ public class ServeStatic implements Middleware {
         private Consumer<HttpHeaders> addHeaders;
         private int chunkSize = DEFAULT_CHUNK_SIZE;
         private boolean allowPost = false;
+        private boolean range = false;
 
         /**
          * Constructs a new {@link Options} instance.
@@ -570,12 +653,179 @@ public class ServeStatic implements Middleware {
             return this;
         }
 
+        /**
+         * Enable Range feature.
+         *
+         * @return this {@code Options}
+         * @since 4.2
+         */
+        public Options enableRange() {
+            return range(true);
+        }
+
+        /**
+         * Set whether enable Range feature.
+         *
+         * @param range {@code true} if enable, {@code false} otherwise
+         * @return this {@code Options}
+         * @since 4.2
+         */
+        public Options range(boolean range) {
+            this.range = range;
+            return this;
+        }
+
         @Override
         public String toString() {
             return "ServeStatic.Options[indexes=" + indexes + ", showHidden=" + showHidden + ", redirectDirectory="
                     + redirectDirectory + ", cacheControl=" + cacheControl + ", etag=" + etag + ", etagGenerator="
                     + etagGenerator + ", lastModified=" + lastModified + ", addHeaders=" + addHeaders + ", chunkSize="
                     + chunkSize + ", allowPost=" + allowPost + "]";
+        }
+    }
+
+    /**
+     * Parses the HTTP {@code Range} request header value into a list of {@link Range}s
+     * according to RFC 7233.
+     * <p>
+     * Supported syntax (the {@code bytes} unit only):
+     * <ul>
+     *     <li>{@code bytes=0-100} &rarr; {@code start=0, end=100}</li>
+     *     <li>{@code bytes=100-} &rarr; {@code start=100, end=-1} (open-ended, until EOF)</li>
+     *     <li>{@code bytes=-100} &rarr; {@code start=-100, end=-1} (suffix length, last N bytes)</li>
+     *     <li>{@code bytes=0-100,300-400,500-} &rarr; multiple ranges separated by commas</li>
+     * </ul>
+     * <p>
+     * This method only validates the syntactic format. The semantic validity
+     * (e.g. {@code start} not exceeding {@code end}) is left to the caller via
+     * {@link Range#valid()}.
+     *
+     * @param rangeHeader the raw value of the {@code Range} request header
+     * @return the parsed list of ranges, or {@code null} if {@code rangeHeader}
+     * is {@code null}, blank, uses an unsupported unit or contains any
+     * malformed range specification
+     * @since 4.2
+     */
+    static List<Range> parseRange(String rangeHeader) {
+        // Range header must start with the unit (case-insensitive) followed by '='.
+        var equalsIndex = rangeHeader.indexOf('=');
+        if (equalsIndex <= 0) {
+            return null;
+        }
+        var unit = rangeHeader.substring(0, equalsIndex).trim();
+        // Only the "bytes" unit is supported, as required by RFC 7233.
+        if (!"bytes".equalsIgnoreCase(unit)) {
+            return null;
+        }
+        var rangeSet = rangeHeader.substring(equalsIndex + 1).trim();
+        if (rangeSet.isEmpty()) {
+            return null;
+        }
+        // Use limit = -1 to preserve trailing empty strings so that malformed
+        // input such as "bytes=0-100," or "bytes=0-100,,200-300" can be detected
+        // by the empty-segment check below instead of being silently accepted.
+        var parts = rangeSet.split(",", -1);
+        var ranges = new ArrayList<Range>(parts.length);
+        for (var part : parts) {
+            var spec = part.trim();
+            if (spec.isEmpty()) {
+                return null;
+            }
+            var dashIndex = spec.indexOf('-');
+            if (dashIndex < 0) {
+                return null;
+            }
+            // Reject specs containing more than one dash, e.g. "0-1-2" or "--100".
+            if (spec.indexOf('-', dashIndex + 1) >= 0) {
+                return null;
+            }
+            var startStr = spec.substring(0, dashIndex).trim();
+            var endStr = spec.substring(dashIndex + 1).trim();
+            long start;
+            long end;
+            try {
+                if (startStr.isEmpty()) {
+                    // suffix-byte-range-spec: "-" suffix-length, e.g. "bytes=-100"
+                    if (isAnyNotDigit(endStr)) {
+                        return null;
+                    }
+                    start = -Long.parseLong(endStr);
+                    end = -1L;
+                } else if (endStr.isEmpty()) {
+                    // open-ended byte-range-spec, e.g. "bytes=100-"
+                    if (isAnyNotDigit(startStr)) {
+                        return null;
+                    }
+                    start = Long.parseLong(startStr);
+                    end = -1L;
+                } else {
+                    // explicit byte-range-spec, e.g. "bytes=0-100"
+                    if (isAnyNotDigit(startStr) || isAnyNotDigit(endStr)) {
+                        return null;
+                    }
+                    start = Long.parseLong(startStr);
+                    end = Long.parseLong(endStr);
+                    System.err.println(endStr);
+                    System.err.println(end);
+                }
+            } catch (NumberFormatException e) {
+                // numeric overflow is treated as a malformed range
+                return null;
+            }
+            ranges.add(new Range(start, end));
+        }
+        return ranges;
+    }
+
+    private static boolean isAnyNotDigit(String s) {
+        if (s.isEmpty()) {
+            return true;
+        }
+        for (int i = 0, len = s.length(); i < len; i++) {
+            if (!Character.isDigit(s.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private record Range(long start, long end, boolean valid) {
+        private static boolean isValid(long start, long end) {
+            return end < 0 || (start >= 0 && start <= end);
+        }
+
+        private Range(long start, long end) {
+            this(start, end, isValid(start, end));
+        }
+
+        private boolean invalid() {
+            return !valid;
+        }
+
+        private boolean outOfRange(long fileSize) {
+            if (end < 0) {
+                return start >= 0 ? start >= fileSize : Math.abs(start) > fileSize;
+            }
+            System.err.println(this);
+            var r = end >= fileSize || start >= fileSize;
+            System.err.println(r);
+            return r;
+        }
+
+        private Range normalize(long fileSize) {
+            if (end < 0) {
+                if (start > 0) {
+                    return new Range(start, fileSize - 1);
+                } else {
+                    return new Range(fileSize + start, fileSize - 1);
+                }
+            } else {
+                return this;
+            }
+        }
+
+        public long length() {
+            return end - start + 1;
         }
     }
 
