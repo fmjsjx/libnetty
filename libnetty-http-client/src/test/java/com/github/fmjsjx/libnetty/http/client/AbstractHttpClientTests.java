@@ -12,7 +12,7 @@ public class AbstractHttpClientTests {
     public void testDefaultUserAgentValue() {
         var value = AbstractHttpClient.DEFAULT_USER_AGENT_VALUE;
         assertNotNull(value);
-        try (var in = getClass().getResourceAsStream("/default-user-agent")) {
+        try (var in = getClass().getResourceAsStream("/META-INF/user-agent.default")) {
             assertNotNull(in);
             var expected = new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
             assertEquals(expected, value.toString());
