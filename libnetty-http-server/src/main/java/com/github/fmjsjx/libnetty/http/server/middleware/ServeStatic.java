@@ -1,11 +1,5 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
-import static io.netty.channel.ChannelFutureListener.*;
-import static io.netty.handler.codec.http.HttpHeaderNames.*;
-import static io.netty.handler.codec.http.HttpHeaderValues.IDENTITY;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
-import static java.nio.file.StandardOpenOption.*;
-
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
@@ -14,16 +8,7 @@ import com.github.fmjsjx.libnetty.http.server.util.MimeTypesUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpChunkedInput;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http2.Http2StreamChannel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedNioFile;
@@ -40,20 +25,19 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import static io.netty.channel.ChannelFutureListener.CLOSE;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.IDENTITY;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static java.nio.file.StandardOpenOption.READ;
 
 /**
  * A {@link Middleware} serves static resources.
@@ -97,6 +81,7 @@ public class ServeStatic implements Middleware {
     private final EtagGenerator etagGenerator;
     private final Consumer<HttpHeaders> addHeaders;
     private final int chunkSize;
+    private final boolean allowPost;
 
     /**
      * Constructs a new {@link ServeStatic} with the specified {@code path} and
@@ -176,6 +161,7 @@ public class ServeStatic implements Middleware {
         this.etagGenerator = opt.etagGenerator;
         this.addHeaders = opt.addHeaders;
         this.chunkSize = opt.chunkSize;
+        this.allowPost = opt.allowPost;
     }
 
     @Override
@@ -183,14 +169,12 @@ public class ServeStatic implements Middleware {
         String path = ctx.path();
         boolean isGet = HttpMethod.GET.equals(ctx.method());
         boolean isHead = HttpMethod.HEAD.equals(ctx.method());
+        var methodNotAllow = !isGet && !isHead && !allowPost;
         List<StaticLocationMapping> mappings = this.mappings;
         for (StaticLocationMapping mapping : mappings) {
             String uri = mapping.uri;
             if (!path.startsWith(uri)) {
                 continue;
-            }
-            if (!isGet && !isHead) {
-                return ctx.simpleRespond(METHOD_NOT_ALLOWED);
             }
             Path p = Paths.get(mapping.location, path.substring(uri.length()));
             if (!Files.exists(p)) {
@@ -200,6 +184,9 @@ public class ServeStatic implements Middleware {
             if (Files.isDirectory(p)) {
                 boolean hitRedirect = !path.endsWith("/");
                 if (hitRedirect && redirectDirectory) {
+                    if (methodNotAllow) {
+                        return ctx.simpleRespond(METHOD_NOT_ALLOWED);
+                    }
                     return ctx.sendRedirect(path + "/", addHeaders);
                 } else {
                     boolean exists = false;
@@ -224,6 +211,9 @@ public class ServeStatic implements Middleware {
             try {
                 if (Files.isHidden(p) && !showHidden) {
                     return next.doNext(ctx);
+                }
+                if (methodNotAllow) {
+                    return ctx.simpleRespond(METHOD_NOT_ALLOWED);
                 }
                 BasicFileAttributes fileAttrs = Files.readAttributes(p, BasicFileAttributes.class);
                 Instant now = Instant.now();
@@ -404,6 +394,7 @@ public class ServeStatic implements Middleware {
         private boolean lastModified = true;
         private Consumer<HttpHeaders> addHeaders;
         private int chunkSize = DEFAULT_CHUNK_SIZE;
+        private boolean allowPost = false;
 
         /**
          * Constructs a new {@link Options} instance.
@@ -557,12 +548,34 @@ public class ServeStatic implements Middleware {
             return this;
         }
 
+        /**
+         * Allow POST method to fetch static resources.
+         *
+         * @return this {@code Options}
+         * @since 4.2
+         */
+        public Options allowPost() {
+            return allowPost(true);
+        }
+
+        /**
+         * Set whether allow POST method to fetch static resources.
+         *
+         * @param allowPost {@code true} if allow, {@code false} otherwise
+         * @return this {@code Options}
+         * @since 4.2
+         */
+        public Options allowPost(boolean allowPost) {
+            this.allowPost = allowPost;
+            return this;
+        }
+
         @Override
         public String toString() {
             return "ServeStatic.Options[indexes=" + indexes + ", showHidden=" + showHidden + ", redirectDirectory="
                     + redirectDirectory + ", cacheControl=" + cacheControl + ", etag=" + etag + ", etagGenerator="
                     + etagGenerator + ", lastModified=" + lastModified + ", addHeaders=" + addHeaders + ", chunkSize="
-                    + chunkSize + "]";
+                    + chunkSize + ", allowPost=" + allowPost + "]";
         }
     }
 
