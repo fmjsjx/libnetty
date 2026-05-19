@@ -73,10 +73,11 @@ public class TestDefaultServer {
                 .applyCompressionOptions( // compression support
                         HttpContentCompressorProvider.defaultOptions())
         ;
+        var options = new ServeStatic.Options().enableRange();
         server.defaultHandlerProvider() // use default server handler (DefaultHttpServerHandlerProvider)
                 .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
                 .addLast("/static/auth", new AuthBasic(passwords(), "test")) // HTTP Basic Authentication
-                .addLast(new ServeStatic("/static/", "libnetty-example/src/main/resources/static/")) // static resources
+                .addLast(new ServeStatic("/static/", "libnetty-example/src/main/resources/static/", options)) // static resources
                 .addLast(new Router().register(controller).register(kotlinController).init()) // router
         ;
         //noinspection DuplicatedCode
