@@ -814,7 +814,7 @@ public class ServeStatic implements Middleware {
 
         private Range normalize(long fileSize) {
             if (end < 0) {
-                if (start > 0) {
+                if (start >= 0) {
                     return new Range(start, fileSize - 1);
                 } else {
                     return new Range(fileSize + start, fileSize - 1);
