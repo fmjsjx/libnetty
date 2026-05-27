@@ -200,7 +200,7 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
         var pipeline = ch.pipeline();
         var sourceCodec = new HttpServerCodec();
         pipeline.addLast(HTTP_CODEC, sourceCodec);
-        pipeline.addLast(new HttpServerUpgradeHandler(sourceCodec, upgradeCodecFactory));
+        pipeline.addLast(new HttpServerUpgradeHandler(sourceCodec, upgradeCodecFactory, maxContentLength));
         pipeline.addLast(httpMessageHandler);
         pipeline.addLast(upgradeEventHandler);
     }
