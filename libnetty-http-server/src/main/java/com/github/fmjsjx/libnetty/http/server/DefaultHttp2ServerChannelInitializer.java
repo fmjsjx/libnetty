@@ -100,7 +100,6 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
 
     private UpgradeCodecFactory createUpgradeCodecFactory() {
         return protocol -> {
-            System.err.println("upgradeCodecFactory: " + protocol);
             if (AsciiString.contentEquals(Http2CodecUtil.HTTP_UPGRADE_PROTOCOL_NAME, protocol)) {
                 return new Http2ServerUpgradeCodec(Http2FrameCodecBuilder.forServer().build(),
                         new Http2MultiplexHandler(http2StreamInitializer),
