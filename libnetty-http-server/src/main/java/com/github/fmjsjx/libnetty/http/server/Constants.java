@@ -3,6 +3,9 @@ package com.github.fmjsjx.libnetty.http.server;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.cors.CorsHandler;
+import io.netty.util.internal.SystemPropertyUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Constants of HTTP server.
@@ -11,6 +14,8 @@ import io.netty.handler.codec.http.cors.CorsHandler;
  * @since 3.9
  */
 public final class Constants {
+
+    private static final Logger logger = LoggerFactory.getLogger(Constants.class);
 
     /**
      * {@code "TimeoutHandler"}, the name of the timeout channel handler.
@@ -118,6 +123,18 @@ public final class Constants {
      * @since 4.2
      */
     public static final String WEB_SOCKET_PIPELINE_INITIALIZER = "WebSocketPipelineInitializer";
+
+    /**
+     * The default chunk size for file streaming.
+     *
+     * @since 4.2
+     */
+    public static final int DEFAULT_CHUNK_SIZE;
+
+    static {
+        DEFAULT_CHUNK_SIZE = SystemPropertyUtil.getInt("libnetty.http.server.middleware.static.chunkSize", 8192);
+        logger.debug("-Dlibnetty.http.server.middleware.static.chunkSize: {}", DEFAULT_CHUNK_SIZE);
+    }
 
     private Constants() {
     }

@@ -1,25 +1,5 @@
 package com.github.fmjsjx.libnetty.http.server;
 
-import static io.netty.channel.ChannelFutureListener.CLOSE;
-import static io.netty.handler.codec.http.HttpHeaderNames.LOCATION;
-import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-
-import java.nio.charset.Charset;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Stream;
-
 import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.server.HttpServer.User;
 import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
@@ -30,32 +10,44 @@ import com.github.fmjsjx.libnetty.http.server.sse.SseEventStreamBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.EventLoop;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.channel.*;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
+import io.netty.handler.codec.http2.Http2StreamChannel;
+import io.netty.handler.stream.ChunkedNioFile;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCounted;
 import io.netty.util.internal.StringUtil;
 
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
+import static com.github.fmjsjx.libnetty.http.server.Constants.DEFAULT_CHUNK_SIZE;
+import static com.github.fmjsjx.libnetty.http.server.HttpServerHandler.READ_NEXT;
+import static io.netty.channel.ChannelFutureListener.CLOSE;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static java.nio.file.StandardOpenOption.READ;
+
 /**
  * A context that runs through each HTTP requests.
  *
- * @since 1.1
- *
  * @author MJ Fang
+ * @since 1.1
  */
 public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
 
@@ -69,7 +61,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * source, in nanoseconds, when the HTTP request just received.
      *
      * @return the value of the running Java Virtual Machine's high-resolution time
-     *         source, in nanoseconds
+     * source, in nanoseconds
      * @see System#nanoTime()
      */
     long receivedNanoTime();
@@ -150,7 +142,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * Returns if the connection is {@code keep-alive} or not.
      *
      * @return {@code true} if the connection is {@code keep-alive}, {@code false}
-     *         otherwise
+     * otherwise
      */
     default boolean isKeepAlive() {
         return HttpUtil.isKeepAlive(request());
@@ -362,7 +354,6 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * @param <U>  the real type of the user
      * @param type the class of the real type
      * @return an {@code Optional<U extends User>} may contains the user
-     *
      * @throws ClassCastException if the user is not {@code null} and is not
      *                            assignable to the type {@code U}
      */
@@ -375,7 +366,6 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      *
      * @param <T> the type of the property value
      * @param key the key of the property, also the class of the type
-     *
      * @return an {@code Optional<T>} may contains the property value
      */
     default <T> Optional<T> property(Class<T> key) {
@@ -387,9 +377,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      *
      * @param <T> the type of the property value
      * @param key the key of the property
-     *
      * @return an {@code Optional<T>} may contains the property value
-     *
      * @throws ClassCastException if the object is not {@code null} and is not
      *                            assignable to the type {@code T}
      */
@@ -401,9 +389,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * @param <T>  the type of the property value
      * @param key  the key of the property
      * @param type the class of the type
-     *
      * @return an {@code Optional<T>} may contains the property value
-     *
      * @throws ClassCastException if the object is not {@code null} and is not
      *                            assignable to the type {@code T}
      */
@@ -415,7 +401,6 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      *
      * @param key   the key of the property
      * @param value the value of the property
-     *
      * @return this {@code HttpRequestContext}
      */
     HttpRequestContext property(Object key, Object value);
@@ -424,7 +409,6 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * Put the property value with the key already provided by itself.
      *
      * @param value the value of the property
-     *
      * @return this {@code HttpRequestContext}
      */
     default HttpRequestContext putProperty(PropertyKeyProvider value) {
@@ -438,7 +422,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      *
      * @param key the key of the property
      * @return {@code true} if this {@code HttpRequestContext} contains a property
-     *         with the specified {@code key}
+     * with the specified {@code key}
      */
     default boolean hasProperty(Object key) {
         return property(key).isPresent();
@@ -451,7 +435,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * @param key   the key of the property
      * @param value the value of the property
      * @return {@code true} if this {@code HttpRequestContext} contains a property
-     *         with the specified {@code key} and {@code value}
+     * with the specified {@code key} and {@code value}
      */
     default boolean hasProperty(Object key, Object value) {
         return property(key).filter(value::equals).isPresent();
@@ -462,7 +446,6 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * {@link HttpRequestContext}.
      *
      * @return a {@code Stream<Object>}
-     *
      * @deprecated please use {@link #propertyKeyNames()} instead
      */
     @Deprecated
@@ -475,7 +458,6 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * {@link HttpRequestContext}.
      *
      * @return a {@code Stream<String>}
-     *
      * @since 1.3
      */
     Stream<String> propertyKeyNames();
@@ -484,7 +466,6 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * Returns the matched route.
      *
      * @return an {@code Optional<T>} may contains the matched route
-     *
      * @since 2.6
      */
     default Optional<Router.MatchedRoute> matchedRoute() {
@@ -495,6 +476,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
      * {@code "_cookies"}. The key of the {@link Cookie}s used in HTTP request context properties.
      */
     Object PROPERTY_KEY_COOKIES = "_cookies";
+
     /**
      * Returns the list contains all {@link Cookie}s.
      *
@@ -617,13 +599,13 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
 
     @Override
     default CompletableFuture<HttpResult> simpleRespond(HttpResponseStatus status, ByteBuf content,
-            CharSequence contentType) {
+                                                        CharSequence contentType) {
         return simpleRespond(status, content, content.readableBytes(), contentType);
     }
 
     @Override
     default CompletableFuture<HttpResult> simpleRespond(HttpResponseStatus status, ByteBuf content, int contentLength,
-            CharSequence contentType) {
+                                                        CharSequence contentType) {
         return sendResponse(responseFactory().createFull(status, content, contentLength, contentType), contentLength);
     }
 
@@ -702,6 +684,51 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
         return sendResponse(response, 0);
     }
 
+    @Override
+    default CompletableFuture<HttpResult> sendFile(Path filePath, Consumer<HttpHeaders> addHeaders) {
+        try {
+            var fileSize = Files.size(filePath);
+            var response = responseFactory().create(OK);
+            HttpUtil.setContentLength(response, fileSize);
+            var headers = response.headers();
+            if (!headers.contains(CACHE_CONTROL)) {
+                headers.set(CACHE_CONTROL, NO_CACHE);
+            }
+            var now = new Date();
+            headers.set(DATE, now);
+            headers.set(EXPIRES, now);
+            var future = new CompletableFuture<HttpResult>();
+            var callbacks = new ChannelFutureListener[]{channelFuture -> {
+                if (channelFuture.isSuccess()) {
+                    future.complete(new DefaultHttpResult(this, fileSize, OK));
+                } else if (channelFuture.cause() != null) {
+                    future.completeExceptionally(channelFuture.cause());
+                }
+            }, isKeepAlive() ? READ_NEXT : CLOSE};
+            var channel = channel();
+            var useZeroCopy = !sslEnabled() && !(channel instanceof Http2StreamChannel);
+            if (useZeroCopy) {
+                // disable compression feature when use zero-copy
+                response.headers().set(CONTENT_ENCODING, IDENTITY);
+            }
+            channel.write(response);
+            FileChannel file = FileChannel.open(filePath, READ);
+            if (useZeroCopy) {
+                channel.write(new DefaultFileRegion(file, 0, fileSize));
+                // Write the end marker.
+                channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(callbacks);
+            } else {
+                var chunkedFile = new ChunkedNioFile(file, 0, fileSize, DEFAULT_CHUNK_SIZE);
+                // HttpChunkedInput will write the end marker (LastHttpContent) for us.
+                channel.writeAndFlush(new HttpChunkedInput(chunkedFile)).addListeners(callbacks);
+            }
+            return future;
+        } catch (IOException e) {
+            // Just respond an error when an I/O error occurs
+            return respondInternalServerError(e);
+        }
+    }
+
     /**
      * Returns the factory creates {@link HttpResponse}s.
      *
@@ -757,7 +784,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
          * @return a {@code FullHttpResponse}
          */
         FullHttpResponse createFull(HttpResponseStatus status, ByteBuf content, int contentLength,
-                CharSequence contentType);
+                                    CharSequence contentType);
 
         /**
          * Creates a new {@link FullHttpResponse} instance with the specified status and
@@ -791,6 +818,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
 
         /**
          * Returns the key.
+         *
          * @return the key
          */
         Object key();
