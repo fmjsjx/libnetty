@@ -15,7 +15,6 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedNioFile;
 import io.netty.util.AsciiString;
 import io.netty.util.internal.StringUtil;
-import io.netty.util.internal.SystemPropertyUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static com.github.fmjsjx.libnetty.http.server.Constants.DEFAULT_CHUNK_SIZE;
 import static io.netty.channel.ChannelFutureListener.CLOSE;
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpHeaderValues.*;
@@ -51,13 +51,6 @@ import static java.nio.file.StandardOpenOption.READ;
 public class ServeStatic implements Middleware {
 
     private static final Logger logger = LoggerFactory.getLogger(ServeStatic.class);
-
-    private static final int DEFAULT_CHUNK_SIZE;
-
-    static {
-        DEFAULT_CHUNK_SIZE = SystemPropertyUtil.getInt("libnetty.http.server.middleware.static.chunkSize", 8192);
-        logger.debug("-Dlibnetty.http.server.middleware.static.chunkSize: {}", DEFAULT_CHUNK_SIZE);
-    }
 
     private static final LinkedHashMap<String, String> toLinkedHashN(String... kvs) {
         if (kvs.length % 2 != 0) {
@@ -324,7 +317,8 @@ public class ServeStatic implements Middleware {
         }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE};
         Channel channel = ctx.channel();
         var noSsl = channel.pipeline().get(SslHandler.class) == null;
-        if (noSsl) {
+        var useZeroCopy = noSsl && supportZeroCopyTransfer(channel);
+        if (useZeroCopy) {
             // disable compression feature
             response.headers().set(CONTENT_ENCODING, IDENTITY);
         }
@@ -333,7 +327,7 @@ public class ServeStatic implements Middleware {
             channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
         } else {
             FileChannel file = FileChannel.open(path, READ);
-            if (noSsl && supportZeroCopyTransfer(channel)) {
+            if (useZeroCopy) {
                 // Use zero-copy file transfer
                 channel.write(new DefaultFileRegion(file, offset, contentLength));
                 // Write the end marker.
