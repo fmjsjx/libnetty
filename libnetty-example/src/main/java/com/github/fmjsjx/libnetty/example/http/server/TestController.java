@@ -3,8 +3,7 @@ package com.github.fmjsjx.libnetty.example.http.server;
 import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
 import static com.github.fmjsjx.libnetty.http.server.Constants.TIMEOUT_HANDLER;
 import static com.github.fmjsjx.libnetty.http.server.HttpServerHandler.READ_NEXT;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_ENCODING;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpHeaderValues.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -14,6 +13,7 @@ import static io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataTy
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -510,6 +510,16 @@ public class TestController {
             };
             eventLoop.schedule(writeStreamTask, 1000, TimeUnit.MILLISECONDS);
         }).build().start();
+    }
+
+    @HttpGet("/file")
+    public CompletionStage<HttpResult> getFile(HttpRequestContext ctx) {
+        var path = Path.of("libnetty-example/src/main/resources/static", "test.txt");
+        System.out.println("-- getFile " + path + " --");
+        return ctx.sendFile(path, (headers) -> {
+            headers.set(CONTENT_TYPE, TEXT_PLAIN);
+            headers.set(CONTENT_DISPOSITION, "attachment; filename=\"test.txt\"");
+        });
     }
 
 }
