@@ -3,8 +3,7 @@ package com.github.fmjsjx.libnetty.example.http.server;
 import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
 import static com.github.fmjsjx.libnetty.http.server.Constants.TIMEOUT_HANDLER;
 import static com.github.fmjsjx.libnetty.http.server.HttpServerHandler.READ_NEXT;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_ENCODING;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpHeaderValues.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -12,7 +11,9 @@ import static io.netty.handler.codec.http.LastHttpContent.EMPTY_LAST_CONTENT;
 import static io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType.FileUpload;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -27,6 +28,7 @@ import com.github.fmjsjx.libcommon.json.Fastjson2Library;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
+import com.github.fmjsjx.libnetty.http.server.LazyLoadingHttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpGet;
 import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
@@ -243,30 +245,55 @@ public class TestController {
      *
      * @param ctx http request context
      * @return result
-     * @throws Exception any error occurs
      */
     @HttpPost("/upload")
     @StringBody
-    public CompletionStage<CharSequence> postUpload(HttpRequestContext ctx) throws Exception {
-        var decoder = new HttpPostRequestDecoder(ctx.request());
-        try {
-            if (!decoder.isMultipart()) {
-                throw new SimpleHttpFailureException(BAD_REQUEST, "post body content type must be multipart/form-data");
+    public CompletionStage<CharSequence> postUpload(LazyLoadingHttpRequestContext ctx) {
+        System.out.println("-- upload --");
+        return ctx.awaitPostData().handleAsync((decoder, cause) -> {
+            if (cause != null) {
+                System.err.println("-- error --");
+                cause.printStackTrace(System.err);
+                return cause.toString();
             }
-            var fileUpload = decoder.getBodyHttpData("file");
-            if (fileUpload == null || fileUpload.getHttpDataType() != FileUpload) {
-                throw new SimpleHttpFailureException(BAD_REQUEST, "invalid file");
+            try {
+                var fileUpload = decoder.getBodyHttpData("file");
+                if (fileUpload == null || fileUpload.getHttpDataType() != FileUpload) {
+                    throw new SimpleHttpFailureException(BAD_REQUEST, "invalid file");
+                }
+                if (fileUpload instanceof FileUpload file) {
+                    var dfile = new File(file.getFilename());
+                    file.renameTo(dfile);
+                    System.out.println("-- file --");
+                    System.out.println(dfile);
+                }
+                return ASCII_OK;
+            } catch (IOException e) {
+                return e.toString();
+            } finally {
+                ctx.destroy();
             }
-            if (fileUpload instanceof FileUpload file) {
-                var dfile = new File(file.getFilename());
-                file.renameTo(dfile);
-                System.out.println("-- file --");
-                System.out.println(dfile);
-            }
-            return CompletableFuture.completedFuture(ASCII_OK);
-        } finally {
-            decoder.destroy();
-        }
+        }, ctx.eventLoop());
+//
+//        var decoder = new HttpPostRequestDecoder(ctx.request());
+//        try {
+//            if (!decoder.isMultipart()) {
+//                throw new SimpleHttpFailureException(BAD_REQUEST, "post body content type must be multipart/form-data");
+//            }
+//            var fileUpload = decoder.getBodyHttpData("file");
+//            if (fileUpload == null || fileUpload.getHttpDataType() != FileUpload) {
+//                throw new SimpleHttpFailureException(BAD_REQUEST, "invalid file");
+//            }
+//            if (fileUpload instanceof FileUpload file) {
+//                var dfile = new File(file.getFilename());
+//                file.renameTo(dfile);
+//                System.out.println("-- file --");
+//                System.out.println(dfile);
+//            }
+//            return CompletableFuture.completedFuture(ASCII_OK);
+//        } finally {
+//            decoder.destroy();
+//        }
     }
 
     /**
@@ -483,6 +510,16 @@ public class TestController {
             };
             eventLoop.schedule(writeStreamTask, 1000, TimeUnit.MILLISECONDS);
         }).build().start();
+    }
+
+    @HttpGet("/file")
+    public CompletionStage<HttpResult> getFile(HttpRequestContext ctx) {
+        var path = Path.of("libnetty-example/src/main/resources/static", "test.txt");
+        System.out.println("-- getFile " + path + " --");
+        return ctx.sendFile(path, (headers) -> {
+            headers.set(CONTENT_TYPE, TEXT_PLAIN);
+            headers.set(CONTENT_DISPOSITION, "attachment; filename=\"test.txt\"");
+        });
     }
 
 }

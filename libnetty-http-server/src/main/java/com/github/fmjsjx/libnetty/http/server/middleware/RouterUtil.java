@@ -1,45 +1,25 @@
 package com.github.fmjsjx.libnetty.http.server.middleware;
 
-import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
-import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_JSON;
-import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
-import static io.netty.handler.codec.http.HttpResponseStatus.NO_CONTENT;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.util.CharsetUtil.UTF_8;
-
-import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-
 import com.github.fmjsjx.libcommon.util.KotlinUtil;
 import com.github.fmjsjx.libcommon.util.kotlin.KotlinReflectionUtil;
+import com.github.fmjsjx.libnetty.http.server.*;
+import com.github.fmjsjx.libnetty.http.server.HttpRequestContext.HttpResponseFactory;
 import com.github.fmjsjx.libnetty.http.server.annotation.*;
+import com.github.fmjsjx.libnetty.http.server.component.ExceptionHandler;
+import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
+import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
+import com.github.fmjsjx.libnetty.http.server.component.WorkerPool;
+import com.github.fmjsjx.libnetty.http.server.exception.BadRequestException;
 import com.github.fmjsjx.libnetty.http.server.sse.SseEventStream;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
+import io.netty.channel.EventLoop;
+import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.util.AsciiString;
+import io.netty.util.internal.StringUtil;
 import kotlin.coroutines.Continuation;
 import kotlinx.coroutines.CoroutineStart;
 import kotlinx.coroutines.ExecutorsKt;
@@ -48,29 +28,26 @@ import kotlinx.coroutines.future.FutureKt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.fmjsjx.libnetty.http.server.HttpMethodWrapper;
-import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
-import com.github.fmjsjx.libnetty.http.server.HttpRequestContext.HttpResponseFactory;
-import com.github.fmjsjx.libnetty.http.server.HttpResponder;
-import com.github.fmjsjx.libnetty.http.server.HttpResult;
-import com.github.fmjsjx.libnetty.http.server.HttpServiceInvoker;
-import com.github.fmjsjx.libnetty.http.server.component.ExceptionHandler;
-import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
-import com.github.fmjsjx.libnetty.http.server.component.JsonLibrary;
-import com.github.fmjsjx.libnetty.http.server.component.WorkerPool;
-import com.github.fmjsjx.libnetty.http.server.exception.BadRequestException;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.*;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.time.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.channel.EventLoop;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.handler.codec.http.cookie.Cookie;
-import io.netty.util.AsciiString;
-import io.netty.util.internal.StringUtil;
+import static com.github.fmjsjx.libnetty.http.HttpCommonUtil.contentType;
+import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_JSON;
+import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
+import static io.netty.handler.codec.http.HttpResponseStatus.NO_CONTENT;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.util.CharsetUtil.UTF_8;
 
 /**
  * Utility class for HTTP controller beans.
@@ -683,6 +660,12 @@ public class RouterUtil {
         };
     }
 
+    private static final Function<HttpRequestContext, Object> lazyLoadingContextMapper = ctx -> {
+        if (ctx instanceof LazyLoadingHttpRequestContext) {
+            return ctx;
+        }
+        throw new BadRequestException(new IllegalArgumentException("content-type must be a multipart/*"));
+    };
     private static final Function<HttpRequestContext, Object> contextMapper = ctx -> ctx;
     private static final Function<HttpRequestContext, Object> responseFactoryMapper = HttpRequestContext::responseFactory;
     private static final Function<HttpRequestContext, Object> fullRequestMapper = HttpRequestContext::request;
@@ -692,7 +675,9 @@ public class RouterUtil {
     private static final Function<HttpRequestContext, Object> remoteAddrMapper = HttpRequestContext::remoteAddress;
 
     private static final Function<HttpRequestContext, Object> toParameterMapper(Parameter param) {
-        if (param.getType() == HttpRequestContext.class || param.getType() == HttpResponder.class) {
+        if (param.getType() == LazyLoadingHttpRequestContext.class) {
+            return lazyLoadingContextMapper;
+        } else if (param.getType() == HttpRequestContext.class || param.getType() == HttpResponder.class) {
             return contextMapper;
         } else if (param.getType() == HttpResponseFactory.class) {
             return responseFactoryMapper;

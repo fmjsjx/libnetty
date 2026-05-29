@@ -16,12 +16,14 @@ import io.netty.channel.*;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cors.CorsConfig;
+import io.netty.util.AsciiString;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,8 +52,24 @@ public class DefaultHttpServer implements HttpServer {
     private static final int DEFAULT_MAX_CONTENT_LENGTH = Integer.MAX_VALUE;
     private static final int DEFAULT_TIMEOUT_SECONDS = 60;
     private static final boolean DEFAULT_HTTP2_ENABLED = false;
+    private static final boolean DEFAULT_LAZY_LOADING_ENABLED = false;
 
-    private static final Consumer<HttpHeaders> defaultAddHeaders = headers -> headers.set(SERVER, "libnetty");
+    private static final AsciiString DEFAULT_HEADER_SERVER;
+
+    static {
+        AsciiString defaultHeaderServerContent;
+        try (var in = DefaultHttpServer.class.getResourceAsStream("/META-INF/header-server.default")) {
+            assert in != null;
+            var content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            defaultHeaderServerContent = AsciiString.cached(content.trim());
+        } catch (Exception e) {
+            log.warn("Failed to load resource /META-INF/header-server.default", e);
+            defaultHeaderServerContent = AsciiString.cached("LibNetty");
+        }
+        DEFAULT_HEADER_SERVER = defaultHeaderServerContent;
+    }
+
+    private static final Consumer<HttpHeaders> defaultAddHeaders = headers -> headers.set(SERVER, DEFAULT_HEADER_SERVER);
 
     private String name;
     private String host;
@@ -59,6 +77,7 @@ public class DefaultHttpServer implements HttpServer {
     private int port;
     private int ioThreads;
     private boolean http2Enabled = DEFAULT_HTTP2_ENABLED;
+    private boolean lazyLoadingEnabled = DEFAULT_LAZY_LOADING_ENABLED;
 
     private final AtomicBoolean running = new AtomicBoolean();
 
@@ -521,7 +540,7 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
-     * Enable/disable HTTP2 support.
+     * Enable/Disable HTTP2 support.
      *
      * @param http2Enabled whether to enable HTTP2 or not
      * @return this server
@@ -551,6 +570,50 @@ public class DefaultHttpServer implements HttpServer {
      */
     public DefaultHttpServer disableHttp2() {
         return http2Enabled(false);
+    }
+
+    /**
+     * Returns whether lazy loading feature is enabled.
+     *
+     * @return {@code true} if lazy loading feature is enabled,
+     * {@code false} otherwise
+     * @since 4.2
+     */
+    public boolean isLazyLoadingEnabled() {
+        return lazyLoadingEnabled;
+    }
+
+    /**
+     * Enable/Disable lazy loading feature.
+     *
+     * @param lazyLoadingEnabled whether to enable lazy loading or not
+     * @return this server
+     * @since 4.2
+     */
+    public DefaultHttpServer lazyLoadingEnabled(boolean lazyLoadingEnabled) {
+        ensureNotStarted();
+        this.lazyLoadingEnabled = lazyLoadingEnabled;
+        return this;
+    }
+
+    /**
+     * Enable lazy loading feature.
+     *
+     * @return this server
+     * @since 4.2
+     */
+    public DefaultHttpServer enableLazyLoading() {
+        return lazyLoadingEnabled(true);
+    }
+
+    /**
+     * Disable lazy loading feature.
+     *
+     * @return this server
+     * @since 4.2
+     */
+    public DefaultHttpServer disableLazyLoading() {
+        return lazyLoadingEnabled(false);
     }
 
     /**
@@ -715,6 +778,8 @@ public class DefaultHttpServer implements HttpServer {
         port = DEFAULT_PORT_HTTP;
 
         ioThreads = 0;
+        http2Enabled = DEFAULT_HTTP2_ENABLED;
+        lazyLoadingEnabled = DEFAULT_LAZY_LOADING_ENABLED;
         parentGroup = null;
         childGroup = null;
         channelClass = null;
@@ -786,10 +851,10 @@ public class DefaultHttpServer implements HttpServer {
         if (isHttp2Enabled()) {
             log.debug("HTTP2 enabled, create and return HTTP2 server channel initializer.");
             return new DefaultHttp2ServerChannelInitializer(timeoutSeconds, maxContentLength, corsConfig,
-                    channelSslInitializer(), httpContentCompressorProvider, handlerProvider, components, addHeaders);
+                    channelSslInitializer(), httpContentCompressorProvider, lazyLoadingEnabled, handlerProvider, components, addHeaders);
         }
         return new DefaultHttpServerChannelInitializer(timeoutSeconds, maxContentLength, corsConfig,
-                channelSslInitializer(), httpContentCompressorProvider, handlerProvider, components, addHeaders);
+                channelSslInitializer(), httpContentCompressorProvider, lazyLoadingEnabled, handlerProvider, components, addHeaders);
     }
 
     private void initSettings() {

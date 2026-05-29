@@ -11,13 +11,13 @@ repositories {
 
 dependencies {
     // netty-bom
-    api(platform("io.netty:netty-bom:4.2.12.Final"))
+    api(platform("io.netty:netty-bom:4.2.14.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:4.1.7"))
+    api(platform("com.github.fmjsjx:libcommon-bom:4.2.0-RC1"))
     // jackson2-bom
-    api(platform("com.fasterxml.jackson:jackson-bom:2.21.2"))
+    api(platform("com.fasterxml.jackson:jackson-bom:2.21.3"))
     // jackson3-bom
-    api(platform("tools.jackson:jackson-bom:3.1.2"))
+    api(platform("tools.jackson:jackson-bom:3.1.3"))
     // junit-bom
     testImplementation(platform("org.junit:junit-bom:6.0.3"))
     // mockito
@@ -25,9 +25,9 @@ dependencies {
     // log4j2
     implementation(platform("org.apache.logging.log4j:log4j-bom:2.25.4"))
     // kotlin coroutines
-    implementation(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.10.2"))
+    implementation(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.11.0"))
     // brotli4j
-    implementation(platform("com.aayushatharva.brotli4j:all:1.22.0"))
+    implementation(platform("com.aayushatharva.brotli4j:all:1.23.0"))
     // kotlin
     implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.3.0"))
 
@@ -39,7 +39,7 @@ dependencies {
         implementation("ch.qos.logback:logback-classic:1.5.32")
         implementation("com.jcraft:jzlib:1.1.3")
         implementation("org.brotli:dec:0.1.2")
-        val fastjson2Version = "2.0.61"
+        val fastjson2Version = "2.0.62"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
         implementation("com.github.luben:zstd-jni:1.5.7-7")

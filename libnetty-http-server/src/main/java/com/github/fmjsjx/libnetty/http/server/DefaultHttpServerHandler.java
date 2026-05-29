@@ -12,6 +12,7 @@ import com.github.fmjsjx.libnetty.http.server.middleware.MiddlewareChain;
 import com.github.fmjsjx.libnetty.http.server.middleware.MiddlewareChains;
 
 import io.netty.channel.ChannelHandler.Sharable;
+import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -36,16 +37,29 @@ class DefaultHttpServerHandler extends HttpRequestContextHandler {
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         exceptionHandler.accept(ctx, cause);
     }
 
     @Override
-    protected void messageReceived(ChannelHandlerContext ctx, HttpRequestContext msg) throws Exception {
-        firstChain.doNext(msg.retain()).whenComplete((r, e) -> ReferenceCountUtil.safeRelease(msg));
+    protected void messageReceived(ChannelHandlerContext ctx, HttpRequestContext msg) {
+        firstChain.doNext(msg.retain()).whenComplete((r, e) -> destroy(msg));
     }
 
-    void onServerClosed() throws MultiErrorsException, HttpRuntimeException {
+    void destroy(HttpRequestContext msg) {
+        // Destroy the HTTP request context
+        ReferenceCountUtil.safeRelease(msg);
+        if (msg instanceof LazyLoadingHttpRequestContext lazy) {
+            try {
+                // Also destroy the post data if present
+                lazy.postData().ifPresent(InterfaceHttpPostRequestDecoder::destroy);
+            } catch (Exception e) {
+                // ignore error here
+            }
+        }
+    }
+
+    void onServerClosed() {
         List<Throwable> errors = new ArrayList<>();
         for (Middleware middleware : middlewares) {
             try {
@@ -57,7 +71,7 @@ class DefaultHttpServerHandler extends HttpRequestContextHandler {
         if (!errors.isEmpty()) {
             int size = errors.size();
             if (size == 1) {
-                throw new HttpRuntimeException("Error occurs on server closed", errors.get(0));
+                throw new HttpRuntimeException("Error occurs on server closed", errors.getFirst());
             } else {
                 throw new MultiErrorsException("Errors occurs on server closed", errors.toArray(new Throwable[size]));
             }

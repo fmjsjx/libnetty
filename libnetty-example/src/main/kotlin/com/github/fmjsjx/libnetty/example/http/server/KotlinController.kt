@@ -5,22 +5,33 @@ import com.github.fmjsjx.libcommon.json.toFastjson2Bytes
 import com.github.fmjsjx.libnetty.example.http.server.TestController.SSE_EVENT_CLOSE
 import com.github.fmjsjx.libnetty.example.http.server.TestController.SSE_EVENT_OPEN
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext
-import com.github.fmjsjx.libnetty.http.server.annotation.HttpGet
-import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath
-import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody
-import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar
+import com.github.fmjsjx.libnetty.http.server.HttpResult
+import com.github.fmjsjx.libnetty.http.server.LazyLoadingHttpRequestContext
+import com.github.fmjsjx.libnetty.http.server.annotation.*
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException
+import com.github.fmjsjx.libnetty.http.server.exception.SimpleHttpFailureException
 import com.github.fmjsjx.libnetty.http.server.sse.SseEventBuilder
 import com.github.fmjsjx.libnetty.http.server.sse.SseEventStream
+import io.netty.handler.codec.http.HttpHeaderNames.CONTENT_DISPOSITION
+import io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE
 import io.netty.handler.codec.http.HttpHeaderValues
+import io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.codec.http.QueryStringDecoder
+import io.netty.handler.codec.http.multipart.FileUpload
+import io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType
 import io.netty.util.AsciiString
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
 import org.slf4j.LoggerFactory
+import java.io.File
+import java.io.IOException
+import java.nio.file.Path
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @HttpPath("/api/kotlin")
 class KotlinController {
@@ -32,7 +43,7 @@ class KotlinController {
     suspend fun getJsons(query: QueryStringDecoder): Any {
         // GET /api/jsons
         logger.info("-- kotlin jsons --")
-        delay(1)
+        delay(1.milliseconds)
         logger.info("-- delayed 1 millisecond --")
         val node = JsonNodeFactory.instance.objectNode()
         query.parameters().forEach { (key: String?, values: List<String?>) ->
@@ -63,6 +74,7 @@ class KotlinController {
         val eventLoop = eventLoop()
         val running = AtomicBoolean(false)
         val uuid = java.util.UUID.randomUUID().toString()
+        delay(1.seconds)
         return eventStreamBuilder().autoPing(Duration.ofSeconds(30)).onError { _, cause ->
             System.err.println("error occurs on SSE event stream")
             cause.printStackTrace()
@@ -92,6 +104,46 @@ class KotlinController {
             }
             eventLoop.schedule(writeStreamTask, 1000, TimeUnit.MILLISECONDS)
         }.build()
+    }
+
+
+    @HttpPost("/upload")
+    @StringBody
+    suspend fun LazyLoadingHttpRequestContext.postUpload(): CharSequence {
+        println("-- upload --")
+        try {
+            val decoder = awaitPostData().await()
+            try {
+                val fileUpload = decoder!!.getBodyHttpData("file")
+                if (fileUpload == null || fileUpload.httpDataType != HttpDataType.FileUpload) {
+                    throw SimpleHttpFailureException(HttpResponseStatus.BAD_REQUEST, "invalid file")
+                }
+                if (fileUpload is FileUpload) {
+                    val dfile = File(fileUpload.filename)
+                    fileUpload.renameTo(dfile)
+                    println("-- file --")
+                    println(dfile)
+                }
+                return TestController.ASCII_OK
+            } catch (e: IOException) {
+                e.printStackTrace()
+                return e.toString()
+            }
+        } catch (e: Exception) {
+            System.err.println("-- error --")
+            e.printStackTrace(System.err)
+            return e.toString()
+        }
+    }
+
+    @HttpGet("/file")
+    suspend fun HttpRequestContext.getFile(): HttpResult {
+        val path = Path.of("libnetty-example/src/main/resources/static", "test.txt")
+        println("-- get file $path --")
+        return sendFile(path) {
+            it[CONTENT_TYPE] = TEXT_PLAIN
+            it[CONTENT_DISPOSITION] = "attachment; filename=\"test.txt\""
+        }.await()
     }
 
 }

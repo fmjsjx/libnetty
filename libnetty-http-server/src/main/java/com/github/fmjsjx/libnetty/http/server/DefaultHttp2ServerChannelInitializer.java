@@ -55,11 +55,16 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
     private final UpgradeEventHandler upgradeEventHandler;
     private final HttpMessageHandler httpMessageHandler;
     private final Http2ParentChannelExceptionHandler http2ParentChannelExceptionHandler;
+    private final boolean lazyLoadingEnabled;
+
+    private final Map<Class<?>, Object> components;
+    private final Consumer<HttpHeaders> addHeaders;
 
     DefaultHttp2ServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
-                                         ChannelSslInitializer<Channel> channelSslInitializer, HttpContentCompressorProvider httpContentCompressorProvider,
-                                         HttpServerHandlerProvider handlerProvider, Map<Class<?>, Object> components,
-                                         Consumer<HttpHeaders> addHeaders) {
+                                         ChannelSslInitializer<Channel> channelSslInitializer,
+                                         HttpContentCompressorProvider httpContentCompressorProvider,
+                                         boolean lazyLoadingEnabled, HttpServerHandlerProvider handlerProvider,
+                                         Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.corsConfig = corsConfig;
@@ -67,7 +72,10 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
         this.channelSslInitializer = channelSslInitializer;
         this.autoCompressionEnabled = httpContentCompressorProvider != null;
         this.httpContentCompressorProvider = httpContentCompressorProvider;
+        this.lazyLoadingEnabled = lazyLoadingEnabled;
         this.handlerProvider = handlerProvider;
+        this.components = components;
+        this.addHeaders = addHeaders;
         this.contextDecoder = new HttpRequestContextDecoder(components, addHeaders, sslEnabled);
         if (components.get(WebSocketSupport.componentKey()) instanceof Optional<?> o && o.isPresent()) {
             this.webSocketInitializer = new WebSocketInitializer((WebSocketSupport) o.get());
@@ -92,7 +100,6 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
 
     private UpgradeCodecFactory createUpgradeCodecFactory() {
         return protocol -> {
-            System.err.println("upgradeCodecFactory: " + protocol);
             if (AsciiString.contentEquals(Http2CodecUtil.HTTP_UPGRADE_PROTOCOL_NAME, protocol)) {
                 return new Http2ServerUpgradeCodec(Http2FrameCodecBuilder.forServer().build(),
                         new Http2MultiplexHandler(http2StreamInitializer),
@@ -139,7 +146,7 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
 
         @Override
         protected void configurePipeline(ChannelHandlerContext ctx, String protocol) {
-            log.warn("configurePipeline: {} <- {}", protocol, ctx.channel());
+            log.debug("configurePipeline: {} <- {}", protocol, ctx.channel());
             if (ApplicationProtocolNames.HTTP_2.equals(protocol)) {
                 configureHttp2(ctx);
                 return;
@@ -164,6 +171,9 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
                 pipeline.addLast(HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
             }
             pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
+            if (lazyLoadingEnabled) {
+                pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+            }
             pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
             addWebSocketSupport(pipeline, webSocketInitializer);
             pipeline.addLast(AUTO_READ_NEXT_HANDLER, AutoReadNextHandler.getInstance());
@@ -189,7 +199,7 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
         var pipeline = ch.pipeline();
         var sourceCodec = new HttpServerCodec();
         pipeline.addLast(HTTP_CODEC, sourceCodec);
-        pipeline.addLast(new HttpServerUpgradeHandler(sourceCodec, upgradeCodecFactory));
+        pipeline.addLast(new HttpServerUpgradeHandler(sourceCodec, upgradeCodecFactory, maxContentLength));
         pipeline.addLast(httpMessageHandler);
         pipeline.addLast(upgradeEventHandler);
     }
@@ -210,6 +220,9 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
                 pipeline.addAfter(ctx.name(), HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
             }
             pipeline.replace(this, HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
+            if (lazyLoadingEnabled) {
+                pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+            }
             pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
             addWebSocketSupport(pipeline, webSocketInitializer);
             pipeline.addLast(AUTO_READ_NEXT_HANDLER, AutoReadNextHandler.getInstance());
@@ -235,6 +248,9 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
             if (autoCompressionEnabled) {
                 pipeline.addLast(HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
+            }
+            if (lazyLoadingEnabled) {
+                pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
             }
             pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
             if (corsConfig != null) {

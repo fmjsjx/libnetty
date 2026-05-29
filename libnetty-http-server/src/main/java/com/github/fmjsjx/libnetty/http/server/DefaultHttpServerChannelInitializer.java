@@ -10,10 +10,7 @@ import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
 import com.github.fmjsjx.libnetty.http.server.component.WebSocketSupport;
 import io.netty.channel.*;
-import io.netty.handler.codec.http.HttpContentDecompressor;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsHandler;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
@@ -39,16 +36,20 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
 
     private final boolean autoCompressionEnabled;
     private final HttpContentCompressorProvider httpContentCompressorProvider;
-
+    private final boolean lazyLoadingEnabled;
     private final HttpServerHandlerProvider handlerProvider;
 
     private final HttpRequestContextDecoder contextDecoder;
     private final WebSocketInitializer webSocketInitializer;
 
+    private final Map<Class<?>, Object> components;
+    private final Consumer<HttpHeaders> addHeaders;
+
     DefaultHttpServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
-                                        ChannelSslInitializer<Channel> channelSslInitializer, HttpContentCompressorProvider httpContentCompressorProvider,
-                                        HttpServerHandlerProvider handlerProvider, Map<Class<?>, Object> components,
-                                        Consumer<HttpHeaders> addHeaders) {
+                                        ChannelSslInitializer<Channel> channelSslInitializer,
+                                        HttpContentCompressorProvider httpContentCompressorProvider,
+                                        boolean lazyLoadingEnabled, HttpServerHandlerProvider handlerProvider,
+                                        Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.corsConfig = corsConfig;
@@ -56,7 +57,10 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
         this.channelSslInitializer = channelSslInitializer;
         this.autoCompressionEnabled = httpContentCompressorProvider != null;
         this.httpContentCompressorProvider = httpContentCompressorProvider;
+        this.lazyLoadingEnabled = lazyLoadingEnabled;
         this.handlerProvider = handlerProvider;
+        this.components = components;
+        this.addHeaders = addHeaders;
         this.contextDecoder = new HttpRequestContextDecoder(components, addHeaders, sslEnabled);
         if (components.get(WebSocketSupport.componentKey()) instanceof Optional<?> o && o.isPresent()) {
             this.webSocketInitializer = new WebSocketInitializer((WebSocketSupport) o.get());
@@ -80,6 +84,9 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast(HTTP_CONTENT_COMPRESSOR, httpContentCompressorProvider.create());
         }
         pipeline.addLast(HTTP_CONTENT_DECOMPRESSOR, new HttpContentDecompressor(0));
+        if (lazyLoadingEnabled) {
+            pipeline.addLast(new LazyLoadingHttpRequestContextDecoder(components, addHeaders, sslEnabled));
+        }
         pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
         addWebSocketSupport(pipeline, webSocketInitializer);
         pipeline.addLast(AUTO_READ_NEXT_HANDLER, AutoReadNextHandler.getInstance());
@@ -96,9 +103,7 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
 
     static void addWebSocketSupport(ChannelPipeline pipeline, WebSocketInitializer webSocketInitializer) {
         if (webSocketInitializer != null) {
-            pipeline.addLast(new WebSocketServerCompressionHandler(0));
-            pipeline.addLast(webSocketInitializer.createProtocolHandler());
-            pipeline.addLast(webSocketInitializer);
+            pipeline.addLast(WEB_SOCKET_PIPELINE_INITIALIZER, webSocketInitializer.createPipelineInitializer());
         }
     }
 
@@ -138,6 +143,55 @@ class DefaultHttpServerChannelInitializer extends ChannelInitializer<Channel> {
             }
             ctx.fireUserEventTriggered(evt);
         }
+
+        WebSocketPipelineInitializer createPipelineInitializer() {
+            return new WebSocketPipelineInitializer();
+        }
+
+        final class WebSocketPipelineInitializer extends ChannelInboundHandlerAdapter {
+
+            @Override
+            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                if (msg instanceof HttpRequest request) {
+                    if (isWebsocketUpgrade(request.headers()) && isWebSocketPath(request)) {
+                        var p = ctx.pipeline();
+                        var webSocketInitializer = WebSocketInitializer.this;
+                        p.addAfter(ctx.name(), WEB_SOCKET_SERVER_COMPRESSION_HANDLER, new WebSocketServerCompressionHandler(0));
+                        p.addAfter(WEB_SOCKET_SERVER_COMPRESSION_HANDLER, WEB_SOCKET_SERVER_PROTOCOL_HANDLER, webSocketInitializer.createProtocolHandler());
+                        p.addAfter(WEB_SOCKET_SERVER_PROTOCOL_HANDLER, WEB_SOCKET_INITIALIZER, webSocketInitializer);
+                        p.remove(this);
+                    }
+                }
+                super.channelRead(ctx, msg);
+            }
+
+            private boolean isWebSocketPath(HttpRequest req) {
+                var protocolConfig = webSocketSupport.protocolConfig();
+                var websocketPath = protocolConfig.websocketPath();
+                var uri = req.uri();
+                return protocolConfig.checkStartsWith()
+                        ? uri.startsWith(websocketPath) && ("/".equals(websocketPath) || checkNextUri(uri, websocketPath))
+                        : uri.equals(websocketPath);
+            }
+
+            private boolean checkNextUri(String uri, String websocketPath) {
+                int len = websocketPath.length();
+                if (uri.length() > len) {
+                    char nextUri = uri.charAt(len);
+                    return nextUri == '/' || nextUri == '?';
+                }
+                return true;
+            }
+
+            private boolean isWebsocketUpgrade(HttpHeaders headers) {
+                //this contains check does not allocate an iterator, and most requests are not upgrades
+                //so we do the contains check first before checking for specific values
+                return headers.contains(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET, true) &&
+                        headers.containsValue(HttpHeaderNames.CONNECTION, HttpHeaderValues.UPGRADE, true);
+            }
+
+        }
+
     }
 
 }
