@@ -689,6 +689,7 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
         try {
             var fileSize = Files.size(filePath);
             var response = responseFactory().create(OK);
+            addHeaders.accept(response.headers());
             HttpUtil.setContentLength(response, fileSize);
             var headers = response.headers();
             if (!headers.contains(CACHE_CONTROL)) {

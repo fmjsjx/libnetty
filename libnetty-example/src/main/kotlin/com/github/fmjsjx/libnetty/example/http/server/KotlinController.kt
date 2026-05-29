@@ -5,13 +5,17 @@ import com.github.fmjsjx.libcommon.json.toFastjson2Bytes
 import com.github.fmjsjx.libnetty.example.http.server.TestController.SSE_EVENT_CLOSE
 import com.github.fmjsjx.libnetty.example.http.server.TestController.SSE_EVENT_OPEN
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext
+import com.github.fmjsjx.libnetty.http.server.HttpResult
 import com.github.fmjsjx.libnetty.http.server.LazyLoadingHttpRequestContext
 import com.github.fmjsjx.libnetty.http.server.annotation.*
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException
 import com.github.fmjsjx.libnetty.http.server.exception.SimpleHttpFailureException
 import com.github.fmjsjx.libnetty.http.server.sse.SseEventBuilder
 import com.github.fmjsjx.libnetty.http.server.sse.SseEventStream
+import io.netty.handler.codec.http.HttpHeaderNames.CONTENT_DISPOSITION
+import io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE
 import io.netty.handler.codec.http.HttpHeaderValues
+import io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.codec.http.QueryStringDecoder
 import io.netty.handler.codec.http.multipart.FileUpload
@@ -22,6 +26,7 @@ import kotlinx.coroutines.future.await
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
+import java.nio.file.Path
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -129,6 +134,16 @@ class KotlinController {
             e.printStackTrace(System.err)
             return e.toString()
         }
+    }
+
+    @HttpGet("/file")
+    suspend fun HttpRequestContext.getFile(): HttpResult {
+        val path = Path.of("libnetty-example/src/main/resources/static", "test.txt")
+        println("-- get file $path --")
+        return sendFile(path) {
+            it[CONTENT_TYPE] = TEXT_PLAIN
+            it[CONTENT_DISPOSITION] = "attachment; filename=\"test.txt\""
+        }.await()
     }
 
 }
