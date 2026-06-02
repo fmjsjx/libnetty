@@ -177,4 +177,19 @@ public interface HttpResponder {
         return sendFile(filePath, MimeTypesUtil.probeContentType(filePath));
     }
 
+    /**
+     * Send HTTP response with {@code "200 OK"} and file content to client
+     * and returns the {@link HttpResult} asynchronously.
+     *
+     * @param filePath    the file path
+     * @param contentType the content type
+     * @param addHeaders  a function to add headers
+     * @return a {@code CompletableFuture<HttpResult>}
+     * @since 4.2
+     */
+    default CompletableFuture<HttpResult> sendFile(Path filePath, CharSequence contentType,
+                                                   Consumer<HttpHeaders> addHeaders) {
+        return sendFile(filePath, addHeaders.andThen(headers -> headers.set(CONTENT_TYPE, contentType)));
+    }
+
 }
