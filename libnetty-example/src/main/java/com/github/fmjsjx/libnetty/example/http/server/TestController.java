@@ -512,6 +512,13 @@ public class TestController {
         }).build().start();
     }
 
+    /**
+     * GET /api/test/file
+     * A demo API for sending a file.
+     *
+     * @param ctx request context
+     * @return result
+     */
     @HttpGet("/file")
     public CompletionStage<HttpResult> getFile(HttpRequestContext ctx) {
         var path = Path.of("libnetty-example/src/main/resources/static", "test.txt");
