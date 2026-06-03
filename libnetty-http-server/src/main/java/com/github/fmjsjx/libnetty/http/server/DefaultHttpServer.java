@@ -16,6 +16,7 @@ import io.netty.channel.*;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cors.CorsConfig;
+import io.netty.handler.codec.http2.Http2Settings;
 import io.netty.util.AsciiString;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.slf4j.Logger;
@@ -103,6 +104,7 @@ public class DefaultHttpServer implements HttpServer {
 
     private final Map<Class<?>, HttpServerComponent> components = new LinkedHashMap<>();
     private Consumer<HttpHeaders> addHeaders = defaultAddHeaders;
+    private Http2Settings initialSettings;
 
     /**
      * Constructs a new {@link DefaultHttpServer} with the specified {@code name}
@@ -617,6 +619,19 @@ public class DefaultHttpServer implements HttpServer {
     }
 
     /**
+     * Set the initial HTTP2 settings.
+     *
+     * @param initialSettings the initial HTTP2 settings
+     * @return this server
+     * @since 4.2
+     */
+    public DefaultHttpServer http2Settings(Http2Settings initialSettings) {
+        ensureNotStarted();
+        this.initialSettings = initialSettings;
+        return this;
+    }
+
+    /**
      * Enable HTTP content compression feature and apply compression options.
      *
      * @param action the apply action
@@ -851,7 +866,8 @@ public class DefaultHttpServer implements HttpServer {
         if (isHttp2Enabled()) {
             log.debug("HTTP2 enabled, create and return HTTP2 server channel initializer.");
             return new DefaultHttp2ServerChannelInitializer(timeoutSeconds, maxContentLength, corsConfig,
-                    channelSslInitializer(), httpContentCompressorProvider, lazyLoadingEnabled, handlerProvider, components, addHeaders);
+                    channelSslInitializer(), httpContentCompressorProvider, lazyLoadingEnabled, handlerProvider,
+                    components, addHeaders, initialSettings);
         }
         return new DefaultHttpServerChannelInitializer(timeoutSeconds, maxContentLength, corsConfig,
                 channelSslInitializer(), httpContentCompressorProvider, lazyLoadingEnabled, handlerProvider, components, addHeaders);
