@@ -60,11 +60,14 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
     private final Map<Class<?>, Object> components;
     private final Consumer<HttpHeaders> addHeaders;
 
+    private final Http2Settings initialSettings;
+
     DefaultHttp2ServerChannelInitializer(int timeoutSeconds, int maxContentLength, CorsConfig corsConfig,
                                          ChannelSslInitializer<Channel> channelSslInitializer,
                                          HttpContentCompressorProvider httpContentCompressorProvider,
                                          boolean lazyLoadingEnabled, HttpServerHandlerProvider handlerProvider,
-                                         Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders) {
+                                         Map<Class<?>, Object> components, Consumer<HttpHeaders> addHeaders,
+                                         Http2Settings initialSettings) {
         this.timeoutSeconds = timeoutSeconds;
         this.maxContentLength = maxContentLength;
         this.corsConfig = corsConfig;
@@ -76,6 +79,7 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
         this.handlerProvider = handlerProvider;
         this.components = components;
         this.addHeaders = addHeaders;
+        this.initialSettings = initialSettings;
         this.contextDecoder = new HttpRequestContextDecoder(components, addHeaders, sslEnabled);
         if (components.get(WebSocketSupport.componentKey()) instanceof Optional<?> o && o.isPresent()) {
             this.webSocketInitializer = new WebSocketInitializer((WebSocketSupport) o.get());
@@ -98,10 +102,18 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
         }
     }
 
+    private Http2FrameCodec buildHttp2FrameCodec() {
+        var codecBuilder = Http2FrameCodecBuilder.forServer();
+        if (initialSettings != null) {
+            codecBuilder.initialSettings(initialSettings);
+        }
+        return codecBuilder.build();
+    }
+
     private UpgradeCodecFactory createUpgradeCodecFactory() {
         return protocol -> {
             if (AsciiString.contentEquals(Http2CodecUtil.HTTP_UPGRADE_PROTOCOL_NAME, protocol)) {
-                return new Http2ServerUpgradeCodec(Http2FrameCodecBuilder.forServer().build(),
+                return new Http2ServerUpgradeCodec(buildHttp2FrameCodec(),
                         new Http2MultiplexHandler(http2StreamInitializer),
                         http2ParentChannelExceptionHandler);
             }
@@ -158,7 +170,7 @@ class DefaultHttp2ServerChannelInitializer extends ChannelInitializer<Channel> {
         }
 
         private void configureHttp2(ChannelHandlerContext ctx) {
-            ctx.pipeline().addLast(Http2FrameCodecBuilder.forServer().build(),
+            ctx.pipeline().addLast(buildHttp2FrameCodec(),
                     new Http2MultiplexHandler(http2StreamInitializer),
                     http2ParentChannelExceptionHandler);
             ensureAutoRead(ctx);
