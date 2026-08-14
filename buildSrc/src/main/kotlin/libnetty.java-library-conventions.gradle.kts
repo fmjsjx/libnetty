@@ -15,7 +15,7 @@ dependencies {
     // libcommon-bom
     api(platform("com.github.fmjsjx:libcommon-bom:4.3.0-alpha1"))
     // jackson2-bom
-    api(platform("com.fasterxml.jackson:jackson-bom:2.21.3"))
+    api(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
     // jackson3-bom
     api(platform("tools.jackson:jackson-bom:3.1.3"))
     // junit-bom
