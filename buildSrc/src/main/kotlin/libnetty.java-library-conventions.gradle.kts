@@ -9,11 +9,21 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    compileOnly {
+        extendsFrom(configurations.annotationProcessor.get())
+    }
+    testImplementation {
+        extendsFrom(configurations.compileOnly.get())
+        extendsFrom(configurations.compileOnlyApi.get())
+    }
+}
+
 dependencies {
     // netty-bom
     api(platform("io.netty:netty-bom:4.2.17.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:4.2.3"))
+    api(platform("com.github.fmjsjx:libcommon-bom:4.3.0-alpha1"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.21.3"))
     // jackson3-bom

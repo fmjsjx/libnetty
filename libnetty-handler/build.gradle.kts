@@ -21,7 +21,7 @@ dependencies {
 description = "libnetty/Handler"
 
 tasks.test {
-    // Use junit platform for unit tests.
+    // Use JUnit platform for unit tests.
     useJUnitPlatform()
     // Fix for java 17
     jvmArgs = listOf(

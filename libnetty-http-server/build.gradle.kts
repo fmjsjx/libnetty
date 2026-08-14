@@ -11,29 +11,24 @@ dependencies {
     api(project(":libnetty-transport"))
     api("io.netty:netty-codec-http2")
     implementation("com.github.fmjsjx:libcommon-util")
-    compileOnly("io.netty:netty-tcnative-boringssl-static::linux-aarch_64")
-    compileOnly("io.netty:netty-tcnative-boringssl-static::linux-x86_64")
-    compileOnly("io.netty:netty-tcnative-boringssl-static::osx-x86_64")
-    compileOnly("io.netty:netty-tcnative-boringssl-static::windows-x86_64")
+    compileOnlyApi("io.netty:netty-tcnative-boringssl-static::linux-aarch_64")
+    compileOnlyApi("io.netty:netty-tcnative-boringssl-static::linux-x86_64")
+    compileOnlyApi("io.netty:netty-tcnative-boringssl-static::osx-x86_64")
+    compileOnlyApi("io.netty:netty-tcnative-boringssl-static::windows-x86_64")
     compileOnly("com.fasterxml.jackson.core:jackson-databind")
     compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
     compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.jcraft:jzlib")
-    compileOnly("com.aayushatharva.brotli4j:brotli4j")
-    compileOnly("com.github.fmjsjx:libcommon-kotlin")
-    compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
-    compileOnly("com.alibaba.fastjson2:fastjson2")
-    compileOnly("com.alibaba.fastjson2:fastjson2-kotlin")
-    compileOnly("com.github.fmjsjx:libcommon-json")
-    compileOnly("com.github.fmjsjx:libcommon-json-jackson2")
-    compileOnly("com.github.fmjsjx:libcommon-json-jackson2-kotlin")
-    compileOnly("com.github.fmjsjx:libcommon-json-jsoniter")
-    compileOnly("com.github.fmjsjx:libcommon-json-jsoniter-kotlin")
-    compileOnly("com.github.fmjsjx:libcommon-json-fastjson2")
-    compileOnly("com.github.fmjsjx:libcommon-json-fastjson2-kotlin")
-    compileOnly("tools.jackson.core:jackson-databind")
-    implementation("com.github.fmjsjx:libcommon-json-jackson3")
-    compileOnly("com.github.fmjsjx:libcommon-json-jackson3-kotlin")
+    compileOnlyApi("com.aayushatharva.brotli4j:brotli4j")
+    compileOnlyApi("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
+    compileOnlyApi("com.alibaba.fastjson2:fastjson2")
+    compileOnlyApi("com.github.fmjsjx:libcommon-json")
+    compileOnlyApi("com.github.fmjsjx:libcommon-json-jackson2")
+    compileOnlyApi("com.github.fmjsjx:libcommon-json-jsoniter")
+    compileOnlyApi("com.github.fmjsjx:libcommon-json-fastjson2")
+    implementation("tools.jackson.core:jackson-core")
+    implementation("tools.jackson.core:jackson-databind")
+    compileOnlyApi("com.github.fmjsjx:libcommon-json-jackson3")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.mockito:mockito-core")
@@ -41,14 +36,13 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl")
     testImplementation("org.apache.logging.log4j:log4j-core")
-    testImplementation("com.github.fmjsjx:libcommon-json-fastjson2")
 
 }
 
 description = "libnetty/HTTP-Server"
 
 tasks.test {
-    // Use junit platform for unit tests.
+    // Use JUnit platform for unit tests.
     useJUnitPlatform()
     jvmArgs = listOf(
         "-XX:+EnableDynamicAgentLoading",

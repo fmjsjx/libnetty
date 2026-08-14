@@ -28,16 +28,11 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    implementation("com.github.fmjsjx:libcommon-kotlin")
     implementation("com.github.fmjsjx:libcommon-json-fastjson2")
-    implementation("com.github.fmjsjx:libcommon-json-fastjson2-kotlin")
     implementation("com.github.fmjsjx:libcommon-json-jackson2")
-    implementation("com.github.fmjsjx:libcommon-json-jackson2-kotlin")
     implementation("tools.jackson.core:jackson-databind")
     implementation("com.github.fmjsjx:libcommon-json-jackson3")
-    implementation("com.github.fmjsjx:libcommon-json-jackson3-kotlin")
     implementation("com.github.fmjsjx:libcommon-json-jsoniter")
-    implementation("com.github.fmjsjx:libcommon-json-jsoniter-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
@@ -53,6 +48,6 @@ dependencies {
 description = "libnetty/Example"
 
 tasks.test {
-    // Use junit platform for unit tests.
+    // Use JUnit platform for unit tests.
     useJUnitPlatform()
 }

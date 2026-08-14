@@ -19,7 +19,7 @@ dependencies {
 description = "libnetty/RESP"
 
 tasks.test {
-    // Use junit platform for unit tests.
+    // Use JUnit platform for unit tests.
     useJUnitPlatform()
 }
 
