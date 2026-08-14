@@ -9,16 +9,6 @@ repositories {
     mavenCentral()
 }
 
-configurations {
-    compileOnly {
-        extendsFrom(configurations.annotationProcessor.get())
-    }
-    testImplementation {
-        extendsFrom(configurations.compileOnly.get())
-        extendsFrom(configurations.compileOnlyApi.get())
-    }
-}
-
 dependencies {
     // netty-bom
     api(platform("io.netty:netty-bom:4.2.17.Final"))
@@ -73,6 +63,10 @@ java {
 configurations {
     compileOnly {
         extendsFrom(configurations.annotationProcessor.get())
+    }
+    testImplementation {
+        extendsFrom(configurations.compileOnly.get())
+        extendsFrom(configurations.compileOnlyApi.get())
     }
 }
 
