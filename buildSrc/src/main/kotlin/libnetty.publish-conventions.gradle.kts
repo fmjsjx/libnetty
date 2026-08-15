@@ -48,3 +48,8 @@ val deleteLocalMavenMetadata = tasks.register("deleteLocalMavenMetadata") {
         }
     }
 }
+
+// Automatically trigger this cleanup task AFTER the publishing tasks are done
+tasks.withType<PublishToMavenRepository>().configureEach {
+    finalizedBy(deleteLocalMavenMetadata)
+}
