@@ -19,7 +19,7 @@ dependencies {
     // jackson3-bom
     api(platform("tools.jackson:jackson-bom:3.2.1"))
     // junit-bom
-    testImplementation(platform("org.junit:junit-bom:6.0.3"))
+    testImplementation(platform("org.junit:junit-bom:6.1.3"))
     // mockito
     testImplementation(platform("org.mockito:mockito-bom:5.23.0"))
     // log4j2
