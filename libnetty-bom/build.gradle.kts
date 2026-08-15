@@ -13,7 +13,6 @@ dependencies {
         api(project(":libnetty-http-client"))
         api(project(":libnetty-http-server"))
         api(project(":libnetty-resp"))
-        api(project(":libnetty-resp3"))
         api(project(":libnetty-transport"))
     }
 }
