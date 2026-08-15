@@ -5,47 +5,36 @@ plugins {
 
 dependencies {
 
-    api("org.slf4j:slf4j-api")
-    api(project(":libnetty-core"))
-    api("io.netty:netty-codec-http2")
-    implementation("com.github.fmjsjx:libcommon-util")
-    compileOnlyApi("io.netty:netty-tcnative-boringssl-static::linux-aarch_64")
-    compileOnlyApi("io.netty:netty-tcnative-boringssl-static::linux-x86_64")
-    compileOnlyApi("io.netty:netty-tcnative-boringssl-static::osx-x86_64")
-    compileOnlyApi("io.netty:netty-tcnative-boringssl-static::windows-x86_64")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind")
-    compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
-    compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    implementation("com.jcraft:jzlib")
-    compileOnlyApi("com.aayushatharva.brotli4j:brotli4j")
-    compileOnlyApi("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
-    compileOnlyApi("com.alibaba.fastjson2:fastjson2")
-    compileOnlyApi("com.github.fmjsjx:libcommon-json")
-    compileOnlyApi("com.github.fmjsjx:libcommon-json-jackson2")
-    compileOnlyApi("com.github.fmjsjx:libcommon-json-jsoniter")
-    compileOnlyApi("com.github.fmjsjx:libcommon-json-fastjson2")
-    implementation("tools.jackson.core:jackson-core")
-    implementation("tools.jackson.core:jackson-databind")
-    compileOnlyApi("com.github.fmjsjx:libcommon-json-jackson3")
+    implementation("org.slf4j:slf4j-api")
+    api("io.netty:netty-handler")
+    implementation("io.netty:netty-pkitesting")
+    api("io.netty:netty-codec-http")
+    compileOnlyApi("io.netty:netty-codec-http2")
+    api("io.netty:netty-transport")
+    compileOnlyApi("io.netty:netty-transport-classes-io_uring")
+    compileOnlyApi("io.netty:netty-transport-classes-epoll")
+    compileOnlyApi("io.netty:netty-transport-classes-kqueue")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
-    testImplementation("org.mockito:mockito-core")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl")
     testImplementation("org.apache.logging.log4j:log4j-core")
+    testImplementation("org.mockito:mockito-core")
 
 }
 
-description = "libnetty/HTTP-Server"
+description = "libnetty/Core"
 
 tasks.test {
     // Use JUnit platform for unit tests.
     useJUnitPlatform()
+    // Fix for java 21
     jvmArgs = listOf(
         "-XX:+EnableDynamicAgentLoading",
         "-Xshare:off",
-        classpath.find { "mockito-core" in it.name }?.let { "-javaagent:${it.absolutePath}" } ?: "",
+        "--add-exports=java.base/sun.security.x509=ALL-UNNAMED",
+        "--add-exports=java.base/sun.security.pkcs=ALL-UNNAMED",
     )
 }
 
@@ -62,7 +51,7 @@ publishing {
                 }
             }
             pom {
-                name.set("libnetty/HTTP-Server")
+                name.set("libnetty/Core")
                 description.set("A set of some useful libraries based on netty4.2.x.")
                 url.set("https://github.com/fmjsjx/libnetty")
                 licenses {

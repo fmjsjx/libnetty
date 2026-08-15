@@ -7,13 +7,11 @@ description = "libnetty/BOM"
 
 dependencies {
     constraints {
+        api(project(":libnetty-core"))
         api(project(":libnetty-fastcgi"))
-        api(project(":libnetty-handler"))
-        api(project(":libnetty-http"))
         api(project(":libnetty-http-client"))
         api(project(":libnetty-http-server"))
         api(project(":libnetty-resp"))
-        api(project(":libnetty-transport"))
     }
 }
 

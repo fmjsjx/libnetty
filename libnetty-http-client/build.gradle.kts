@@ -9,10 +9,8 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
     implementation("org.slf4j:slf4j-api")
 
-    api(project(":libnetty-handler"))
-    api(project(":libnetty-http"))
+    api(project(":libnetty-core"))
     api("io.netty:netty-handler-proxy")
-    api(project(":libnetty-transport"))
     api("com.github.fmjsjx:libcommon-util")
     implementation("com.jcraft:jzlib")
     implementation("org.brotli:dec:0.1.2")
