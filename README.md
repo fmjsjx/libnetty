@@ -72,17 +72,13 @@ dependencies {
 
 There are a number of modules in LibNetty, here is a quick overview:
 
+### libnetty-core
+
+The [`libnetty-core`](libnetty-core) module provides additional features for Netty4.
+
 ### libnetty-fastcgi
 
 The [`libnetty-fastcgi`](libnetty-fastcgi) module provides codec components for [`Fast-CGI`](https://fastcgi-archives.github.io/FastCGI_Specification.html).
-
-### libnetty-handler
-
-The [`libnetty-handler`](libnetty-handler) module provides additional features for `netty-handler`.
-
-### libnetty-http
-
-The [`libnetty-http`](libnetty-http) module provides additional utility functions for `HTTP/1.x`.
 
 ### libnetty-http-client
 
@@ -95,8 +91,3 @@ The [`libnetty-http-server`](libnetty-http-server) module provides a simplified 
 ### libnetty-resp
 
 The [`libnetty-resp`](libnetty-resp) module provides codec components for [`RESP(REdis Serialization Protocol)`](https://redis.io/topics/protocol) and [`RESP3 specification`](https://github.com/antirez/RESP3/blob/master/spec.md).
-
-### libnetty-transport
-
-The [`libnetty-transport`](libnetty-transport) module provides additional features, such as `auto-selection of java/native transport`, for `netty-transport`.
-
