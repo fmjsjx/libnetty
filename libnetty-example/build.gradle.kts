@@ -16,7 +16,6 @@ dependencies {
     implementation(project(":libnetty-http-client"))
     implementation(project(":libnetty-http-server"))
     implementation(project(":libnetty-resp"))
-    implementation(project(":libnetty-resp3"))
     implementation(project(":libnetty-transport"))
     implementation("io.netty:netty-pkitesting")
     implementation("io.netty:netty-transport-native-io_uring::linux-x86_64")

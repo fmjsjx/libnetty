@@ -94,11 +94,7 @@ The [`libnetty-http-server`](libnetty-http-server) module provides a simplified 
 
 ### libnetty-resp
 
-The [`libnetty-resp`](libnetty-resp) module provides codec components for [`RESP(REdis Serialization Protocol)`](https://redis.io/topics/protocol).
-
-### libnetty-resp3
-
-The [`libnetty-resp3`](libnetty-resp3) module provides codec components for [`RESP3 specification`](https://github.com/antirez/RESP3/blob/master/spec.md).
+The [`libnetty-resp`](libnetty-resp) module provides codec components for [`RESP(REdis Serialization Protocol)`](https://redis.io/topics/protocol) and [`RESP3 specification`](https://github.com/antirez/RESP3/blob/master/spec.md).
 
 ### libnetty-transport
 
