@@ -32,7 +32,7 @@ dependencies {
     implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.4.10"))
 
     constraints {
-        api("org.slf4j:slf4j-api:2.0.17")
+        api("org.slf4j:slf4j-api:2.0.18")
         val lombokVersion = "1.18.44"
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
