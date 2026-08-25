@@ -12,17 +12,13 @@ repositories {
             includeGroupByRegex(".*")
         }
     }
-//    maven {
-//        url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/")
-//    }
-//    mavenCentral()
 }
 
 dependencies {
     // netty-bom
     api(platform("io.netty:netty-bom:4.2.17.Final"))
     // libcommon-bom
-    api(platform("com.github.fmjsjx:libcommon-bom:4.3.0-alpha2"))
+    api(platform("com.github.fmjsjx:libcommon-bom:4.3.0-beta1"))
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
     // jackson3-bom
