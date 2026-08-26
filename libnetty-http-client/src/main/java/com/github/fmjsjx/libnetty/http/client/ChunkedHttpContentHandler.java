@@ -30,8 +30,10 @@ public interface ChunkedHttpContentHandler<T> extends Consumer<ByteBuf>, Supplie
      */
     @Override
     default T apply(ByteBuf content) {
+        var t = get();
         accept(content);
-        return get();
+        onComplete();
+        return t;
     }
 
     @Override

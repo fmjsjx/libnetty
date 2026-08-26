@@ -136,8 +136,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                                 headerHost, cachedPool, ctx.channel());
                                         pipeline.addLast(new IdleStateHandler(0, 0, connectionTimeoutSeconds));
                                         if (ssl) {
-                                            pipeline.addLast(
-                                                    sslContextProvider.get().newHandler(ctx.alloc(), host, port));
+                                            pipeline.addLast(sslContextProvider.get().newHandler(ctx.alloc(), host, port));
                                         }
                                         addHttpHandlers(pipeline, handler);
                                         handler.sendAsnyc(requestContext);
