@@ -215,9 +215,13 @@ public class SimpleHttpClient extends AbstractHttpClient {
         if (autoDecompression) {
             pipeline.addLast(new HttpContentDecompressor(0));
         }
-        pipeline.addLast(new HttpObjectAggregator(maxContentLength));
         pipeline.addLast(new ChunkedWriteHandler());
-        pipeline.addLast(new SimpleHttpClientHandler<>(future, contentHandler, executor));
+        if (contentHandler instanceof ChunkedHttpContentHandler<T> chunkedHttpContentHandler) {
+            pipeline.addLast(new ChunkedContentSimpleHttpClientHandler<>(future, chunkedHttpContentHandler, executor));
+        } else {
+            pipeline.addLast(new HttpObjectAggregator(maxContentLength));
+            pipeline.addLast(new SimpleHttpClientHandler<>(future, contentHandler, executor));
+        }
     }
 
     private HttpRequest createHttpRequest(ByteBufAllocator alloc, Request request, boolean defaultPort,
@@ -230,13 +234,13 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
         private final CompletableFuture<Response<T>> future;
         private final HttpContentHandler<T> contentHandler;
-        private final Optional<Executor> executor;
+        private final Executor executor;
 
         private SimpleHttpClientHandler(CompletableFuture<Response<T>> future, HttpContentHandler<T> contentHandler,
                                         Optional<Executor> executor) {
             this.future = future;
             this.contentHandler = contentHandler;
-            this.executor = executor;
+            this.executor = executor.orElse(null);
         }
 
         @Override
@@ -257,9 +261,9 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) {
-            if (executor.isPresent()) {
+            if (executor != null) {
                 msg.retain();
-                executor.get().execute(() -> {
+                executor.execute(() -> {
                     try {
                         future.complete(buildResponse(msg));
                     } finally {
@@ -275,6 +279,103 @@ public class SimpleHttpClient extends AbstractHttpClient {
         private Response<T> buildResponse(FullHttpResponse msg) {
             return new DefaultResponse<>(msg.protocolVersion(), msg.status(), msg.headers(),
                     contentHandler.apply(msg.content()));
+        }
+
+    }
+
+    private static final class ChunkedContentSimpleHttpClientHandler<T>
+            extends SimpleChannelInboundHandler<HttpObject> {
+
+        private final CompletableFuture<Response<T>> future;
+        private final ChunkedHttpContentHandler<T> contentHandler;
+        private final Executor executor;
+
+        // whether onComplete or onError has been invoked (or scheduled)
+        // on the content handler, i.e. the handler has reached its final state
+        private boolean contentCompleted;
+
+        private ChunkedContentSimpleHttpClientHandler(CompletableFuture<Response<T>> future,
+                                                      ChunkedHttpContentHandler<T> contentHandler,
+                                                      Optional<Executor> executor) {
+            this.future = future;
+            this.contentHandler = contentHandler;
+            this.executor = executor.orElse(null);
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            log.debug("Error occurs on receiving chunked content", cause);
+            if (future.isDone()) {
+                onError0(cause);
+            } else {
+                future.completeExceptionally(cause);
+            }
+            ctx.close();
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) {
+            if (future.isDone()) {
+                // connection closed before the last content received
+                onError0(new IllegalStateException("Connection closed before the content completed"));
+            } else {
+                future.completeExceptionally(new IllegalStateException("No Response Content"));
+            }
+        }
+
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
+            if (msg instanceof HttpResponse httpResponse) {
+                // complete the future immediately on the response head received
+                // so that the caller is able to access the status and headers
+                // as soon as possible while the content is streamed afterward
+                Response<T> response = buildResponse(httpResponse);
+                if (executor != null) {
+                    executor.execute(() -> future.complete(response));
+                } else {
+                    future.complete(response);
+                }
+            }
+            if (msg instanceof HttpContent httpContent) {
+                if (httpContent instanceof LastHttpContent) {
+                    contentCompleted = true;
+                    if (executor != null) {
+                        executor.execute(contentHandler::onComplete);
+                    } else {
+                        contentHandler.onComplete();
+                    }
+                    ctx.close();
+                    return;
+                }
+                if (executor != null) {
+                    httpContent.retain();
+                    executor.execute(() -> {
+                        try {
+                            contentHandler.accept(httpContent.content());
+                        } finally {
+                            httpContent.release();
+                        }
+                    });
+                } else {
+                    contentHandler.accept(httpContent.content());
+                }
+            }
+        }
+
+        private void onError0(Throwable cause) {
+            if (!contentCompleted) {
+                contentCompleted = true;
+                if (executor != null) {
+                    executor.execute(() -> contentHandler.onError(cause));
+                } else {
+                    contentHandler.onError(cause);
+                }
+            }
+        }
+
+        private Response<T> buildResponse(HttpResponse response) {
+            return new DefaultResponse<>(response.protocolVersion(), response.status(), response.headers(),
+                    contentHandler.get());
         }
 
     }

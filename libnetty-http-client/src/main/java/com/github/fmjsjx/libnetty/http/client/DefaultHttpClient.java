@@ -185,8 +185,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
             pipeline.addLast(new HttpContentDecompressor(0));
         }
         pipeline.addLast(new ChunkedWriteHandler());
-        pipeline.addLast(new HttpObjectAggregator(maxContentLength));
-        pipeline.addLast(handler);
+        pipeline.addLast(HTTP_OBJECT_AGGREGATOR, new HttpObjectAggregator(maxContentLength));
+        pipeline.addLast(InternalHttpClientHandler.HANDLER_NAME, handler);
     }
 
     private CachedPool<HttpConnection> getCachedConnectionPool(String addressKey) {
@@ -247,6 +247,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
     private final class InternalHttpClientHandler extends SimpleChannelInboundHandler<FullHttpResponse>
             implements HttpConnection {
+        private static final String HANDLER_NAME = "InternalHttpClientHandler";
 
         private final InetSocketAddress address;
         private final CharSequence headerHost;
