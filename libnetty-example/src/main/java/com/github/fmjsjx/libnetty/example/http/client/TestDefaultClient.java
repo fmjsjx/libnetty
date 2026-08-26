@@ -13,11 +13,16 @@ import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.client.*;
 import com.github.fmjsjx.libnetty.http.client.HttpClient.Response;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.AsciiString;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
 
 /**
  * Test class for default client.
  */
 public class TestDefaultClient {
+
+    private static final AsciiString TEXT_EVENT_STREAM = AsciiString.cached("text/event-stream");
 
     /**
      * Main method.
@@ -101,6 +106,22 @@ public class TestDefaultClient {
         } finally {
             // release ByteBuf finally
             content.release();
+        }
+    }
+
+    @SuppressWarnings({"CallToPrintStackTrace", "SameParameterValue"})
+    static void testLineStream(HttpClient client, int len, Integer errIndex) throws IOException, InterruptedException, TimeoutException {
+        URI uri;
+        if (errIndex != null) {
+            uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len + "&err=" + errIndex);
+        } else {
+            uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len);
+        }
+        var resp = client.request(uri).setHeader(ACCEPT, TEXT_EVENT_STREAM).get().send(HttpContentHandlers.ofLines());
+        try (var lineStream = resp.content()) {
+            lineStream.forEach(System.out::print);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

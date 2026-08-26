@@ -469,7 +469,9 @@ public class TestController {
      */
     @SuppressWarnings("CallToPrintStackTrace")
     @HttpGet("/test/sse-event-stream")
-    public CompletionStage<HttpResult> getTestSseEventStream(HttpRequestContext ctx, @QueryVar(value = "len", required = false) Integer len) {
+    public CompletionStage<HttpResult> getTestSseEventStream(HttpRequestContext ctx,
+                                                             @QueryVar(value = "len", required = false) Integer len,
+                                                             @QueryVar(value = "err", required = false) Integer errorIndex) {
         // GET /api/test/sse-event-stream
         System.out.println("-- test sse-event-stream --");
         System.out.println(ctx.channel());
@@ -499,6 +501,11 @@ public class TestController {
                         return;
                     }
                     if (n++ < messageSize) {
+                        if (errorIndex != null && n == errorIndex) {
+                            ctx.channel().close();
+                            running.set(false);
+                            return;
+                        }
                         var data = new AsciiString(Fastjson2Library.getInstance().dumpsToBytes(Map.of("line", n)));
                         stream.sendEvent(SseEventBuilder.message(data).id(n + 1));
                         eventLoop.schedule(this, 1000, TimeUnit.MILLISECONDS);

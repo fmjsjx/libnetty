@@ -30,6 +30,8 @@ public class TestSimpleClient {
             testAsynchronousApi(client);
             // test upload
             testUpload(client);
+            // test line stream
+            testLineStream(client, 32,null);
         }
     }
 

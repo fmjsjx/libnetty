@@ -110,6 +110,7 @@ public final class HttpContentHandlers {
 
         private static final VarHandle LINE_STREAM_VAR;
         private static final Object INITIALIZING_TOKEN = new Object();
+        private static final Object EOF = new Object();
 
         static {
             try {
@@ -193,13 +194,11 @@ public final class HttpContentHandlers {
             return Stream.generate(() -> {
                 try {
                     var obj = queue.take();
-                    if (obj instanceof String str) {
-                        return str;
-                    }
-                    if (obj instanceof RuntimeException e) {
-                        throw e;
-                    }
-                    return null;
+                    return switch (obj) {
+                        case String str -> str;
+                        case RuntimeException e -> throw e;
+                        default -> null;
+                    };
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return null;
@@ -209,7 +208,7 @@ public final class HttpContentHandlers {
 
         @Override
         public void onComplete() {
-            queue.offer(null);
+            queue.offer(EOF);
         }
 
         @Override
