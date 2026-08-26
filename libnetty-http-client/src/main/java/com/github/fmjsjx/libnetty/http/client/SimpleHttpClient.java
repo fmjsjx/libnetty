@@ -245,7 +245,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            log.debug("Error occurs", cause);
+            log.debug("Error occurs on simple client channel: {}", ctx.channel(), cause);
             if (!future.isDone()) {
                 future.completeExceptionally(cause);
             }
@@ -304,13 +304,16 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            log.debug("Error occurs on receiving chunked content", cause);
-            if (future.isDone()) {
-                onError0(cause);
-            } else {
-                future.completeExceptionally(cause);
+            log.debug("Error occurs on receiving chunked content channel: {}", ctx.channel(), cause);
+            try {
+                if (future.isDone()) {
+                    onError0(cause);
+                } else {
+                    future.completeExceptionally(cause);
+                }
+            } finally {
+                ctx.close();
             }
-            ctx.close();
         }
 
         @Override

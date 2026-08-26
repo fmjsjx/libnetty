@@ -110,7 +110,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         int port = defaultPort ? (ssl ? 443 : 80) : uri.getPort();
         String host = uri.getHost();
         CompletableFuture<Response<T>> future = new CompletableFuture<>();
-        RequestContext<T> requestContext = new RequestContext<>(request, future, contentHandler, executor);
+        RequestContext<T> requestContext = new RequestContext<>(request, future, contentHandler, executor.orElse(null));
         String addressKey = host + ":" + port;
         var cachedPool = getCachedConnectionPool(addressKey);
         Optional<HttpConnection> conn = tryPollOne(cachedPool);
@@ -209,18 +209,51 @@ public class DefaultHttpClient extends AbstractHttpClient {
         private final Request request;
         private final CompletableFuture<? super Response<T>> future;
         private final HttpContentHandler<T> contentHandler;
-        private final Optional<Executor> executor;
+        private final Executor executor;
 
         private RequestContext(Request request, CompletableFuture<? super Response<T>> future,
-                HttpContentHandler<T> contentHandler, Optional<Executor> executor) {
+                HttpContentHandler<T> contentHandler, Executor executor) {
             this.request = request;
             this.future = future;
             this.contentHandler = contentHandler;
             this.executor = executor;
         }
 
+        private void responseComplete(HttpResponse msg) {
+            if (msg instanceof FullHttpResponse fullResponse) {
+                complete(fullResponse);
+            } else {
+                if (contentHandler instanceof ChunkedHttpContentHandler<T> chunkedHttpContentHandler) {
+                    var response = new DefaultResponse<>(msg.protocolVersion(), msg.status(), msg.headers(),
+                            chunkedHttpContentHandler.get());
+                    var executor = this.executor;
+                    if (executor != null) {
+                        executor.execute(() -> future.complete(response));
+                    } else {
+                        future.complete(response);
+                    }
+                } else {
+                    // Not Full HttpResponse only supported with ChunkedHttpContentHandler
+                    future.completeExceptionally(new IllegalStateException("Invalid content handler type " + contentHandler.getClass() +
+                            ", expected ChunkedHttpContentHandler"));
+                }
+            }
+        }
+
         private void complete(FullHttpResponse msg) {
-            complete(msg.protocolVersion(), msg.status(), msg.headers(), msg.content());
+            var executor = this.executor;
+            if (executor != null) {
+                msg.retain();
+                executor.execute(() -> {
+                    try {
+                        complete(msg.protocolVersion(), msg.status(), msg.headers(), msg.content());
+                    } finally {
+                        msg.release();
+                    }
+                });
+            } else {
+                complete(msg.protocolVersion(), msg.status(), msg.headers(), msg.content());
+            }
         }
 
         private void complete(HttpVersion version, HttpResponseStatus status, HttpHeaders headers, ByteBuf content) {
@@ -277,33 +310,38 @@ public class DefaultHttpClient extends AbstractHttpClient {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            ctx.close();
+            log.debug("Error occurs on default client channel: {}", ctx.channel(), cause);
+            try {
+                onErrorCaught(cause);
+            } finally {
+                ctx.close();
+            }
+        }
+
+        private void onErrorCaught(Throwable cause) {
             if (this.requestContext != null) {
                 RequestContext<?> requestContext = this.requestContext;
                 this.requestContext = null;
                 if (!requestContext.future.isDone()) {
                     requestContext.future.completeExceptionally(cause);
                 }
-            } else {
-                // remove HttpConnection from cache pool
-                cachedPool.tryRelease(this);
             }
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) {
+            // remove HttpConnection from cache pool when channel inactive
+            cachedPool.tryRelease(this);
         }
 
         @Override
         public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
             if (evt instanceof IdleStateEvent) {
                 if (((IdleStateEvent) evt).state() == IdleState.ALL_IDLE) {
-                    ctx.close();
-                    if (this.requestContext != null) {
-                        RequestContext<?> requestContext = this.requestContext;
-                        this.requestContext = null;
-                        if (!requestContext.future.isDone()) {
-                            requestContext.future.completeExceptionally(new TimeoutException());
-                        }
-                    } else {
-                        // remove HttpConnection from cache pool
-                        cachedPool.tryRelease(this);
+                    try {
+                        onErrorCaught(new TimeoutException());
+                    } finally {
+                        ctx.close();
                     }
                 }
             }
@@ -321,23 +359,11 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 } else {
                     ctx.close();
                 }
-                if (requestContext.executor.isPresent()) {
-                    msg.retain();
-                    requestContext.executor.get().execute(() -> {
-                        try {
-                            requestContext.complete(msg);
-                        } finally {
-                            msg.release();
-                        }
-                    });
-                } else {
-                    requestContext.complete(msg);
-                }
+                requestContext.complete(msg);
             } else {
                 // WARN: should not reach this line.
                 // To be on the safe side, always close channel and remove it from cached pool.
                 ctx.close();
-                cachedPool.tryRelease(this);
             }
         }
 
