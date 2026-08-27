@@ -14,6 +14,8 @@ import com.github.fmjsjx.libnetty.http.client.*;
 import com.github.fmjsjx.libnetty.http.client.HttpClient.Response;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.AsciiString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
 
@@ -21,6 +23,8 @@ import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
  * Test class for default client.
  */
 public class TestDefaultClient {
+
+    private static final Logger logger = LoggerFactory.getLogger(TestDefaultClient.class);
 
     private static final AsciiString TEXT_EVENT_STREAM = AsciiString.cached("text/event-stream");
 
@@ -38,8 +42,23 @@ public class TestDefaultClient {
             testSynchronousApi(client);
             // Asynchronous API
             testAsynchronousApi(client);
-            // Upload API
-            testUpload(client);
+//            // Upload API
+//            testUpload(client);
+            // test line stream
+            testLineStream(client, 32,null);
+            // test line stream
+            testLineStream(client, 16,null);
+            try {
+                // test line stream
+                testLineStream(client, 64, 8);
+            } catch (Exception e) {
+                logger.info("Should ignore this error", e);
+            }
+            testLineStream(client, 12,null);
+            // Synchronous API
+            testSynchronousApi(client);
+            // Asynchronous API
+            testAsynchronousApi(client);
         }
     }
 

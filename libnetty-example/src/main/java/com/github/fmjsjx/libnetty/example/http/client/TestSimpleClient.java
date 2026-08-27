@@ -31,7 +31,11 @@ public class TestSimpleClient {
             // test upload
             testUpload(client);
             // test line stream
-            testLineStream(client, 32,null);
+            testLineStream(client, 10,null);
+            // test line stream
+            testLineStream(client, 10,null);
+            // test line stream
+            testLineStream(client, 10,null);
         }
     }
 

@@ -51,6 +51,8 @@ import io.netty.handler.codec.http.multipart.*;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test controller
@@ -59,6 +61,8 @@ import io.netty.util.CharsetUtil;
 @HttpPath("/api")
 @HttpPath("/api_dup")
 public class TestController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(TestController.class);
 
     static final AsciiString ASCII_OK = AsciiString.cached("OK");
 
@@ -77,10 +81,11 @@ public class TestController {
     @HttpGet("/test")
     public CompletionStage<HttpResult> getTest(HttpRequestContext ctx) {
         // GET /api/test
-        System.out.println("-- test --");
+        logger.info("-- test --");
+        logger.info("test channel: {}", ctx.channel());
         // always returns 200 OK
         ByteBuf body = ByteBufUtil.writeAscii(ctx.alloc(), "200 OK");
-        System.out.println(body.toString(CharsetUtil.UTF_8));
+        logger.info(body.toString(CharsetUtil.UTF_8));
         return ctx.simpleRespond(OK, body, TEXT_PLAIN);
     }
 
@@ -98,11 +103,11 @@ public class TestController {
             HttpRequestContext ctx, @PathVar("code") int code, @RemoteAddr String clientIp,
             @HeaderValue("user-agent") Optional<String> userAgent) {
         // GET /api/errors/{code}
-        System.out.println("-- errors --");
-        System.out.println("client IP ==> " + clientIp);
-        System.out.println("user agent ==> " + userAgent);
+        logger.info("-- errors --");
+        logger.info("client IP ==> {}", clientIp);
+        logger.info("user agent ==> {}", userAgent);
         HttpResponseStatus status = HttpResponseStatus.valueOf(code);
-        System.out.println("status ==> " + status);
+        logger.info("status ==> {}", status);
         return ctx.simpleRespond(status);
     }
 
@@ -117,8 +122,8 @@ public class TestController {
     @JsonBody
     public CompletableFuture<?> getJsons(QueryStringDecoder query, EventLoop eventLoop) {
         // GET /api/jsons
-        System.out.println("-- jsons --");
-        //        System.out.println("library: " + library);
+        logger.info("-- jsons --");
+        //        logger.info("library: " + library);
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         query.parameters().forEach((key, values) -> {
             if (values.size() == 1) {
@@ -148,7 +153,8 @@ public class TestController {
     @JsonBody
     @SuppressWarnings({"rawtypes", "unchecked"})
     public CompletionStage<?> postJsonsForm(HttpRequestContext ctx) throws Exception {
-        System.out.println("-- jsons form --");
+        logger.info("-- jsons form --");
+        logger.info("form channel: {}", ctx.channel());
         var result = new LinkedHashMap<String, Object>();
         var decoder = new HttpPostRequestDecoder(ctx.request());
         try {
@@ -185,8 +191,9 @@ public class TestController {
     @HttpPost("/echo")
     public CompletionStage<HttpResult> postEcho(HttpRequestContext ctx, @JsonBody JsonNode value) {
         // POST /api/echo
-        System.out.println("-- echo --");
-        System.out.println("value ==> " + value);
+        logger.info("-- echo --");
+        logger.info("echo channel: {}", ctx.channel());
+        logger.info("value ==> {}", value);
         ByteBuf content = ctx.request().content();
         Charset charset = HttpUtil.getCharset(ctx.request(), CharsetUtil.UTF_8);
         CharSequence contentType = ctx.contentType().orElseGet(() -> contentType(TEXT_PLAIN, charset));
@@ -204,8 +211,8 @@ public class TestController {
     public CompletionStage<Void> getNoContent(QueryStringDecoder query, Executor executor) {
         return CompletableFuture.runAsync(() -> {
             // GET /api/no-content
-            System.out.println("-- no content --");
-            System.out.println(query.uri());
+            logger.info("-- no content --");
+            logger.info("uri: {}", query.uri());
         }, executor);
     }
 
@@ -219,9 +226,9 @@ public class TestController {
     @HttpGet("/ok")
     @StringBody
     public CompletionStage<CharSequence> getOK(HttpRequestContext ctx, QueryStringDecoder query) {
-        System.out.println("-- ok --");
-        System.out.println(ctx.channel());
-        System.out.println(query.uri());
+        logger.info("-- ok --");
+        logger.info("ok channel: {}", ctx.channel());
+        logger.info("ok uri: {}", query.uri());
         return CompletableFuture.completedFuture(ASCII_OK);
     }
 
@@ -249,7 +256,8 @@ public class TestController {
     @HttpPost("/upload")
     @StringBody
     public CompletionStage<CharSequence> postUpload(LazyLoadingHttpRequestContext ctx) {
-        System.out.println("-- upload --");
+        logger.info("-- upload --");
+        logger.info("upload channel: {}", ctx.channel());
         return ctx.awaitPostData().handleAsync((decoder, cause) -> {
             if (cause != null) {
                 System.err.println("-- error --");
@@ -264,8 +272,8 @@ public class TestController {
                 if (fileUpload instanceof FileUpload file) {
                     var dfile = new File(file.getFilename());
                     file.renameTo(dfile);
-                    System.out.println("-- file --");
-                    System.out.println(dfile);
+                    logger.info("-- file --");
+                    logger.info("direct file: {}", dfile);
                 }
                 return ASCII_OK;
             } catch (IOException e) {
@@ -274,26 +282,6 @@ public class TestController {
                 ctx.destroy();
             }
         }, ctx.eventLoop());
-//
-//        var decoder = new HttpPostRequestDecoder(ctx.request());
-//        try {
-//            if (!decoder.isMultipart()) {
-//                throw new SimpleHttpFailureException(BAD_REQUEST, "post body content type must be multipart/form-data");
-//            }
-//            var fileUpload = decoder.getBodyHttpData("file");
-//            if (fileUpload == null || fileUpload.getHttpDataType() != FileUpload) {
-//                throw new SimpleHttpFailureException(BAD_REQUEST, "invalid file");
-//            }
-//            if (fileUpload instanceof FileUpload file) {
-//                var dfile = new File(file.getFilename());
-//                file.renameTo(dfile);
-//                System.out.println("-- file --");
-//                System.out.println(dfile);
-//            }
-//            return CompletableFuture.completedFuture(ASCII_OK);
-//        } finally {
-//            decoder.destroy();
-//        }
     }
 
     /**
@@ -307,13 +295,13 @@ public class TestController {
     @HttpGet("/array")
     public CompletionStage<HttpResult> getArray(HttpRequestContext ctx, @QueryVar("name[]") List<String> names, @QueryVar("id[]") int[] ids) {
         // GET /api/test
-        System.out.println("-- array --");
-        System.out.println("query --- " + ctx.rawQuery());
-        System.out.println("names --- " + names);
-        System.out.println("ids --- " + Arrays.toString(ids));
+        logger.info("-- array --");
+        logger.info("query --- {}", ctx.rawQuery());
+        logger.info("names --- {}", names);
+        logger.info("ids --- {}", Arrays.toString(ids));
         // always returns 200 OK
         ByteBuf body = ByteBufUtil.writeAscii(ctx.alloc(), "200 OK");
-        System.out.println(body.toString(CharsetUtil.UTF_8));
+        logger.info(body.toString(CharsetUtil.UTF_8));
         return ctx.simpleRespond(OK, body, TEXT_PLAIN);
     }
 
@@ -330,8 +318,8 @@ public class TestController {
     @HttpGet("/test/event-stream")
     public CompletionStage<HttpResult> getTestEventStream(HttpRequestContext ctx, @QueryVar(value = "len", required = false) Integer len) {
         // GET /api/test/event-stream
-        System.out.println("-- test event-stream --");
-        System.out.println(ctx.channel());
+        logger.info("-- test event-stream --");
+        logger.info("event-stream channel: {}", ctx.channel());
         int messageSize = len == null ? 100 : len;
         var channel = ctx.channel();
         var pipeline = channel.pipeline();
@@ -404,8 +392,8 @@ public class TestController {
     @HttpGet("/test/sse-events")
     public CompletionStage<HttpResult> getTestSseEvents(HttpRequestContext ctx, @QueryVar(value = "len", required = false) Integer len) {
         // GET /api/test/sse-events
-        System.out.println("-- test sse-events --");
-        System.out.println(ctx.channel());
+        logger.info("-- test sse-events --");
+        logger.info("sse-events channel: {}", ctx.channel());
         int messageSize = len == null ? 100 : len;
         var channel = ctx.channel();
         var pipeline = channel.pipeline();
@@ -467,21 +455,19 @@ public class TestController {
      * @return result
      * @since 3.9
      */
-    @SuppressWarnings("CallToPrintStackTrace")
     @HttpGet("/test/sse-event-stream")
     public CompletionStage<HttpResult> getTestSseEventStream(HttpRequestContext ctx,
                                                              @QueryVar(value = "len", required = false) Integer len,
                                                              @QueryVar(value = "err", required = false) Integer errorIndex) {
         // GET /api/test/sse-event-stream
-        System.out.println("-- test sse-event-stream --");
-        System.out.println(ctx.channel());
+        logger.info("-- test sse-event-stream --");
+        logger.info("sse-event-stream channel: {}", ctx.channel());
         int messageSize = len == null ? 100 : len;
         var eventLoop = ctx.eventLoop();
         var running = new AtomicBoolean(false);
         var uuid = UUID.randomUUID().toString();
         return ctx.eventStreamBuilder().autoPing().onError((stream, cause) -> {
-            System.err.println("error occurs on SSE event stream");
-            cause.printStackTrace();
+            logger.error("error occurs on SSE event stream", cause);
             running.set(false);
         }).onActive(stream -> {
             running.set(true);
@@ -503,6 +489,7 @@ public class TestController {
                     if (n++ < messageSize) {
                         if (errorIndex != null && n == errorIndex) {
                             ctx.channel().close();
+                            stream.close();
                             running.set(false);
                             return;
                         }
@@ -512,6 +499,7 @@ public class TestController {
                     } else {
                         stream.sendEvent(SseEventBuilder.create().event(SSE_EVENT_CLOSE).id(n + 1).data(sessionData));
                         stream.close();
+                        running.set(false);
                     }
                 }
             };
@@ -529,7 +517,7 @@ public class TestController {
     @HttpGet("/file")
     public CompletionStage<HttpResult> getFile(HttpRequestContext ctx) {
         var path = Path.of("libnetty-example/src/main/resources/static", "test.txt");
-        System.out.println("-- getFile " + path + " --");
+        logger.info("-- getFile {} --", path);
         return ctx.sendFile(path, (headers) -> {
             headers.set(CONTENT_TYPE, TEXT_PLAIN);
             headers.set(CONTENT_DISPOSITION, "attachment; filename=\"test.txt\"");

@@ -319,8 +319,10 @@ public class SimpleHttpClient extends AbstractHttpClient {
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
             if (future.isDone()) {
-                // connection closed before the last content received
-                onError0(new IllegalStateException("Connection closed before the content completed"));
+                if (!contentCompleted) {
+                    // connection closed before the last content received
+                    onError0(new IllegalStateException("Connection closed before the content completed"));
+                }
             } else {
                 future.completeExceptionally(new IllegalStateException("No Response Content"));
             }
@@ -342,9 +344,22 @@ public class SimpleHttpClient extends AbstractHttpClient {
             if (msg instanceof HttpContent httpContent) {
                 if (httpContent instanceof LastHttpContent) {
                     contentCompleted = true;
+                    httpContent.retain();
                     if (executor != null) {
-                        executor.execute(contentHandler::onComplete);
+                        executor.execute(() -> {
+                            try {
+                                if (httpContent.content().isReadable()) {
+                                    contentHandler.accept(httpContent.content());
+                                }
+                                contentHandler.onComplete();
+                            } finally {
+                                httpContent.release();
+                            }
+                        });
                     } else {
+                        if (httpContent.content().isReadable()) {
+                            contentHandler.accept(httpContent.content());
+                        }
                         contentHandler.onComplete();
                     }
                     ctx.close();
