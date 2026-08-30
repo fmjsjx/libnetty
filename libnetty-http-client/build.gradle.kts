@@ -14,8 +14,9 @@ dependencies {
     api("com.github.fmjsjx:libcommon-util")
     implementation("com.jcraft:jzlib")
     implementation("org.brotli:dec:0.1.2")
-    compileOnly("com.aayushatharva.brotli4j:brotli4j")
-    compileOnly("com.github.luben:zstd-jni:1.5.6-7")
+    compileOnlyApi("com.aayushatharva.brotli4j:brotli4j")
+    compileOnlyApi("com.github.luben:zstd-jni:1.5.6-7")
+    compileOnlyApi("io.projectreactor:reactor-core")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

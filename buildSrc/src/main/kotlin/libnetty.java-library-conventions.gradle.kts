@@ -23,6 +23,8 @@ dependencies {
     api(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
     // jackson3-bom
     api(platform("tools.jackson:jackson-bom:3.2.1"))
+    // reactor-bom
+    api(platform("io.projectreactor:reactor-bom:2025.0.7"))
     // junit-bom
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     // mockito

@@ -12,7 +12,12 @@ import java.nio.charset.Charset;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 
 /**
  * Implementations of {@link HttpContentHandler}.
@@ -99,6 +104,70 @@ public final class HttpContentHandlers {
      */
     public static ChunkedHttpContentHandler<Stream<String>> ofLines(Charset charset, int bufferCapacity) {
         return new LineStreamHttpContentHandler(charset, bufferCapacity);
+    }
+
+    /**
+     * Returns a {@link ChunkedHttpContentHandler} which streams the HTTP content
+     * line by line as a {@link Flux} of {@code String}s converted using the
+     * default character set {@code UTF-8}.
+     *
+     * <p>The returned {@link Flux} traverses the underlying blocking
+     * {@link Stream} of lines on a dedicated virtual thread and therefore never
+     * blocks the subscribing thread.</p>
+     *
+     * @return a {@link ChunkedHttpContentHandler}
+     * @since 4.3
+     * @see #ofLines()
+     */
+    public static ChunkedHttpContentHandler<Flux<String>> ofLinesFlux() {
+        return new LineFluxHttpContentHandler(ofLines());
+    }
+
+    /**
+     * Returns a {@link ChunkedHttpContentHandler} which streams the HTTP content
+     * line by line as a {@link Flux} of {@code String}s converted using the
+     * given {@code charset}.
+     *
+     * <p>The returned {@link Flux} traverses the underlying blocking
+     * {@link Stream} of lines on a dedicated virtual thread and therefore never
+     * blocks the subscribing thread.</p>
+     *
+     * @param charset the character set to convert the lines with
+     * @return a {@link ChunkedHttpContentHandler}
+     * @since 4.3
+     * @see #ofLines(Charset)
+     */
+    public static ChunkedHttpContentHandler<Flux<String>> ofLinesFlux(Charset charset) {
+        return new LineFluxHttpContentHandler(ofLines(charset));
+    }
+
+    /**
+     * Returns a {@link ChunkedHttpContentHandler} which streams the HTTP content
+     * line by line as a {@link Flux} of {@code String}s converted using the
+     * given {@code charset}.
+     *
+     * <p>The returned {@link Flux} is created via {@link Flux#create} with the
+     * {@link FluxSink.OverflowStrategy#BUFFER BUFFER} overflow strategy and
+     * traverses the underlying blocking {@link Stream} of lines on a dedicated
+     * virtual thread, so that neither the subscribing thread nor any platform
+     * carrier thread is blocked. When the {@link Flux} is cancelled, completed
+     * or terminated with an error, the underlying {@link Stream} is closed and
+     * the traversing virtual thread is interrupted to release the resources as
+     * soon as possible.</p>
+     *
+     * <p>Note that the returned {@link Flux} must be subscribed at most once as
+     * the underlying {@link Stream} can be traversed only once, and the
+     * backpressure can only be applied on the consuming side since the HTTP
+     * content is always pushed by the client once received.</p>
+     *
+     * @param charset        the character set to convert the lines with
+     * @param bufferCapacity the buffer capacity of the internal queue
+     * @return a {@link ChunkedHttpContentHandler}
+     * @since 4.3
+     * @see #ofLines(Charset, int)
+     */
+    public static ChunkedHttpContentHandler<Flux<String>> ofLinesFlux(Charset charset, int bufferCapacity) {
+        return new LineFluxHttpContentHandler(ofLines(charset, bufferCapacity));
     }
 
     private HttpContentHandlers() {
@@ -219,6 +288,69 @@ public final class HttpContentHandlers {
                 queue.offer(new RuntimeException(cause));
             }
         }
+    }
+
+    private static final class LineFluxHttpContentHandler implements ChunkedHttpContentHandler<Flux<String>> {
+
+        private static final AtomicLong THREAD_COUNTER = new AtomicLong();
+
+        private final ChunkedHttpContentHandler<Stream<String>> handler;
+        private final Flux<String> flux;
+
+        private LineFluxHttpContentHandler(ChunkedHttpContentHandler<Stream<String>> handler) {
+            this.handler = handler;
+            this.flux = Flux.create(this::subscribe, FluxSink.OverflowStrategy.BUFFER);
+        }
+
+        @Override
+        public void accept(ByteBuf content) {
+            handler.accept(content);
+        }
+
+        @Override
+        public Flux<String> get() {
+            return flux;
+        }
+
+        @Override
+        public void onComplete() {
+            handler.onComplete();
+        }
+
+        @Override
+        public void onError(Throwable cause) {
+            handler.onError(cause);
+        }
+
+        private void subscribe(FluxSink<String> sink) {
+            var stream = handler.get();
+            var threadRef = new AtomicReference<Thread>();
+            sink.onDispose(() -> {
+                var thread = threadRef.get();
+                if (thread != null) {
+                    // Interrupt the virtual thread to stop traversing the
+                    // blocking stream as soon as possible
+                    thread.interrupt();
+                }
+            });
+            var thread = Thread.ofVirtual()
+                    .name("libnetty-http-client-lines-", THREAD_COUNTER.incrementAndGet())
+                    .unstarted(() -> {
+                        try (stream) {
+                            if (!sink.isCancelled()) {
+                                stream.takeWhile(ignored -> !sink.isCancelled()).forEach(sink::next);
+                                sink.complete();
+                            }
+                        } catch (Throwable cause) {
+                            if (!sink.isCancelled()) {
+                                sink.error(cause);
+                            }
+                        }
+                    });
+            threadRef.set(thread);
+            thread.start();
+        }
+
     }
 
 }
