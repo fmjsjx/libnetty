@@ -6,6 +6,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
@@ -278,7 +280,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
         private Response<T> buildResponse(FullHttpResponse msg) {
             return new DefaultResponse<>(msg.protocolVersion(), msg.status(), msg.headers(),
-                    contentHandler.apply(msg.content()));
+                    contentHandler.apply(msg.content()), msg.trailingHeaders());
         }
 
     }
@@ -293,6 +295,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
         // whether onComplete or onError has been invoked (or scheduled)
         // on the content handler, i.e. the handler has reached its final state
         private boolean contentCompleted;
+        private Consumer<HttpHeaders> trailingHeadersSetter;
 
         private ChunkedContentSimpleHttpClientHandler(CompletableFuture<Response<T>> future,
                                                       ChunkedHttpContentHandler<T> contentHandler,
@@ -342,24 +345,26 @@ public class SimpleHttpClient extends AbstractHttpClient {
                 }
             }
             if (msg instanceof HttpContent httpContent) {
-                if (httpContent instanceof LastHttpContent) {
+                if (httpContent instanceof LastHttpContent lastHttpContent) {
                     contentCompleted = true;
                     httpContent.retain();
                     if (executor != null) {
                         executor.execute(() -> {
                             try {
-                                if (httpContent.content().isReadable()) {
-                                    contentHandler.accept(httpContent.content());
+                                if (lastHttpContent.content().isReadable()) {
+                                    contentHandler.accept(lastHttpContent.content());
                                 }
+                                trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
                                 contentHandler.onComplete();
                             } finally {
-                                httpContent.release();
+                                lastHttpContent.release();
                             }
                         });
                     } else {
-                        if (httpContent.content().isReadable()) {
-                            contentHandler.accept(httpContent.content());
+                        if (lastHttpContent.content().isReadable()) {
+                            contentHandler.accept(lastHttpContent.content());
                         }
+                        trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
                         contentHandler.onComplete();
                     }
                     ctx.close();
@@ -392,8 +397,10 @@ public class SimpleHttpClient extends AbstractHttpClient {
         }
 
         private Response<T> buildResponse(HttpResponse response) {
+            var trailingHeadersRef = new AtomicReference<HttpHeaders>();
+            trailingHeadersSetter = trailingHeadersRef::set;
             return new DefaultResponse<>(response.protocolVersion(), response.status(), response.headers(),
-                    contentHandler.get());
+                    contentHandler.get(), trailingHeadersRef::get);
         }
 
     }

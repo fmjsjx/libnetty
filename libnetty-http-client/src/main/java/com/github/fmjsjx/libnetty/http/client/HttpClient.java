@@ -20,11 +20,7 @@ import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
 import com.github.fmjsjx.libnetty.http.client.util.HttpRequestUtil;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.proxy.ProxyHandler;
 import io.netty.util.AsciiString;
 
@@ -892,6 +888,14 @@ public interface HttpClient extends AutoCloseable {
          * @return the content of this {@link Response}.
          */
         T content();
+
+        /**
+         * Returns the trailing HTTP headers of this {@link Response}.
+         *
+         * @return the trailing {@link HttpHeaders} of this {@link Response}
+         * @since 4.3
+         */
+        HttpHeaders trailingHeaders();
 
     }
 

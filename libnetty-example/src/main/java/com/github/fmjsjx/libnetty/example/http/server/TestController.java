@@ -524,4 +524,25 @@ public class TestController {
         });
     }
 
+    /**
+     * GET /api/test/trailing
+     * A demo API for sending a response with trailing headers.
+     *
+     * @param ctx request context
+     * @return result
+     * @since 4.3
+     */
+    @HttpGet("/test/trailing")
+    public CompletionStage<HttpResult> getTrailing(HttpRequestContext ctx) {
+        logger.info("-- getTrailing --");
+        logger.info("getTrailing channel: {}", ctx.channel());
+        var content = ctx.alloc().buffer().writeBytes("{\"message\":\"Hello, World!\"}".getBytes(CharsetUtil.UTF_8));
+        var response = ctx.responseFactory().createFull(OK, content, APPLICATION_JSON);
+        HttpUtil.setTransferEncodingChunked(response, true);
+        response.headers().set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
+        response.headers().set(HttpHeaderNames.TRAILER, "x-test-trailing-header");
+        response.trailingHeaders().set("x-test-trailing-header", "This is a test trailing header value.");
+        return ctx.sendResponse(response);
+    }
+
 }

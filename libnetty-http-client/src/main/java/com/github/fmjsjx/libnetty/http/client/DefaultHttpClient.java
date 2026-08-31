@@ -7,7 +7,6 @@ import com.github.fmjsjx.libnetty.handler.ssl.SslContextProvider;
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.transport.io.IoTransportLibrary;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.*;
@@ -30,6 +29,8 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 import static java.net.InetSocketAddress.createUnresolved;
@@ -206,6 +207,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         // whether onComplete or onError has been invoked (or scheduled)
         // on the chunked content handler, i.e. the handler has reached its final state
         private boolean contentCompleted;
+        private Consumer<HttpHeaders> trailingHeadersSetter;
 
         private RequestContext(Request request, CompletableFuture<? super Response<T>> future,
                 HttpContentHandler<T> contentHandler, Executor executor) {
@@ -225,8 +227,10 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 complete(fullResponse);
             } else {
                 if (chunkedContentHandler != null) {
+                    var trailingHeadersRef = new AtomicReference<HttpHeaders>();
+                    trailingHeadersSetter = trailingHeadersRef::set;
                     var response = new DefaultResponse<>(msg.protocolVersion(), msg.status(), msg.headers(),
-                            chunkedContentHandler.get());
+                            chunkedContentHandler.get(), trailingHeadersRef::get);
                     var executor = this.executor;
                     if (executor != null) {
                         executor.execute(() -> future.complete(response));
@@ -260,7 +264,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
                             if (lastHttpContent.content().isReadable()) {
                                 chunkedContentHandler.accept(lastHttpContent.content());
                             }
-                            chunkedContentHandler.onComplete();
+                            trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
+                            complete(chunkedContentHandler);
                         } finally {
                             lastHttpContent.release();
                         }
@@ -269,7 +274,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
                     if (lastHttpContent.content().isReadable()) {
                         chunkedContentHandler.accept(lastHttpContent.content());
                     }
-                    chunkedContentHandler.onComplete();
+                    trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
+                    complete(chunkedContentHandler);
                 }
                 return true;
             }
@@ -286,6 +292,11 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 chunkedContentHandler.accept(chunk.content());
             }
             return false;
+        }
+
+        private void complete(ChunkedHttpContentHandler<T> chunkedContentHandler) {
+            trailingHeadersSetter = null;
+            chunkedContentHandler.onComplete();
         }
 
         /**
@@ -318,19 +329,19 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 msg.retain();
                 executor.execute(() -> {
                     try {
-                        complete(msg.protocolVersion(), msg.status(), msg.headers(), msg.content());
+                        complete0(msg);
                     } finally {
                         msg.release();
                     }
                 });
             } else {
-                complete(msg.protocolVersion(), msg.status(), msg.headers(), msg.content());
+                complete0(msg);
             }
         }
 
-        private void complete(HttpVersion version, HttpResponseStatus status, HttpHeaders headers, ByteBuf content) {
-            DefaultResponse<T> response = new DefaultResponse<>(version, status, headers,
-                    contentHandler.apply(content));
+        private void complete0(FullHttpResponse msg) {
+            var response = new DefaultResponse<>(msg.protocolVersion(), msg.status(), msg.headers(),
+                    contentHandler.apply(msg.content()), msg.trailingHeaders());
             future.complete(response);
         }
 
