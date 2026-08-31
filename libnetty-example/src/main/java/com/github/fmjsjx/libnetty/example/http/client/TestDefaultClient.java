@@ -43,6 +43,8 @@ public class TestDefaultClient {
             testSynchronousApi(client);
             // Asynchronous API
             testAsynchronousApi(client);
+            // Tailing headers API
+            testTrailingHeaders(client);
             // Upload API
             testUpload(client);
             // test line stream
@@ -78,7 +80,7 @@ public class TestDefaultClient {
                 .send(HttpContentHandlers.ofString());
         if (response1.statusCode() == 200) {
             String body = response1.content();
-            System.out.println(body);
+            logger.info("response for sync test: {}", body);
         }
         // POST
         String postBody = "p1=abc&p2=12345&a=1&a=2&a=3";
@@ -86,7 +88,7 @@ public class TestDefaultClient {
                 .post(HttpContentHolders.ofUtf8(postBody)).send(HttpContentHandlers.ofString());
         if (response2.statusCode() == 200) {
             String body = response2.content();
-            System.out.println(body);
+            logger.info("response for sync json form: {}", body);
         }
     }
 
@@ -98,7 +100,7 @@ public class TestDefaultClient {
         future1.thenAccept(response -> {
             if (response.statusCode() == 200) {
                 String body = response.content();
-                System.out.println(body);
+                logger.info("response for async test: {}", body);
             }
         }).whenComplete((v, e) -> cd.countDown());
         // POST
@@ -108,7 +110,7 @@ public class TestDefaultClient {
         future2.thenAccept(response -> {
             if (response.statusCode() == 200) {
                 String body = response.content();
-                System.out.println(body);
+                logger.info("response for async json form: {}", body);
             }
         }).whenComplete((v, e) -> cd.countDown());
         // wait requests completed
@@ -126,12 +128,12 @@ public class TestDefaultClient {
             var body = MultipartBody.builder().addFileUpload("file", "test-pic-1.jpeg", "image/jpeg", content::retainedDuplicate).build();
             var resp = client.request(URI.create("https://localhost:8443/api/upload"))
                     .post(body).send(HttpContentHandlers.ofString());
-            System.out.println(resp);
+            logger.info("response 1: {}", resp);
 
             body = MultipartBody.builder().addFileUpload("file", "test-pic-2.jpeg", file, "image/jpeg").build();
             resp = client.request(URI.create("https://localhost:8443/api/upload"))
                     .post(body).send(HttpContentHandlers.ofString());
-            System.out.println(resp);
+            logger.info("response 2: {}", resp);
         } finally {
             // release ByteBuf finally
             content.release();
@@ -166,6 +168,16 @@ public class TestDefaultClient {
                 .doOnNext(System.out::print)
                 .doOnError(e -> logger.error("Error occurs when processing lines in flux", e))
                 .doOnComplete(() -> logger.info("Completed")).blockLast();
+    }
+    
+    static void testTrailingHeaders(HttpClient client) throws IOException, InterruptedException, TimeoutException {
+        var resp = client.request(URI.create("https://localhost:8443/api/test/trailing")).get().send(HttpContentHandlers.ofString());
+        if (resp.statusCode() == 200) {
+            String body = resp.content();
+            logger.info("response for tailing headers: {}", body);
+            logger.info("headers for tailing headers: {}", resp.headers());
+            logger.info("trailing headers: {}", resp.trailingHeaders());
+        }
     }
 
     private TestDefaultClient() {
