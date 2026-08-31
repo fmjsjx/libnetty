@@ -51,6 +51,10 @@ public class TestDefaultClient {
             testLineStream(client, 18,null);
             // test line flux
             testLineFlux(client, 15,null);
+            // test line stream
+            testLineStreamTrailing(client, 12,1);
+            // test line flux
+            testLineFluxTrailing(client, 8,2);
             try {
                 // test line stream
                 testLineStream(client, 64, 8);
@@ -167,7 +171,7 @@ public class TestDefaultClient {
         resp.content()
                 .doOnNext(System.out::print)
                 .doOnError(e -> logger.error("Error occurs when processing lines in flux", e))
-                .doOnComplete(() -> logger.info("Completed")).blockLast();
+                .doOnComplete(() -> logger.info("Completed line flux")).blockLast();
     }
     
     static void testTrailingHeaders(HttpClient client) throws IOException, InterruptedException, TimeoutException {
@@ -178,6 +182,28 @@ public class TestDefaultClient {
             logger.info("headers for tailing headers: {}", resp.headers());
             logger.info("trailing headers: {}", resp.trailingHeaders());
         }
+    }
+
+    static void testLineStreamTrailing(HttpClient client, int len, int trailingMode) throws IOException, InterruptedException, TimeoutException {
+        URI uri= URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len + "&trailing=" + trailingMode);
+        var resp = client.request(uri).setHeader(ACCEPT, TEXT_EVENT_STREAM).get().send(HttpContentHandlers.ofLines());
+        try (var lineStream = resp.content()) {
+            lineStream.forEach(System.out::print);
+        } catch (Exception e) {
+            logger.error("Error occurs when processing lines trailing", e);
+            throw e;
+        }
+        logger.info("Completed line stream with trailing headers: {}", resp.trailingHeaders());
+    }
+
+    static void testLineFluxTrailing(HttpClient client, int len, int trailingMode) throws ExecutionException, InterruptedException {
+        URI uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len + "&trailing=" + trailingMode);
+        var resp = client.request(uri).setHeader(ACCEPT, TEXT_EVENT_STREAM).get().sendAsync(HttpContentHandlers.ofLinesFlux()).get();
+        resp.content()
+                .doOnNext(System.out::print)
+                .doOnError(e -> logger.error("Error occurs when processing lines in flux", e))
+                .doOnComplete(() -> logger.info("Completed line flux with trailing headers: {}", resp.trailingHeaders()))
+                .blockLast();
     }
 
     private TestDefaultClient() {

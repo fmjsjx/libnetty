@@ -6,13 +6,18 @@ import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -146,8 +151,22 @@ class DefaultSseEventStream implements SseEventStream {
 
     @Override
     public CompletableFuture<Void> close() {
+        return doClose( null);
+    }
+
+    @Override
+    public CompletableFuture<Void> close(HttpHeaders trailingHeaders) {
+        return doClose(trailingHeaders);
+    }
+
+    @Override
+    public CompletableFuture<Void> close(Map<String, String> trailingHeaders) {
+        return doClose(trailingHeaders);
+    }
+
+    private CompletableFuture<Void> doClose(Object trailingHeaders) {
         if (channel.eventLoop().inEventLoop()) {
-            var cf = closeInEventLoop();
+            var cf = closeInEventLoop(trailingHeaders);
             if (cf != null) {
                 var future = new CompletableFuture<Void>();
                 cf.addListener(it -> future.complete(null));
@@ -157,7 +176,7 @@ class DefaultSseEventStream implements SseEventStream {
         }
         var future = new CompletableFuture<Void>();
         channel.eventLoop().execute(() -> {
-            var cf = closeInEventLoop();
+            var cf = closeInEventLoop(trailingHeaders);
             if (cf != null) {
                 cf.addListener(it -> future.complete(null));
             } else {
@@ -167,7 +186,7 @@ class DefaultSseEventStream implements SseEventStream {
         return future;
     }
 
-    private ChannelFuture closeInEventLoop() {
+    private ChannelFuture closeInEventLoop(Object trailingHeadersObject) {
         if (state.compareAndSet(1, 2)) {
             ChannelFutureListener resetOnSuccess = cf -> {
                 if (cf.isSuccess()) {
@@ -182,7 +201,19 @@ class DefaultSseEventStream implements SseEventStream {
             };
             var channel = this.channel;
             var listeners = new ChannelFutureListener[] { resetOnSuccess, READ_NEXT };
-            return channel.writeAndFlush(EMPTY_LAST_CONTENT).addListeners(listeners);
+            LastHttpContent lastHttpContent;
+            if (trailingHeadersObject == null) {
+                lastHttpContent = EMPTY_LAST_CONTENT;
+            } else {
+                lastHttpContent = new DefaultLastHttpContent();
+                if (trailingHeadersObject instanceof HttpHeaders trailingHeaders) {
+                    lastHttpContent.trailingHeaders().setAll(trailingHeaders);
+                } else if (trailingHeadersObject instanceof Map<?, ?> trailingHeaders) {
+                    trailingHeaders.forEach((key, value) ->
+                            lastHttpContent.trailingHeaders().set(Objects.toString(key), Objects.toString(value)));
+                }
+            }
+            return channel.writeAndFlush(lastHttpContent).addListeners(listeners);
         }
         // do nothing but set closed
         state.set(2);

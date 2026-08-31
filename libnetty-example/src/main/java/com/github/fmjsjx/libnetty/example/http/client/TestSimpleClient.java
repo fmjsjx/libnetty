@@ -41,9 +41,9 @@ public class TestSimpleClient {
             // test line stream
             testLineFlux(client, 10,null);
             // test line stream
-            testLineStream(client, 10,null);
+            testLineStreamTrailing(client, 10,2);
             // test line stream
-            testLineFlux(client, 10,null);
+            testLineFluxTrailing(client, 10,1);
             try {
                 // test line stream
                 testLineStream(client, 64, 6);
