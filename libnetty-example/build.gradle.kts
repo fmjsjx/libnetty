@@ -34,7 +34,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
-    implementation("org.bouncycastle:bcpkix-lts8on:2.73.7")
+    implementation("org.bouncycastle:bcpkix-jdk18on")
+    implementation("io.projectreactor:reactor-core")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

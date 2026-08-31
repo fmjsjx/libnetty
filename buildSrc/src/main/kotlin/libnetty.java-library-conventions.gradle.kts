@@ -37,6 +37,8 @@ dependencies {
     implementation(platform("com.aayushatharva.brotli4j:all:1.23.0"))
     // kotlin
     implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.4.10"))
+    // bouncy castle
+    implementation(platform("org.bouncycastle:bc-jdk18on-bom:1.85"))
 
     constraints {
         api("org.slf4j:slf4j-api:2.0.18")

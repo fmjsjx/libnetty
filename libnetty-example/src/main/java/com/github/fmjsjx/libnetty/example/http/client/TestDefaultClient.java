@@ -7,6 +7,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
@@ -42,18 +43,27 @@ public class TestDefaultClient {
             testSynchronousApi(client);
             // Asynchronous API
             testAsynchronousApi(client);
-//            // Upload API
-//            testUpload(client);
+            // Upload API
+            testUpload(client);
             // test line stream
-            testLineStream(client, 32,null);
-            // test line stream
-            testLineStream(client, 16,null);
+            testLineStream(client, 18,null);
+            // test line flux
+            testLineFlux(client, 15,null);
             try {
                 // test line stream
                 testLineStream(client, 64, 8);
             } catch (Exception e) {
-                logger.info("Should ignore this error", e);
+                logger.info("Should ignore this error in testLineStream", e);
             }
+            try {
+                // test line flux
+                testLineFlux(client, 64, 8);
+            } catch (Exception e) {
+                logger.info("Should ignore this error in testLineFlux", e);
+            }
+            // test line flux
+            testLineFlux(client, 12,null);
+            // test line stream
             testLineStream(client, 12,null);
             // Synchronous API
             testSynchronousApi(client);
@@ -128,7 +138,6 @@ public class TestDefaultClient {
         }
     }
 
-    @SuppressWarnings({"CallToPrintStackTrace", "SameParameterValue"})
     static void testLineStream(HttpClient client, int len, Integer errIndex) throws IOException, InterruptedException, TimeoutException {
         URI uri;
         if (errIndex != null) {
@@ -140,8 +149,23 @@ public class TestDefaultClient {
         try (var lineStream = resp.content()) {
             lineStream.forEach(System.out::print);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error occurs when processing lines", e);
+            throw e;
         }
+    }
+
+    static void testLineFlux(HttpClient client, int len, Integer errIndex) throws ExecutionException, InterruptedException {
+        URI uri;
+        if (errIndex != null) {
+            uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len + "&err=" + errIndex);
+        } else {
+            uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len);
+        }
+        var resp = client.request(uri).setHeader(ACCEPT, TEXT_EVENT_STREAM).get().sendAsync(HttpContentHandlers.ofLinesFlux()).get();
+        resp.content()
+                .doOnNext(System.out::print)
+                .doOnError(e -> logger.error("Error occurs when processing lines in flux", e))
+                .doOnComplete(() -> logger.info("Completed")).blockLast();
     }
 
     private TestDefaultClient() {
