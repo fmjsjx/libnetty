@@ -62,6 +62,11 @@ public abstract class AbstractHttpClient implements HttpClient {
     protected static final int DEFAULT_MAX_CONTENT_LENGTH = 16 * 1024 * 1024;
 
     /**
+     * Handle name of {@link HttpObjectAggregator}.
+     */
+    protected static final String HTTP_OBJECT_AGGREGATOR = "httpObjectAggregator";
+
+    /**
      * Values of HTTP header {@code accept-encoding}.
      *
      * @since 3.8

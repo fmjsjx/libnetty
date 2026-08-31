@@ -7,17 +7,27 @@ import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.client.*;
 import com.github.fmjsjx.libnetty.http.client.HttpClient.Response;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.AsciiString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
 
 /**
  * Test class for default client.
  */
 public class TestDefaultClient {
+
+    private static final Logger logger = LoggerFactory.getLogger(TestDefaultClient.class);
+
+    private static final AsciiString TEXT_EVENT_STREAM = AsciiString.cached("text/event-stream");
 
     /**
      * Main method.
@@ -35,6 +45,30 @@ public class TestDefaultClient {
             testAsynchronousApi(client);
             // Upload API
             testUpload(client);
+            // test line stream
+            testLineStream(client, 18,null);
+            // test line flux
+            testLineFlux(client, 15,null);
+            try {
+                // test line stream
+                testLineStream(client, 64, 8);
+            } catch (Exception e) {
+                logger.info("Should ignore this error in testLineStream", e);
+            }
+            try {
+                // test line flux
+                testLineFlux(client, 64, 8);
+            } catch (Exception e) {
+                logger.info("Should ignore this error in testLineFlux", e);
+            }
+            // test line flux
+            testLineFlux(client, 12,null);
+            // test line stream
+            testLineStream(client, 12,null);
+            // Synchronous API
+            testSynchronousApi(client);
+            // Asynchronous API
+            testAsynchronousApi(client);
         }
     }
 
@@ -102,6 +136,36 @@ public class TestDefaultClient {
             // release ByteBuf finally
             content.release();
         }
+    }
+
+    static void testLineStream(HttpClient client, int len, Integer errIndex) throws IOException, InterruptedException, TimeoutException {
+        URI uri;
+        if (errIndex != null) {
+            uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len + "&err=" + errIndex);
+        } else {
+            uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len);
+        }
+        var resp = client.request(uri).setHeader(ACCEPT, TEXT_EVENT_STREAM).get().send(HttpContentHandlers.ofLines());
+        try (var lineStream = resp.content()) {
+            lineStream.forEach(System.out::print);
+        } catch (Exception e) {
+            logger.error("Error occurs when processing lines", e);
+            throw e;
+        }
+    }
+
+    static void testLineFlux(HttpClient client, int len, Integer errIndex) throws ExecutionException, InterruptedException {
+        URI uri;
+        if (errIndex != null) {
+            uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len + "&err=" + errIndex);
+        } else {
+            uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len);
+        }
+        var resp = client.request(uri).setHeader(ACCEPT, TEXT_EVENT_STREAM).get().sendAsync(HttpContentHandlers.ofLinesFlux()).get();
+        resp.content()
+                .doOnNext(System.out::print)
+                .doOnError(e -> logger.error("Error occurs when processing lines in flux", e))
+                .doOnComplete(() -> logger.info("Completed")).blockLast();
     }
 
     private TestDefaultClient() {

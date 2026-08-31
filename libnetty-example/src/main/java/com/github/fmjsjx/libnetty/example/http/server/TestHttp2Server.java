@@ -29,7 +29,7 @@ import static io.netty.handler.codec.http.HttpMethod.*;
 @Slf4j
 public class TestHttp2Server {
 
-    private static final Map<String, String> passwords() {
+    private static Map<String, String> passwords() {
         return Collections.singletonMap("test", "123456");
     }
 

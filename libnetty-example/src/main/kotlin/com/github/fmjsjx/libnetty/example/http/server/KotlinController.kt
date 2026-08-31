@@ -36,7 +36,9 @@ import kotlin.time.Duration.Companion.seconds
 @HttpPath("/api/kotlin")
 class KotlinController {
 
-    private val logger = LoggerFactory.getLogger(KotlinController::class.java)!!
+    companion object {
+        private val logger = LoggerFactory.getLogger(KotlinController::class.java)!!
+    }
 
     @HttpGet("/jsons")
     @JsonBody
@@ -68,16 +70,15 @@ class KotlinController {
         @QueryVar("len", required = false) len: Int?,
     ): SseEventStream {
         // GET /api/test/sse-event-stream
-        println("-- test sse-event-stream --")
-        println(channel())
+        logger.info("-- test sse-event-stream --")
+        logger.info("sse-event-stream channel: {}", channel())
         val messageSize = len ?: 100
         val eventLoop = eventLoop()
         val running = AtomicBoolean(false)
         val uuid = java.util.UUID.randomUUID().toString()
         delay(1.seconds)
         return eventStreamBuilder().autoPing(Duration.ofSeconds(30)).onError { _, cause ->
-            System.err.println("error occurs on SSE event stream")
-            cause.printStackTrace()
+            logger.error("error occurs on SSE event stream", cause)
             running.set(false)
         }.onActive { stream ->
             running.set(true)
@@ -89,7 +90,7 @@ class KotlinController {
                 private var n: Int = 0
                 override fun run() {
                     if (!running.get()) {
-                        System.err.println("Abnormal interruption of event stream")
+                        logger.error("Abnormal interruption of event stream")
                         return
                     }
                     if (n++ < messageSize) {
@@ -99,6 +100,7 @@ class KotlinController {
                     } else {
                         stream.sendEvent(SseEventBuilder.create().event(SSE_EVENT_CLOSE).data(sessionData))
                         stream.close()
+                        running.set(false)
                     }
                 }
             }
@@ -110,7 +112,7 @@ class KotlinController {
     @HttpPost("/upload")
     @StringBody
     suspend fun LazyLoadingHttpRequestContext.postUpload(): CharSequence {
-        println("-- upload --")
+        logger.info("-- upload --")
         try {
             val decoder = awaitPostData().await()
             try {
@@ -121,8 +123,8 @@ class KotlinController {
                 if (fileUpload is FileUpload) {
                     val dfile = File(fileUpload.filename)
                     fileUpload.renameTo(dfile)
-                    println("-- file --")
-                    println(dfile)
+                    logger.info("-- file --")
+                    logger.info("direct file: {}", dfile)
                 }
                 return TestController.ASCII_OK
             } catch (e: IOException) {
@@ -130,7 +132,7 @@ class KotlinController {
                 return e.toString()
             }
         } catch (e: Exception) {
-            System.err.println("-- error --")
+            logger.error("-- error --")
             e.printStackTrace(System.err)
             return e.toString()
         }
@@ -139,7 +141,7 @@ class KotlinController {
     @HttpGet("/file")
     suspend fun HttpRequestContext.getFile(): HttpResult {
         val path = Path.of("libnetty-example/src/main/resources/static", "test.txt")
-        println("-- get file $path --")
+        logger.info("-- get file $path --")
         return sendFile(path) {
             it[CONTENT_TYPE] = TEXT_PLAIN
             it[CONTENT_DISPOSITION] = "attachment; filename=\"test.txt\""
