@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.github.fmjsjx"
-version = "4.3.0-alpha1"
+version = "4.3.0-SNAPSHOT"
 
 // Prevent Gradle from generating high-order checksums (like sha256/sha512).
 // This restricts the output to only standard md5 and sha1.
