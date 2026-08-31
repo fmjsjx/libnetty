@@ -317,7 +317,8 @@ public class TestController {
      * @since 3.9
      */
     @HttpGet("/test/event-stream")
-    public CompletionStage<HttpResult> getTestEventStream(HttpRequestContext ctx, @QueryVar(value = "len", required = false) Integer len) {
+    public CompletionStage<HttpResult> getTestEventStream(HttpRequestContext ctx,
+                                                          @QueryVar(value = "len", required = false) Integer len) {
         // GET /api/test/event-stream
         logger.info("-- test event-stream --");
         logger.info("event-stream channel: {}", ctx.channel());
@@ -391,7 +392,8 @@ public class TestController {
      * @since 3.9
      */
     @HttpGet("/test/sse-events")
-    public CompletionStage<HttpResult> getTestSseEvents(HttpRequestContext ctx, @QueryVar(value = "len", required = false) Integer len) {
+    public CompletionStage<HttpResult> getTestSseEvents(HttpRequestContext ctx,
+                                                        @QueryVar(value = "len", required = false) Integer len) {
         // GET /api/test/sse-events
         logger.info("-- test sse-events --");
         logger.info("sse-events channel: {}", ctx.channel());
@@ -451,8 +453,11 @@ public class TestController {
      * <p>
      * A demo API for the high level {@code SSE} implementation.
      *
-     * @param ctx request context
-     * @param len the length of the event message
+     * @param ctx        request context
+     * @param len        the length of the event message
+     * @param errorIndex the index of the error to be thrown, if not
+     *                   specified, no error will be thrown
+     * @param trailing   the trailing mode
      * @return result
      * @since 3.9
      */
