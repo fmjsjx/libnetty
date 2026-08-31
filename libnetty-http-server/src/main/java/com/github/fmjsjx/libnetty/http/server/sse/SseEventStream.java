@@ -1,8 +1,10 @@
 package com.github.fmjsjx.libnetty.http.server.sse;
 
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
+import io.netty.handler.codec.http.HttpHeaders;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -124,6 +126,26 @@ public interface SseEventStream {
      * @return the {@code CompletableFuture<Void>}
      */
     CompletableFuture<Void> close();
+
+    /**
+     * Send the last HTTP content {@code CRLF} with the specified
+     * {@code trailingHeaders} to the client and close this stream.
+     *
+     * @param trailingHeaders the trailing headers
+     * @return the {@code CompletableFuture<Void>}
+     * @since 4.3
+     */
+    CompletableFuture<Void> close(HttpHeaders trailingHeaders);
+
+    /**
+     * Send the last HTTP content {@code CRLF} with the specified
+     * {@code trailingHeaders} to the client and close this stream.
+     *
+     * @param trailingHeaders the trailing headers
+     * @return the {@code CompletableFuture<Void>}
+     * @since 4.3
+     */
+    CompletableFuture<Void> close(Map<String, String> trailingHeaders);
 
     /**
      * Send HTTP response with status {@code 200 OK} and header

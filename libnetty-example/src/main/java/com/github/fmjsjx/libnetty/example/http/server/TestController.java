@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fmjsjx.libcommon.json.Fastjson2Library;
+import com.github.fmjsjx.libcommon.util.StringUtil;
 import com.github.fmjsjx.libnetty.http.server.DefaultHttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
@@ -458,7 +459,8 @@ public class TestController {
     @HttpGet("/test/sse-event-stream")
     public CompletionStage<HttpResult> getTestSseEventStream(HttpRequestContext ctx,
                                                              @QueryVar(value = "len", required = false) Integer len,
-                                                             @QueryVar(value = "err", required = false) Integer errorIndex) {
+                                                             @QueryVar(value = "err", required = false) Integer errorIndex,
+                                                             @QueryVar(value = "trailing", required = false) String trailing) {
         // GET /api/test/sse-event-stream
         logger.info("-- test sse-event-stream --");
         logger.info("sse-event-stream channel: {}", ctx.channel());
@@ -466,6 +468,11 @@ public class TestController {
         var eventLoop = ctx.eventLoop();
         var running = new AtomicBoolean(false);
         var uuid = UUID.randomUUID().toString();
+        var trailingMode = StringUtil.isBlank(trailing) ? 0 : switch (trailing.toLowerCase()) {
+            case "1" -> 1;
+            case "2" -> 2;
+            default -> 0;
+        };
         return ctx.eventStreamBuilder().autoPing().onError((stream, cause) -> {
             logger.error("error occurs on SSE event stream", cause);
             running.set(false);
@@ -498,7 +505,17 @@ public class TestController {
                         eventLoop.schedule(this, 1000, TimeUnit.MILLISECONDS);
                     } else {
                         stream.sendEvent(SseEventBuilder.create().event(SSE_EVENT_CLOSE).id(n + 1).data(sessionData));
-                        stream.close();
+                        if (trailingMode > 0) {
+                            if (trailingMode == 1) {
+                                var trailingHeaders = new DefaultHttpHeaders();
+                                trailingHeaders.set("x-test-trailing-header", "This is a test trailing header value.");
+                                stream.close(trailingHeaders);
+                            } else {
+                                stream.close(Map.of("x-test-trailing-header", "This is a test trailing header value."));
+                            }
+                        } else {
+                            stream.close();
+                        }
                         running.set(false);
                     }
                 }
