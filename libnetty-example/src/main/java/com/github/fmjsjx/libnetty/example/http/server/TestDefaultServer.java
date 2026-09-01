@@ -1,11 +1,5 @@
 package com.github.fmjsjx.libnetty.example.http.server;
 
-import static io.netty.handler.codec.http.HttpMethod.DELETE;
-import static io.netty.handler.codec.http.HttpMethod.GET;
-import static io.netty.handler.codec.http.HttpMethod.PATCH;
-import static io.netty.handler.codec.http.HttpMethod.POST;
-import static io.netty.handler.codec.http.HttpMethod.PUT;
-import static io.netty.handler.codec.http.websocketx.WebSocketCloseStatus.INVALID_MESSAGE_TYPE;
 import com.github.fmjsjx.libnetty.handler.ssl.ChannelSslInitializer;
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.HttpContentCompressorProvider;
@@ -25,18 +19,23 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.handler.codec.http.websocketx.*;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Map;
 
+import static io.netty.handler.codec.http.HttpMethod.*;
+import static io.netty.handler.codec.http.websocketx.WebSocketCloseStatus.INVALID_MESSAGE_TYPE;
+
 /**
  * Test class for default server.
  */
-@Slf4j
 public class TestDefaultServer {
-
-    private static final Map<String, String> passwords() {
+    
+    static final Logger logger = LoggerFactory.getLogger(TestDefaultServer.class);
+    
+    private static Map<String, String> passwords() {
         return Collections.singletonMap("test", "123456");
     }
 
@@ -83,15 +82,15 @@ public class TestDefaultServer {
         //noinspection DuplicatedCode
         try {
             server.startup();
-            log.info("Server {} started.", server);
+            logger.info("Server {} started.", server);
             //noinspection ResultOfMethodCallIgnored
             System.in.read();
         } catch (Exception e) {
-            log.error("Unexpected error occurs when startup {}", server, e);
+            logger.error("Unexpected error occurs when startup {}", server, e);
         } finally {
             if (server.isRunning()) {
                 server.shutdown();
-                log.info("Server {} stopped.", server);
+                logger.info("Server {} stopped.", server);
             }
         }
     }
@@ -103,12 +102,14 @@ public class TestDefaultServer {
 
 class EchoWebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
+    static final Logger logger = LoggerFactory.getLogger(EchoWebSocketFrameHandler.class);
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, WebSocketFrame msg) {
-        System.out.println("-- echo --");
-        System.out.println(msg);
+        logger.info("-- echo --");
+        logger.info("echo msg: {}", msg);
         if (msg instanceof TextWebSocketFrame text) {
-            System.out.println(text.text());
+            TestDefaultServer.logger.info(text.text());
             ctx.writeAndFlush(new TextWebSocketFrame(text.text()));
         } else {
             ctx.writeAndFlush(new CloseWebSocketFrame(INVALID_MESSAGE_TYPE)).addListener(ChannelFutureListener.CLOSE);
@@ -118,9 +119,9 @@ class EchoWebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocketFra
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
         if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete handshakeComplete) {
-            ctx.pipeline().forEach(e -> System.err.println(e.getKey() + " => " + e.getValue()));
+            ctx.pipeline().forEach(e -> logger.info("{} => {}", e.getKey(), e.getValue()));
             ctx.channel().config().setAutoRead(true);
-            System.err.println("sub-protocol: " + handshakeComplete.selectedSubprotocol());
+            logger.info("sub-protocol: {}", handshakeComplete.selectedSubprotocol());
         }
     }
 

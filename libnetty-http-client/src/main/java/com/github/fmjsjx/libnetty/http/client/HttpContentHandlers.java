@@ -6,6 +6,9 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.util.ByteProcessor;
 import io.netty.util.CharsetUtil;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.charset.Charset;
@@ -195,7 +198,7 @@ public final class HttpContentHandlers {
         @SuppressWarnings("unused")
         private volatile Object lineStream;
 
-        private StringBuilder lineBuffer;
+        private ByteArrayOutputStream lineBuffer;
 
         private LineStreamHttpContentHandler(Charset charset) {
             this(charset, DEFAULT_BUFFER_CAPACITY);
@@ -213,24 +216,33 @@ public final class HttpContentHandlers {
                 var length = writerIndex - readerIndex;
                 var lfIndex = content.forEachByte(readerIndex, length, ByteProcessor.FIND_LF);
                 if (lfIndex == -1) {
-                    var lineRemaining = content.toString(readerIndex, length, charset);
                     var lineBuffer = this.lineBuffer;
                     if (lineBuffer == null) {
-                        this.lineBuffer = lineBuffer = new StringBuilder();
+                        this.lineBuffer = lineBuffer = new ByteArrayOutputStream();
                     }
-                    lineBuffer.append(lineRemaining);
+                    getBytes(content, readerIndex, lineBuffer, length);
                     break;
                 } else {
-                    var line = content.toString(readerIndex, lfIndex - readerIndex + 1, charset);
-                    readerIndex = lfIndex + 1;
+                    var lineLength = lfIndex - readerIndex + 1;
                     var lineBuffer = this.lineBuffer;
                     if (lineBuffer != null) {
-                        queue.offer(lineBuffer.append(line).toString());
+                        getBytes(content, readerIndex, lineBuffer, lineLength);
+                        queue.offer(lineBuffer.toString(charset));
                         this.lineBuffer = null;
                     } else {
-                        queue.offer(line);
+                        queue.offer(content.toString(readerIndex, lineLength, charset));
                     }
+                    readerIndex = lfIndex + 1;
                 }
+            }
+        }
+
+        private static void getBytes(ByteBuf content, int index, ByteArrayOutputStream out, int length) {
+            try {
+                content.getBytes(index, out, length);
+            } catch (IOException e) {
+                // writing into a ByteArrayOutputStream never fails
+                throw new UncheckedIOException(e);
             }
         }
 
