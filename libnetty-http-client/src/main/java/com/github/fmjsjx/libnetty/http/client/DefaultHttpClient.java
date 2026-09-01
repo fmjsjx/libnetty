@@ -105,7 +105,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         var cachedPool = getCachedConnectionPool(addressKey);
         Optional<HttpConnection> conn = tryPollOne(cachedPool);
         if (conn.isPresent()) {
-            conn.get().sendAsnyc(requestContext);
+            conn.get().sendAsync(requestContext);
         } else {
             String headerHost = defaultPort ? host : host + ":" + port;
             if (proxyHandlerFactory.isPresent()) {
@@ -129,7 +129,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                                             pipeline.addLast(sslContextProvider.get().newHandler(ctx.alloc(), host, port));
                                         }
                                         addHttpHandlers(pipeline, handler);
-                                        handler.sendAsnyc(requestContext);
+                                        handler.sendAsync(requestContext);
                                     } else {
                                         future.completeExceptionally(
                                                 new HttpRuntimeException("unknown event type " + obj.getClass()));
@@ -158,7 +158,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         });
                 b.connect(handler.address()).addListener((ChannelFuture cf) -> {
                     if (cf.isSuccess()) {
-                        handler.sendAsnyc(requestContext);
+                        handler.sendAsync(requestContext);
                     } else {
                         future.completeExceptionally(cf.cause());
                     }
@@ -356,7 +356,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
             return channel != null && channel.isActive();
         }
 
-        void sendAsnyc(RequestContext<?> requestContext);
+        void sendAsync(RequestContext<?> requestContext);
 
     }
 
@@ -482,7 +482,8 @@ public class DefaultHttpClient extends AbstractHttpClient {
         }
 
         @Override
-        public void sendAsnyc(RequestContext<?> requestContext) {
+        public void sendAsync(RequestContext<?> requestContext) {
+            var channel = this.channel;
             if (channel.isActive()) {
                 channel.eventLoop().execute(() -> {
                     Request request = requestContext.request;
@@ -490,9 +491,9 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         if (requestContext.chunkedContentHandler != null) {
                             // streaming mode, the interceptor handles the response
                             chunkedContentInterceptor.requestContext = requestContext;
+                            requestContext.chunkedContentHandler.onBind(channel);
                         } else {
-                            // aggregated mode, use a fresh HttpObjectAggregator
-                            // for each request as the instance can not be reused
+                            // aggregated mode
                             this.requestContext = requestContext;
                         }
                         URI uri = request.uri();

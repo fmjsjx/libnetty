@@ -3,6 +3,7 @@ package com.github.fmjsjx.libnetty.http.client;
 import com.github.fmjsjx.libnetty.http.client.util.DynamicHybridBlockingQueue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.channel.Channel;
 import io.netty.util.ByteProcessor;
 import io.netty.util.CharsetUtil;
 
@@ -17,6 +18,7 @@ import java.nio.charset.Charset;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -71,6 +73,36 @@ public final class HttpContentHandlers {
         return StringHandlerHolder.STRING_HANDLERS.computeIfAbsent(charset, k -> buf -> buf.toString(k));
     }
 
+    /**
+     * Returns a {@link ChunkedHttpContentHandler} which exposes the HTTP content
+     * as an {@link InputStream} of raw bytes.
+     *
+     * @return a {@link ChunkedHttpContentHandler}
+     * @since 4.3
+     */
+    public static ChunkedHttpContentHandler<InputStream> ofInputStream() {
+        return new InputStreamHttpContentHandler();
+    }
+
+    /**
+     * Returns a {@link ChunkedHttpContentHandler} which exposes the HTTP content
+     * as an {@link InputStream} of raw bytes.
+     *
+     * <p>The returned handler applies backpressure on the bound channel to
+     * prevent the internal queue from growing unboundedly when the consuming
+     * side is slow: the auto-read of the channel is disabled once the number
+     * of buffered chunks reaches the high watermark ({@code bufferCapacity * 2}),
+     * and is re-enabled once the count drops back to the low watermark
+     * ({@code bufferCapacity / 4}), since each buffered chunk may hold tens of
+     * kilobytes of raw bytes.</p>
+     *
+     * @param bufferCapacity the buffer capacity of the internal queue
+     * @return a {@link ChunkedHttpContentHandler}
+     * @since 4.3
+     */
+    public static ChunkedHttpContentHandler<InputStream> ofInputStream(int bufferCapacity) {
+        return new InputStreamHttpContentHandler(bufferCapacity);
+    }
 
     /**
      * Returns a {@link ChunkedHttpContentHandler} which streams the HTTP content
@@ -102,6 +134,13 @@ public final class HttpContentHandlers {
      * line by line as a {@link Stream} of {@code String}s converted using the
      * given {@code charset}.
      *
+     * <p>The returned handler applies backpressure on the bound channel to
+     * prevent the internal queue from growing unboundedly when the consuming
+     * side is slow: the auto-read of the channel is disabled once the number
+     * of buffered lines reaches the high watermark ({@code bufferCapacity * 4}),
+     * and is re-enabled once the count drops back to the low watermark
+     * ({@code bufferCapacity / 2}).</p>
+     *
      * @param charset        the character set to convert the lines with
      * @param bufferCapacity the buffer capacity of the internal queue
      * @return a {@link ChunkedHttpContentHandler}
@@ -109,29 +148,6 @@ public final class HttpContentHandlers {
      */
     public static ChunkedHttpContentHandler<Stream<String>> ofLines(Charset charset, int bufferCapacity) {
         return new LineStreamHttpContentHandler(charset, bufferCapacity);
-    }
-
-    /**
-     * Returns a {@link ChunkedHttpContentHandler} which exposes the HTTP content
-     * as an {@link InputStream} of raw bytes.
-     *
-     * @return a {@link ChunkedHttpContentHandler}
-     * @since 4.3
-     */
-    public static ChunkedHttpContentHandler<InputStream> ofInputStream() {
-        return new InputStreamHttpContentHandler();
-    }
-
-    /**
-     * Returns a {@link ChunkedHttpContentHandler} which exposes the HTTP content
-     * as an {@link InputStream} of raw bytes.
-     *
-     * @param bufferCapacity the buffer capacity of the internal queue
-     * @return a {@link ChunkedHttpContentHandler}
-     * @since 4.3
-     */
-    public static ChunkedHttpContentHandler<InputStream> ofInputStream(int bufferCapacity) {
-        return new InputStreamHttpContentHandler(bufferCapacity);
     }
 
     /**
@@ -184,9 +200,12 @@ public final class HttpContentHandlers {
      * soon as possible.</p>
      *
      * <p>Note that the returned {@link Flux} must be subscribed at most once as
-     * the underlying {@link Stream} can be traversed only once, and the
-     * backpressure can only be applied on the consuming side since the HTTP
-     * content is always pushed by the client once received.</p>
+     * the underlying {@link Stream} can be traversed only once. Backpressure is
+     * applied on the bound channel: the auto-read of the channel is disabled
+     * once the number of buffered lines in the internal queue reaches the high
+     * watermark, and is re-enabled once the count drops back to the low
+     * watermark, so that the internal queue never grows unboundedly when the
+     * subscribing side is slow.</p>
      *
      * @param charset        the character set to convert the lines with
      * @param bufferCapacity the buffer capacity of the internal queue
@@ -199,6 +218,109 @@ public final class HttpContentHandlers {
     }
 
     private HttpContentHandlers() {
+    }
+
+    /**
+     * The backpressure controller for the chunked content handlers which have
+     * an internal queue buffering the received objects.
+     *
+     * <p>An {@link AtomicInteger} is used to approximately track the number of
+     * the objects currently buffered in the internal queue. When the buffered
+     * count increases and reaches the high watermark, the auto-read of the
+     * bound channel is disabled to suspend reading from the remote peer; when
+     * the buffered count decreases and reaches the low watermark while the
+     * reading is suspended, the auto-read of the channel is re-enabled to
+     * resume reading. Reading is always re-enabled once the content reaches
+     * its terminal state (completed or failed), so that the channel remains
+     * readable for subsequent requests when the connection is reused.</p>
+     *
+     * <p>All modifications on the configuration of the channel are always
+     * performed on the event-loop thread of the channel to guarantee
+     * thread-safety.</p>
+     */
+    private static final class BackpressureController {
+
+        private final int highWatermark;
+        private final int lowWatermark;
+        // the approximate number of the objects currently buffered in the internal queue
+        private final AtomicInteger bufferedCount = new AtomicInteger();
+        // whether the auto-read of the channel is currently disabled,
+        // mutated on the event-loop thread of the channel only
+        private volatile boolean readSuspended;
+
+        private volatile Channel channel;
+
+        private BackpressureController(int highWatermark, int lowWatermark) {
+            if (lowWatermark < 0 || highWatermark <= lowWatermark) {
+                throw new IllegalArgumentException("invalid watermarks: highWatermark=" + highWatermark
+                        + ", lowWatermark=" + lowWatermark);
+            }
+            this.highWatermark = highWatermark;
+            this.lowWatermark = lowWatermark;
+        }
+
+        private void bind(Channel channel) {
+            this.channel = channel;
+        }
+
+        /**
+         * Increases the buffered count after an object has been offered into
+         * the internal queue, and disables the auto-read of the channel if
+         * the count reaches the high watermark.
+         */
+        private void afterProduce() {
+            if (bufferedCount.incrementAndGet() >= highWatermark && !readSuspended) {
+                setAutoRead(false);
+            }
+        }
+
+        /**
+         * Decreases the buffered count after an object has been taken from
+         * the internal queue, and re-enables the auto-read of the channel if
+         * the count reaches the low watermark while the reading is suspended.
+         */
+        private void afterConsume() {
+            if (bufferedCount.decrementAndGet() <= lowWatermark && readSuspended) {
+                setAutoRead(true);
+            }
+        }
+
+        /**
+         * Re-enables the auto-read of the channel when the content reaches
+         * its terminal state (completed or failed).
+         */
+        private void onTerminal() {
+            setAutoRead(true);
+        }
+
+        private void setAutoRead(boolean autoRead) {
+            var channel = this.channel;
+            if (channel != null) {
+                var eventLoop = channel.eventLoop();
+                if (eventLoop.inEventLoop()) {
+                    setAutoRead0(channel, autoRead);
+                } else {
+                    eventLoop.execute(() -> setAutoRead0(channel, autoRead));
+                }
+            }
+        }
+
+        // always invoked on the event-loop thread of the channel
+        private void setAutoRead0(Channel channel, boolean autoRead) {
+            var readSuspended = this.readSuspended;
+            if (autoRead) {
+                if (readSuspended) {
+                    this.readSuspended = false;
+                    channel.config().setAutoRead(true);
+                }
+            } else if (!readSuspended && bufferedCount.get() >= highWatermark) {
+                // double-check the buffered count on the event-loop thread to
+                // avoid suspending the reading when the buffer has already
+                // been drained by the consuming side
+                this.readSuspended = true;
+                channel.config().setAutoRead(false);
+            }
+        }
     }
 
     private static final class LineStreamHttpContentHandler implements ChunkedHttpContentHandler<Stream<String>> {
@@ -219,6 +341,7 @@ public final class HttpContentHandlers {
 
         private final Charset charset;
         private final DynamicHybridBlockingQueue<Object> queue;
+        private final BackpressureController backpressure;
 
         @SuppressWarnings("unused")
         private volatile Object lineStream;
@@ -232,6 +355,14 @@ public final class HttpContentHandlers {
         private LineStreamHttpContentHandler(Charset charset, int bufferCapacity) {
             this.charset = charset;
             this.queue = new DynamicHybridBlockingQueue<>(bufferCapacity);
+            // lines are small objects, so pause reading only when the buffered
+            // count reaches the capacity of the internal queue
+            this.backpressure = new BackpressureController(bufferCapacity * 4, Math.max(16, bufferCapacity / 2));
+        }
+
+        @Override
+        public void onBind(Channel channel) {
+            backpressure.bind(channel);
         }
 
         @Override
@@ -257,6 +388,7 @@ public final class HttpContentHandlers {
                     } else {
                         queue.offer(content.toString(readerIndex, lineLength, charset));
                     }
+                    backpressure.afterProduce();
                     readerIndex = lfIndex + 1;
                 }
             }
@@ -300,6 +432,7 @@ public final class HttpContentHandlers {
             return Stream.generate(() -> {
                 try {
                     var obj = queue.take();
+                    backpressure.afterConsume();
                     return switch (obj) {
                         case String str -> str;
                         case RuntimeException e -> throw e;
@@ -315,6 +448,8 @@ public final class HttpContentHandlers {
         @Override
         public void onComplete() {
             queue.offer(EOF);
+            backpressure.afterProduce();
+            backpressure.onTerminal();
         }
 
         @Override
@@ -324,12 +459,14 @@ public final class HttpContentHandlers {
             } else {
                 queue.offer(new RuntimeException(cause));
             }
+            backpressure.afterProduce();
+            backpressure.onTerminal();
         }
     }
 
     private static final class InputStreamHttpContentHandler implements ChunkedHttpContentHandler<InputStream> {
 
-        private static final int DEFAULT_BUFFER_CAPACITY = 128;
+        private static final int DEFAULT_BUFFER_CAPACITY = 32;
 
         private static final VarHandle CONTENT_STREAM_VAR;
         private static final Object INITIALIZING_TOKEN = new Object();
@@ -344,6 +481,7 @@ public final class HttpContentHandlers {
         }
 
         private final DynamicHybridBlockingQueue<Object> queue;
+        private final BackpressureController backpressure;
 
         @SuppressWarnings("unused")
         private volatile Object contentStream;
@@ -354,12 +492,21 @@ public final class HttpContentHandlers {
 
         private InputStreamHttpContentHandler(int bufferCapacity) {
             this.queue = new DynamicHybridBlockingQueue<>(bufferCapacity);
+            // each buffered object is a chunk of raw bytes which may be tens
+            // of kilobytes, so pause reading earlier to keep memory usage low
+            this.backpressure = new BackpressureController(bufferCapacity * 2, Math.max(4, bufferCapacity / 4));
+        }
+
+        @Override
+        public void onBind(Channel channel) {
+            backpressure.bind(channel);
         }
 
         @Override
         public void accept(ByteBuf content) {
             if (content.isReadable()) {
                 queue.offer(ByteBufUtil.getBytes(content));
+                backpressure.afterProduce();
             }
         }
 
@@ -390,6 +537,8 @@ public final class HttpContentHandlers {
         @Override
         public void onComplete() {
             queue.offer(EOF);
+            backpressure.afterProduce();
+            backpressure.onTerminal();
         }
 
         @Override
@@ -399,6 +548,8 @@ public final class HttpContentHandlers {
             } else {
                 queue.offer(new RuntimeException(cause));
             }
+            backpressure.afterProduce();
+            backpressure.onTerminal();
         }
 
         private final class ChunkedInputStream extends InputStream {
@@ -443,6 +594,7 @@ public final class HttpContentHandlers {
                 }
                 try {
                     var obj = queue.take();
+                    backpressure.afterConsume();
                     return switch (obj) {
                         case byte[] bytes -> bytes;
                         case RuntimeException e -> throw new IOException(e);
@@ -472,6 +624,11 @@ public final class HttpContentHandlers {
         private LineFluxHttpContentHandler(ChunkedHttpContentHandler<Stream<String>> handler) {
             this.handler = handler;
             this.flux = Flux.create(this::subscribe, FluxSink.OverflowStrategy.BUFFER);
+        }
+
+        @Override
+        public void onBind(Channel channel) {
+            handler.onBind(channel);
         }
 
         @Override

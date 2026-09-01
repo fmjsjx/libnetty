@@ -1,6 +1,7 @@
 package com.github.fmjsjx.libnetty.http.client;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -13,6 +14,16 @@ import java.util.function.Supplier;
  * @since 4.3
  */
 public interface ChunkedHttpContentHandler<T> extends Consumer<ByteBuf>, Supplier<T>, HttpContentHandler<T> {
+
+    /**
+     * Called when the channel is bound.
+     *
+     * @param channel the channel
+     */
+    void onBind(Channel channel);
+
+    @Override
+    T get();
 
     /**
      * Handle the chunk of the HTTP content.
@@ -35,9 +46,6 @@ public interface ChunkedHttpContentHandler<T> extends Consumer<ByteBuf>, Supplie
         onComplete();
         return t;
     }
-
-    @Override
-    T get();
 
     /**
      * Called when the HTTP content is completed.
