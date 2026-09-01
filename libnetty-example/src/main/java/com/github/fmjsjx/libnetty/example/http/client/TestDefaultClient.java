@@ -2,8 +2,10 @@ package com.github.fmjsjx.libnetty.example.http.client;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -45,6 +47,8 @@ public class TestDefaultClient {
             testAsynchronousApi(client);
             // Tailing headers API
             testTrailingHeaders(client);
+            // Input stream API
+            testInputStream(client);
             // Upload API
             testUpload(client);
             // test line stream
@@ -181,6 +185,28 @@ public class TestDefaultClient {
             logger.info("response for tailing headers: {}", body);
             logger.info("headers for tailing headers: {}", resp.headers());
             logger.info("trailing headers: {}", resp.trailingHeaders());
+        }
+    }
+
+    static void testInputStream(HttpClient client) throws IOException, InterruptedException, TimeoutException {
+        Response<InputStream> response1 = client.request(URI.create("https://localhost:8443/api/test")).get()
+                .send(HttpContentHandlers.ofInputStream());
+        if (response1.statusCode() == 200) {
+            try (var input = response1.content()) {
+                var body = input.readAllBytes();
+                logger.info("response for sync input stream test: {}", new String(body, StandardCharsets.UTF_8));
+            }
+        }
+        // POST
+        var postBody = "p1=abc&p2=12345&a=1&a=2&a=3";
+        Response<InputStream> response2 = client.request(URI.create("https://localhost:8443/api/jsons/form"))
+                .post(HttpContentHolders.ofUtf8(postBody)).send(HttpContentHandlers.ofInputStream());
+        if (response2.statusCode() == 200) {
+            try (var input = response2.content()) {
+                var body = input.readAllBytes();
+                logger.info("response for sync input stream json form: {}", new String(body, StandardCharsets.UTF_8));
+            }
+
         }
     }
 

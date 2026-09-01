@@ -34,6 +34,8 @@ public class TestSimpleClient {
             testAsynchronousApi(client);
             // Tailing headers API
             testTrailingHeaders(client);
+            // Input stream API
+            testInputStream(client);
             // test upload
             testUpload(client);
             // test line stream
