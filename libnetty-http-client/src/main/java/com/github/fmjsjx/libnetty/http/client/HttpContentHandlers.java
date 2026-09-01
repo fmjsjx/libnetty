@@ -8,6 +8,8 @@ import io.netty.util.CharsetUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -107,6 +109,29 @@ public final class HttpContentHandlers {
      */
     public static ChunkedHttpContentHandler<Stream<String>> ofLines(Charset charset, int bufferCapacity) {
         return new LineStreamHttpContentHandler(charset, bufferCapacity);
+    }
+
+    /**
+     * Returns a {@link ChunkedHttpContentHandler} which exposes the HTTP content
+     * as an {@link InputStream} of raw bytes.
+     *
+     * @return a {@link ChunkedHttpContentHandler}
+     * @since 4.3
+     */
+    public static ChunkedHttpContentHandler<InputStream> ofInputStream() {
+        return new InputStreamHttpContentHandler();
+    }
+
+    /**
+     * Returns a {@link ChunkedHttpContentHandler} which exposes the HTTP content
+     * as an {@link InputStream} of raw bytes.
+     *
+     * @param bufferCapacity the buffer capacity of the internal queue
+     * @return a {@link ChunkedHttpContentHandler}
+     * @since 4.3
+     */
+    public static ChunkedHttpContentHandler<InputStream> ofInputStream(int bufferCapacity) {
+        return new InputStreamHttpContentHandler(bufferCapacity);
     }
 
     /**
@@ -298,6 +323,141 @@ public final class HttpContentHandlers {
                 queue.offer(e);
             } else {
                 queue.offer(new RuntimeException(cause));
+            }
+        }
+    }
+
+    private static final class InputStreamHttpContentHandler implements ChunkedHttpContentHandler<InputStream> {
+
+        private static final int DEFAULT_BUFFER_CAPACITY = 128;
+
+        private static final VarHandle CONTENT_STREAM_VAR;
+        private static final Object INITIALIZING_TOKEN = new Object();
+        private static final Object EOF = new Object();
+
+        static {
+            try {
+                CONTENT_STREAM_VAR = MethodHandles.lookup().findVarHandle(InputStreamHttpContentHandler.class, "contentStream", Object.class);
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        private final DynamicHybridBlockingQueue<Object> queue;
+
+        @SuppressWarnings("unused")
+        private volatile Object contentStream;
+
+        private InputStreamHttpContentHandler() {
+            this(DEFAULT_BUFFER_CAPACITY);
+        }
+
+        private InputStreamHttpContentHandler(int bufferCapacity) {
+            this.queue = new DynamicHybridBlockingQueue<>(bufferCapacity);
+        }
+
+        @Override
+        public void accept(ByteBuf content) {
+            if (content.isReadable()) {
+                queue.offer(ByteBufUtil.getBytes(content));
+            }
+        }
+
+        @Override
+        public InputStream get() {
+            for (; ; ) {
+                Object current = CONTENT_STREAM_VAR.getAcquire(this);
+                if (current != null) {
+                    if (current == INITIALIZING_TOKEN) {
+                        Thread.onSpinWait();
+                    } else {
+                        return (InputStream) current;
+                    }
+                } else if (CONTENT_STREAM_VAR.compareAndSet(this, null, INITIALIZING_TOKEN)) {
+                    try {
+                        var contentStream = new ChunkedInputStream();
+                        CONTENT_STREAM_VAR.setRelease(this, contentStream);
+                        return contentStream;
+                    } catch (Throwable cause) {
+                        // Reset to null if initialization failed
+                        CONTENT_STREAM_VAR.setRelease(this, null);
+                        throw cause;
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void onComplete() {
+            queue.offer(EOF);
+        }
+
+        @Override
+        public void onError(Throwable cause) {
+            if (cause instanceof RuntimeException e) {
+                queue.offer(e);
+            } else {
+                queue.offer(new RuntimeException(cause));
+            }
+        }
+
+        private final class ChunkedInputStream extends InputStream {
+
+            private byte[] currentChunk;
+            private int position;
+            private boolean finished;
+
+            @Override
+            public int read() throws IOException {
+                var b = new byte[1];
+                var n = read(b, 0, 1);
+                return n == -1 ? -1 : b[0] & 0xff;
+            }
+
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                Objects.checkFromIndexSize(off, len, b.length);
+                if (len == 0) {
+                    return 0;
+                }
+                var chunk = currentChunk;
+                if (chunk == null) {
+                    chunk = nextChunk();
+                    if (chunk == null) {
+                        return -1;
+                    }
+                }
+                var readLength = Math.min(len, chunk.length - position);
+                System.arraycopy(chunk, position, b, off, readLength);
+                position += readLength;
+                if (position == chunk.length) {
+                    currentChunk = null;
+                    position = 0;
+                }
+                return readLength;
+            }
+
+            private byte[] nextChunk() throws IOException {
+                if (finished) {
+                    return null;
+                }
+                try {
+                    var obj = queue.take();
+                    return switch (obj) {
+                        case byte[] bytes -> bytes;
+                        case RuntimeException e -> throw new IOException(e);
+                        default -> {
+                            // EOF
+                            finished = true;
+                            yield null;
+                        }
+                    };
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    var cause = new InterruptedIOException("interrupted when waiting for the next chunk");
+                    cause.initCause(e);
+                    throw cause;
+                }
             }
         }
     }
