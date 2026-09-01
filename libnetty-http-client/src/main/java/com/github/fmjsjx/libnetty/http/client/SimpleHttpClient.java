@@ -320,6 +320,11 @@ public class SimpleHttpClient extends AbstractHttpClient {
         }
 
         @Override
+        public void channelActive(ChannelHandlerContext ctx) {
+            contentHandler.onBind(ctx.channel());
+        }
+
+        @Override
         public void channelInactive(ChannelHandlerContext ctx) {
             if (future.isDone()) {
                 if (!contentCompleted) {
