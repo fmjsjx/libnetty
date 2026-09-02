@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
@@ -240,6 +242,8 @@ public final class HttpContentHandlers {
      */
     private static final class BackpressureController {
 
+        private static final Logger logger = LoggerFactory.getLogger(BackpressureController.class);
+
         private final int highWatermark;
         private final int lowWatermark;
         // the approximate number of the objects currently buffered in the internal queue
@@ -310,6 +314,7 @@ public final class HttpContentHandlers {
             var readSuspended = this.readSuspended;
             if (autoRead) {
                 if (readSuspended) {
+                    logger.debug("Set auto-read of the channel: {}", channel);
                     this.readSuspended = false;
                     channel.config().setAutoRead(true);
                 }
@@ -317,6 +322,7 @@ public final class HttpContentHandlers {
                 // double-check the buffered count on the event-loop thread to
                 // avoid suspending the reading when the buffer has already
                 // been drained by the consuming side
+                logger.debug("Set read suspended of the channel: {}", channel);
                 this.readSuspended = true;
                 channel.config().setAutoRead(false);
             }

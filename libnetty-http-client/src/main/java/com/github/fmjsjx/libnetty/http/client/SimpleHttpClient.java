@@ -238,6 +238,8 @@ public class SimpleHttpClient extends AbstractHttpClient {
         private final HttpContentHandler<T> contentHandler;
         private final Executor executor;
 
+        private boolean anticipatedClosure;
+
         private SimpleHttpClientHandler(CompletableFuture<Response<T>> future, HttpContentHandler<T> contentHandler,
                                         Optional<Executor> executor) {
             this.future = future;
@@ -247,17 +249,35 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            log.debug("Error occurs on simple client channel: {}", ctx.channel(), cause);
-            if (!future.isDone()) {
+            try {
+                log.debug("Error occurs on simple client channel: {}", ctx.channel(), cause);
+                if (!future.isDone()) {
+                    futureCompleteExceptionally(cause);
+                }
+            } finally {
+                anticipatedClose(ctx);
+            }
+        }
+
+        private void anticipatedClose(ChannelHandlerContext ctx) {
+            anticipatedClosure = true;
+            ctx.close();
+        }
+
+        private void futureCompleteExceptionally(Throwable cause) {
+            if (executor != null) {
+                executor.execute(() -> future.completeExceptionally(cause));
+            } else {
                 future.completeExceptionally(cause);
             }
-            ctx.close();
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
-            if (!future.isDone()) {
-                future.completeExceptionally(new IllegalStateException("No Response Content"));
+            if (!anticipatedClosure) {
+                if (!future.isDone()) {
+                    futureCompleteExceptionally(new IllegalStateException("No Response Content"));
+                }
             }
         }
 
@@ -275,7 +295,7 @@ public class SimpleHttpClient extends AbstractHttpClient {
             } else {
                 future.complete(buildResponse(msg));
             }
-            ctx.close();
+            anticipatedClose(ctx);
         }
 
         private Response<T> buildResponse(FullHttpResponse msg) {
@@ -296,10 +316,12 @@ public class SimpleHttpClient extends AbstractHttpClient {
         // on the content handler, i.e. the handler has reached its final state
         private boolean contentCompleted;
         private Consumer<HttpHeaders> trailingHeadersSetter;
+        private boolean anticipatedClosure;
 
-        private ChunkedContentSimpleHttpClientHandler(CompletableFuture<Response<T>> future,
-                                                      ChunkedHttpContentHandler<T> contentHandler,
-                                                      Optional<Executor> executor) {
+        private ChunkedContentSimpleHttpClientHandler(
+                CompletableFuture<Response<T>> future,
+                ChunkedHttpContentHandler<T> contentHandler,
+                Optional<Executor> executor) {
             this.future = future;
             this.contentHandler = contentHandler;
             this.executor = executor.orElse(null);
@@ -312,10 +334,23 @@ public class SimpleHttpClient extends AbstractHttpClient {
                 if (future.isDone()) {
                     onError0(cause);
                 } else {
-                    future.completeExceptionally(cause);
+                    futureCompleteExceptionally(cause);
                 }
             } finally {
-                ctx.close();
+                anticipatedClose(ctx);
+            }
+        }
+
+        private void anticipatedClose(ChannelHandlerContext ctx) {
+            anticipatedClosure = true;
+            ctx.close();
+        }
+
+        private void futureCompleteExceptionally(Throwable cause) {
+            if (executor != null) {
+                executor.execute(() -> future.completeExceptionally(cause));
+            } else {
+                future.completeExceptionally(cause);
             }
         }
 
@@ -326,13 +361,12 @@ public class SimpleHttpClient extends AbstractHttpClient {
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
-            if (future.isDone()) {
-                if (!contentCompleted) {
-                    // connection closed before the last content received
+            if (!anticipatedClosure) {
+                if (future.isDone()) {
                     onError0(new IllegalStateException("Connection closed before the content completed"));
+                } else {
+                    futureCompleteExceptionally(new IllegalStateException("Connection closed before the content completed"));
                 }
-            } else {
-                future.completeExceptionally(new IllegalStateException("No Response Content"));
             }
         }
 
@@ -353,51 +387,22 @@ public class SimpleHttpClient extends AbstractHttpClient {
                 if (httpContent instanceof LastHttpContent lastHttpContent) {
                     contentCompleted = true;
                     httpContent.retain();
-                    if (executor != null) {
-                        executor.execute(() -> {
-                            try {
-                                if (lastHttpContent.content().isReadable()) {
-                                    contentHandler.accept(lastHttpContent.content());
-                                }
-                                trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
-                                contentHandler.onComplete();
-                            } finally {
-                                lastHttpContent.release();
-                            }
-                        });
-                    } else {
-                        if (lastHttpContent.content().isReadable()) {
-                            contentHandler.accept(lastHttpContent.content());
-                        }
-                        trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
-                        contentHandler.onComplete();
+                    if (lastHttpContent.content().isReadable()) {
+                        contentHandler.accept(lastHttpContent.content());
                     }
-                    ctx.close();
+                    trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
+                    contentHandler.onComplete();
+                    anticipatedClose(ctx);
                     return;
                 }
-                if (executor != null) {
-                    httpContent.retain();
-                    executor.execute(() -> {
-                        try {
-                            contentHandler.accept(httpContent.content());
-                        } finally {
-                            httpContent.release();
-                        }
-                    });
-                } else {
-                    contentHandler.accept(httpContent.content());
-                }
+                contentHandler.accept(httpContent.content());
             }
         }
 
         private void onError0(Throwable cause) {
             if (!contentCompleted) {
                 contentCompleted = true;
-                if (executor != null) {
-                    executor.execute(() -> contentHandler.onError(cause));
-                } else {
-                    contentHandler.onError(cause);
-                }
+                contentHandler.onError(cause);
             }
         }
 

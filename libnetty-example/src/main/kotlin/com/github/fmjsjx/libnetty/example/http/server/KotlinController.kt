@@ -68,11 +68,13 @@ class KotlinController {
     @HttpGet("/sse-event-stream")
     suspend fun HttpRequestContext.getSseEventStream(
         @QueryVar("len", required = false) len: Int?,
+        @QueryVar("multiple", required = false) multiple: Int?,
     ): SseEventStream {
         // GET /api/test/sse-event-stream
         logger.info("-- test sse-event-stream --")
         logger.info("sse-event-stream channel: {}", channel())
         val messageSize = len ?: 100
+        val multiple = multiple ?: 1
         val eventLoop = eventLoop()
         val running = AtomicBoolean(false)
         val uuid = java.util.UUID.randomUUID().toString()
@@ -94,8 +96,15 @@ class KotlinController {
                         return
                     }
                     if (n++ < messageSize) {
-                        val data = AsciiString(mapOf("line" to n).toFastjson2Bytes())
-                        stream.sendEvent(SseEventBuilder.message(data))
+                        if (multiple > 1) {
+                            (1..multiple).forEach {
+                                val data = AsciiString(linkedMapOf("line" to n, "count" to it).toFastjson2Bytes())
+                                stream.sendEvent(SseEventBuilder.message(data))
+                            }
+                        } else {
+                            val data = AsciiString(mapOf("line" to n).toFastjson2Bytes())
+                            stream.sendEvent(SseEventBuilder.message(data))
+                        }
                         eventLoop.schedule(this, 1000, TimeUnit.MILLISECONDS)
                     } else {
                         stream.sendEvent(SseEventBuilder.create().event(SSE_EVENT_CLOSE).data(sessionData))
