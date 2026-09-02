@@ -98,19 +98,19 @@ public class DefaultHttpClient extends AbstractHttpClient {
         boolean ssl = "https".equalsIgnoreCase(uri.getScheme());
         boolean defaultPort = uri.getPort() == -1;
         int port = defaultPort ? (ssl ? 443 : 80) : uri.getPort();
-        String host = uri.getHost();
+        var host = uri.getHost();
         CompletableFuture<Response<T>> future = new CompletableFuture<>();
         RequestContext<T> requestContext = new RequestContext<>(request, future, contentHandler, executor.orElse(null));
-        String addressKey = host + ":" + port;
+        var addressKey = host + ":" + port;
         var cachedPool = getCachedConnectionPool(addressKey);
         Optional<HttpConnection> conn = tryPollOne(cachedPool);
         if (conn.isPresent()) {
             conn.get().sendAsync(requestContext);
         } else {
-            String headerHost = defaultPort ? host : host + ":" + port;
+            var headerHost = defaultPort ? host : host + ":" + port;
             if (proxyHandlerFactory.isPresent()) {
                 ProxyHandlerFactory<? extends ProxyHandler> proxyHandlerFactory = this.proxyHandlerFactory.get();
-                Bootstrap b = new Bootstrap().resolver(NoopAddressResolverGroup.INSTANCE).group(group)
+                var b = new Bootstrap().resolver(NoopAddressResolverGroup.INSTANCE).group(group)
                         .channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
                         .option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
                             @Override
@@ -144,7 +144,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 });
             } else {
                 var handler = new InternalHttpClientHandler(createUnresolved(host, port), headerHost, cachedPool);
-                Bootstrap b = new Bootstrap().group(group).channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
+                var b = new Bootstrap().group(group).channel(channelClass).option(ChannelOption.TCP_NODELAY, true)
                         .option(ChannelOption.SO_KEEPALIVE, true).handler(new ChannelInitializer<SocketChannel>() {
                             @Override
                             protected void initChannel(SocketChannel ch) {
@@ -239,9 +239,18 @@ public class DefaultHttpClient extends AbstractHttpClient {
                     }
                 } else {
                     // Not Full HttpResponse only supported with ChunkedHttpContentHandler
-                    future.completeExceptionally(new IllegalStateException("Invalid content handler type " + contentHandler.getClass() +
-                            ", expected a ChunkedHttpContentHandler"));
+                    var cause = new IllegalStateException("Invalid content handler type " + contentHandler.getClass() +
+                            ", expected a ChunkedHttpContentHandler");
+                    futureCompleteExceptionally(cause);
                 }
+            }
+        }
+
+        void futureCompleteExceptionally(Throwable cause) {
+            if (executor != null) {
+                executor.execute(() -> future.completeExceptionally(cause));
+            } else {
+                future.completeExceptionally(cause);
             }
         }
 
@@ -254,43 +263,16 @@ public class DefaultHttpClient extends AbstractHttpClient {
         private boolean handleChunk(HttpContent chunk) {
             var chunkedContentHandler = this.chunkedContentHandler;
             assert chunkedContentHandler != null;
-            var executor = this.executor;
             if (chunk instanceof LastHttpContent lastHttpContent) {
                 contentCompleted = true;
-                if (executor != null) {
-                    lastHttpContent.retain();
-                    executor.execute(() -> {
-                        try {
-                            if (lastHttpContent.content().isReadable()) {
-                                chunkedContentHandler.accept(lastHttpContent.content());
-                            }
-                            trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
-                            complete(chunkedContentHandler);
-                        } finally {
-                            lastHttpContent.release();
-                        }
-                    });
-                } else {
-                    if (lastHttpContent.content().isReadable()) {
-                        chunkedContentHandler.accept(lastHttpContent.content());
-                    }
-                    trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
-                    complete(chunkedContentHandler);
+                if (lastHttpContent.content().isReadable()) {
+                    chunkedContentHandler.accept(lastHttpContent.content());
                 }
+                trailingHeadersSetter.accept(lastHttpContent.trailingHeaders());
+                complete(chunkedContentHandler);
                 return true;
             }
-            if (executor != null) {
-                chunk.retain();
-                executor.execute(() -> {
-                    try {
-                        chunkedContentHandler.accept(chunk.content());
-                    } finally {
-                        chunk.release();
-                    }
-                });
-            } else {
-                chunkedContentHandler.accept(chunk.content());
-            }
+            chunkedContentHandler.accept(chunk.content());
             return false;
         }
 
@@ -311,15 +293,10 @@ public class DefaultHttpClient extends AbstractHttpClient {
                 var chunkedContentHandler = this.chunkedContentHandler;
                 if (chunkedContentHandler != null && !contentCompleted) {
                     contentCompleted = true;
-                    var executor = this.executor;
-                    if (executor != null) {
-                        executor.execute(() -> chunkedContentHandler.onError(cause));
-                    } else {
-                        chunkedContentHandler.onError(cause);
-                    }
+                    chunkedContentHandler.onError(cause);
                 }
             } else {
-                future.completeExceptionally(cause);
+                futureCompleteExceptionally(cause);
             }
         }
 
@@ -366,10 +343,11 @@ public class DefaultHttpClient extends AbstractHttpClient {
         private final InetSocketAddress address;
         private final CharSequence headerHost;
         private final CachedPool<HttpConnection> cachedPool;
-        private volatile Channel channel;
-
         private final ChunkedContentInterceptor chunkedContentInterceptor;
 
+        private boolean anticipatedClosure;
+
+        private volatile Channel channel;
         private RequestContext<?> requestContext;
 
         private InternalHttpClientHandler(InetSocketAddress address, CharSequence headerHost,
@@ -400,8 +378,13 @@ public class DefaultHttpClient extends AbstractHttpClient {
             try {
                 onErrorCaught(cause);
             } finally {
-                ctx.close();
+                anticipatedClose(ctx);
             }
+        }
+
+        private void anticipatedClose(ChannelHandlerContext ctx) {
+            anticipatedClosure = true;
+            ctx.close();
         }
 
         private void onErrorCaught(Throwable cause) {
@@ -415,12 +398,14 @@ public class DefaultHttpClient extends AbstractHttpClient {
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
             try {
-                RequestContext<?> requestContext = this.requestContext;
-                if (requestContext != null) {
-                    // an in-flight aggregated request is present and the connection
-                    // is closed before the request completed, fail the request
-                    this.requestContext = null;
-                    requestContext.onError(new ClosedChannelException());
+                if (!anticipatedClosure) {
+                    RequestContext<?> requestContext = this.requestContext;
+                    if (requestContext != null) {
+                        // an in-flight aggregated request is present and the connection
+                        // is closed before the request completed, fail the request
+                        this.requestContext = null;
+                        requestContext.onError(new ClosedChannelException());
+                    }
                 }
             } finally {
                 // remove HttpConnection from cache pool when channel inactive
@@ -432,11 +417,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
         public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
             if (evt instanceof IdleStateEvent) {
                 if (((IdleStateEvent) evt).state() == IdleState.ALL_IDLE) {
-                    try {
-                        onErrorCaught(new TimeoutException());
-                    } finally {
-                        ctx.close();
-                    }
+                    exceptionCaught(ctx, new TimeoutException());
                 }
             }
         }
@@ -447,7 +428,7 @@ public class DefaultHttpClient extends AbstractHttpClient {
             if (requestContext == null) {
                 // WARN: should not reach this line.
                 // To be on the safe side, always close channel and remove it from cached pool.
-                ctx.close();
+                anticipatedClose(ctx);
                 return;
             }
             this.requestContext = null;
@@ -465,10 +446,10 @@ public class DefaultHttpClient extends AbstractHttpClient {
         private void releaseConnection(ChannelHandlerContext ctx, boolean keepAlive) {
             if (isOpen() && keepAlive) {
                 if (!cachedPool.tryBack(this)) {
-                    ctx.close();
+                    anticipatedClose(ctx);
                 }
             } else {
-                ctx.close();
+                anticipatedClose(ctx);
             }
         }
 
@@ -503,11 +484,11 @@ public class DefaultHttpClient extends AbstractHttpClient {
                         var req = createHttpRequest(request, requestUri);
                         sendHttpRequest(req, channel, request);
                     } else {
-                        requestContext.future.completeExceptionally(new ClosedChannelException());
+                        requestContext.futureCompleteExceptionally(new ClosedChannelException());
                     }
                 });
             } else {
-                requestContext.future.completeExceptionally(new ClosedChannelException());
+                requestContext.futureCompleteExceptionally(new ClosedChannelException());
             }
         }
 

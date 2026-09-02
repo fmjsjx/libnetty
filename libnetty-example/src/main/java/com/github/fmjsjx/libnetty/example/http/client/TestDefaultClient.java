@@ -7,10 +7,7 @@ import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.StandardOpenOption;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 import com.github.fmjsjx.libnetty.handler.ssl.SslContextProviders;
 import com.github.fmjsjx.libnetty.http.client.*;
@@ -41,6 +38,7 @@ public class TestDefaultClient {
         try (HttpClient client = DefaultHttpClient.builder()
                 .sslContextProvider(SslContextProviders.insecureForClient())
                 .enableCompression().maxCachedSizeEachDomain(32).build()) {
+            testLineStreamM(client, 18,1000);
             // Synchronous API
             testSynchronousApi(client);
             // Asynchronous API
@@ -161,6 +159,21 @@ public class TestDefaultClient {
         } catch (Exception e) {
             logger.error("Error occurs when processing lines", e);
             throw e;
+        }
+    }
+
+    static void testLineStreamM(HttpClient client, int len, int multiple) {
+        URI uri = URI.create("https://localhost:8443/api/kotlin/sse-event-stream?len=" + len + "&multiple=" + multiple);
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var req = client.request(uri).setHeader(ACCEPT, TEXT_EVENT_STREAM).get();
+            req.sendAsync(HttpContentHandlers.ofLines(), executor).thenAccept(resp -> {
+                try (var lineStream = resp.content()) {
+                    lineStream.forEach(System.out::print);
+                } catch (Exception e) {
+                    logger.error("Error occurs when processing lines M", e);
+                    throw e;
+                }
+            }).join();
         }
     }
 
