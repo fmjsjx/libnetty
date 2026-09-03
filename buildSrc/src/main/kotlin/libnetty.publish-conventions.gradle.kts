@@ -10,10 +10,6 @@ version = "4.3.0-SNAPSHOT"
 // This restricts the output to only standard md5 and sha1.
 System.setProperty("org.gradle.internal.publish.checksums.official", "true")
 
-// Completely disable the Gradle Module Metadata (.module) generation task.
-// This instantly eliminates the .module file, its .asc signature, and all associated checksums.
-tasks.withType<GenerateModuleMetadata>().configureEach { enabled = false }
-
 publishing {
     repositories {
         maven {
