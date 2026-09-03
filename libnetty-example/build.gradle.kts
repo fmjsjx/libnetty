@@ -6,7 +6,6 @@ plugins {
 
 dependencies {
 
-    compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     implementation("org.slf4j:slf4j-api")
     implementation("org.apache.logging.log4j:log4j-slf4j2-impl")
