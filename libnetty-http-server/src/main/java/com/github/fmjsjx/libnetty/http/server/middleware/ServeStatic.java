@@ -176,6 +176,7 @@ public class ServeStatic implements Middleware {
         if (isRange) {
             ranges = parseRange(rangeHeader);
         }
+        logger.debug("ranges: {}", ranges);
         List<StaticLocationMapping> mappings = this.mappings;
         for (StaticLocationMapping mapping : mappings) {
             String uri = mapping.uri;
@@ -384,6 +385,7 @@ public class ServeStatic implements Middleware {
             partHeaders[i] = headerBytes;
             contentLength += headerBytes.length + range.length();
         }
+        logger.debug("Normalized ranges: {}", normalizedRanges);
         // The close-delimiter, prefixed with the CRLF that terminates the last part.
         var closingBytes = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.US_ASCII);
         contentLength += closingBytes.length;
@@ -1051,7 +1053,7 @@ public class ServeStatic implements Middleware {
                     }
                     var currentRange = ranges.get(currentRangeIndex);
                     currentFileChunk = new SharedChunkedNioFile(file, currentRange.start(), currentRange.length(), chunkSize);
-                    var partHeader = partHeaders[currentRangeIndex++];
+                    var partHeader = partHeaders[currentRangeIndex];
                     var partHeaderBuffer = allocator.buffer(partHeader.length).writeBytes(partHeader);
                     state = State.WRITE_FILE_RANGE;
                     progress += partHeaderBuffer.readableBytes();
