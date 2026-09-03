@@ -60,10 +60,6 @@ public class ServeStatic implements Middleware {
 
     private static final Logger logger = LoggerFactory.getLogger(ServeStatic.class);
 
-    // The prefix of the boundary used in "multipart/byteranges" responses. A random
-    // suffix is appended to it to make the boundary unique for each response.
-    private static final String MULTIPART_BOUNDARY_PREFIX = "libnetty-boundary-";
-
     private static LinkedHashMap<String, String> toLinkedHashN(String... kvs) {
         if (kvs.length % 2 != 0) {
             throw new IllegalArgumentException("number of arguments must be even");
@@ -323,20 +319,9 @@ public class ServeStatic implements Middleware {
         HttpUtil.setContentLength(response, contentLength);
         CompletableFuture<HttpResult> future = new CompletableFuture<>();
         var resultLength = isHead ? 0 : fileSize;
-        ChannelFutureListener[] cbs = new ChannelFutureListener[]{cf -> {
-            if (cf.isSuccess()) {
-                future.complete(new DefaultHttpResult(ctx, resultLength, OK));
-            } else if (cf.cause() != null) {
-                future.completeExceptionally(cf.cause());
-            }
-        }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE};
+        ChannelFutureListener[] cbs = initListeners(ctx, OK, keepAlive, future, resultLength);
         Channel channel = ctx.channel();
-        var noSsl = channel.pipeline().get(SslHandler.class) == null;
-        var useZeroCopy = noSsl && supportZeroCopyTransfer(channel);
-        if (useZeroCopy) {
-            // disable compression feature
-            response.headers().set(CONTENT_ENCODING, IDENTITY);
-        }
+        var useZeroCopy = checkZeroCopyAvailable(response, channel);
         channel.write(response);
         if (isHead) {
             channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
@@ -354,6 +339,27 @@ public class ServeStatic implements Middleware {
             }
         }
         return future;
+    }
+
+    private boolean checkZeroCopyAvailable(DefaultHttpResponse response, Channel channel) {
+        var noSsl = channel.pipeline().get(SslHandler.class) == null;
+        var useZeroCopy = noSsl && supportZeroCopyTransfer(channel);
+        if (useZeroCopy) {
+            // disable compression feature
+            response.headers().set(CONTENT_ENCODING, IDENTITY);
+        }
+        return useZeroCopy;
+    }
+
+    private ChannelFutureListener[] initListeners(HttpRequestContext ctx, HttpResponseStatus status, boolean keepAlive,
+                                                  CompletableFuture<HttpResult> future, long resultLength) {
+        return new ChannelFutureListener[]{cf -> {
+            if (cf.isSuccess()) {
+                future.complete(new DefaultHttpResult(ctx, resultLength, status));
+            } else if (cf.cause() != null) {
+                future.completeExceptionally(cf.cause());
+            }
+        }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE};
     }
 
     private CompletableFuture<HttpResult> sendMultipartResponse(HttpRequestContext ctx, DefaultHttpResponse response,
@@ -391,20 +397,9 @@ public class ServeStatic implements Middleware {
         HttpUtil.setContentLength(response, contentLength);
         var future = new CompletableFuture<HttpResult>();
         var resultLength = isHead ? 0 : contentLength;
-        ChannelFutureListener[] cbs = new ChannelFutureListener[]{cf -> {
-            if (cf.isSuccess()) {
-                future.complete(new DefaultHttpResult(ctx, resultLength, PARTIAL_CONTENT));
-            } else if (cf.cause() != null) {
-                future.completeExceptionally(cf.cause());
-            }
-        }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE};
+        var cbs = initListeners(ctx, PARTIAL_CONTENT, keepAlive, future, resultLength);
         Channel channel = ctx.channel();
-        var noSsl = channel.pipeline().get(SslHandler.class) == null;
-        var useZeroCopy = noSsl && supportZeroCopyTransfer(channel);
-        if (useZeroCopy) {
-            // disable compression feature
-            response.headers().set(CONTENT_ENCODING, IDENTITY);
-        }
+        var useZeroCopy = checkZeroCopyAvailable(response, channel);
         if (isHead) {
             channel.write(response);
             channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
@@ -417,34 +412,32 @@ public class ServeStatic implements Middleware {
         channel.write(response);
         if (useZeroCopy) {
             // Zero-copy transfer: alternately write the boundary/headers ByteBuf and a
-            // DefaultFileRegion of each part over the shared FileChannel. Each region is
-            // retained once, so that the release Netty performs right after transferring
-            // it does not close the shared channel before the remaining parts are sent.
-            // All the regions are released (which closes the channel exactly once) once
-            // the end marker has been written.
-            var regions = new ArrayList<DefaultFileRegion>(size);
-            var written = false;
+            // SharedFileRegion of each part over the shared FileChannel. A SharedFileRegion
+            // never closes the shared channel when Netty releases it right after
+            // transferring it, so the channel stays open until all the parts are sent.
+            // The shared channel is then closed exactly once in the callback attached to
+            // the end marker.
+            var failed = true;
             try {
                 for (int i = 0; i < size; i++) {
                     var range = normalizedRanges.get(i);
                     channel.write(ctx.alloc().buffer(partHeaders[i].length).writeBytes(partHeaders[i]));
-                    var region = new DefaultFileRegion(file, range.start(), range.length());
-                    region.retain();
-                    regions.add(region);
                     // Flush each file part individually, unlike the single-region branches.
-                    channel.writeAndFlush(region);
+                    channel.writeAndFlush(new SharedFileRegion(file, range.start(), range.length()));
                 }
                 channel.write(ctx.alloc().buffer(closingBytes.length).writeBytes(closingBytes));
-                // Write the end marker, then release every region to close the shared channel.
+                // Write the end marker, then close the shared channel exactly once.
                 var lastWrite = channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-                lastWrite.addListener((ChannelFuture cf) -> regions.forEach(DefaultFileRegion::release));
+                // The close listener takes over ownership of the shared channel, so from
+                // here on the finally block must not close it again.
+                lastWrite.addListener((ChannelFuture cf) -> closeQuietly(file));
+                failed = false;
                 lastWrite.addListeners(cbs);
-                written = true;
             } finally {
-                if (!written) {
-                    // Release the retained regions (closing the shared channel) if the
-                    // writes failed before the end-marker listener took over ownership.
-                    regions.forEach(DefaultFileRegion::release);
+                if (failed) {
+                    // Close the shared channel if the writes failed before the end-marker
+                    // listener took over ownership.
+                    closeQuietly(file);
                 }
             }
         } else {
@@ -463,8 +456,34 @@ public class ServeStatic implements Middleware {
     }
 
     private static String generateBoundary() {
-        var random = ThreadLocalRandom.current();
-        return MULTIPART_BOUNDARY_PREFIX + Long.toHexString(random.nextLong()) + Long.toHexString(random.nextLong());
+        return "--" + Long.toHexString(ThreadLocalRandom.current().nextLong()) + Long.toHexString(System.currentTimeMillis()) + "--";
+    }
+
+    private static void closeQuietly(FileChannel file) {
+        try {
+            file.close();
+        } catch (IOException e) {
+            logger.warn("Failed to close the shared FileChannel", e);
+        }
+    }
+
+    /**
+     * A FileRegion that holds a reference to a shared {@link FileChannel}
+     * that should never be closed.
+     *
+     * @author MJ Fang
+     * @since 4.3
+     */
+    private static final class SharedFileRegion extends DefaultFileRegion {
+
+        private SharedFileRegion(FileChannel fileChannel, long position, long count) {
+            super(fileChannel, position, count);
+        }
+
+        @Override
+        protected void deallocate() {
+            // Never close the underlying channel.
+        }
     }
 
     /**
