@@ -5,14 +5,8 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServerHandler;
 import com.github.fmjsjx.libnetty.http.server.util.MimeTypesUtil;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultFileRegion;
+import io.netty.channel.*;
 import io.netty.handler.codec.DateFormatter;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http2.Http2StreamChannel;
@@ -441,15 +435,15 @@ public class ServeStatic implements Middleware {
                 }
             }
         } else {
-            // Chunked transfer (e.g. TLS or HTTP/2): the whole multipart body is streamed
-            // from the shared FileChannel by a single MultipartChunkedInput wrapped in one
-            // HttpChunkedInput, because the ChunkedWriteHandler passes plain ByteBufs
-            // through immediately while ChunkedInputs are queued and written later, which
-            // would otherwise break the strict write order. HttpChunkedInput writes the end
-            // marker (LastHttpContent) for us, and MultipartChunkedInput closes the shared
-            // FileChannel once the whole body has been consumed.
-            channel.writeAndFlush(new HttpChunkedInput(
-                    new MultipartChunkedInput(file, normalizedRanges, partHeaders, closingBytes, chunkSize)))
+            // Chunked transfer (e.g. TLS or HTTP/2): the whole multipart body is streamed by
+            // a single HttpMultipartRangesChunkedInput over the shared FileChannel. It emits
+            // each part's boundary/headers and file bytes as HttpContent and appends the end
+            // marker (LastHttpContent) itself, so it is written directly as one ChunkedInput
+            // (no HttpChunkedInput wrapper) to preserve the strict write order. The shared
+            // FileChannel is closed exactly once by its close(), which the ChunkedWriteHandler
+            // invokes once the body has been fully consumed or the transfer fails.
+            channel.writeAndFlush(new HttpMultipartRangesChunkedInput(
+                            file, normalizedRanges, partHeaders, closingBytes, contentLength, chunkSize))
                     .addListeners(cbs);
         }
         return future;
@@ -463,13 +457,12 @@ public class ServeStatic implements Middleware {
         try {
             file.close();
         } catch (IOException e) {
-            logger.warn("Failed to close the shared FileChannel", e);
+            logger.warn("Failed to close the shared FileChannel: {}", file, e);
         }
     }
 
     /**
-     * A FileRegion that holds a reference to a shared {@link FileChannel}
-     * that should never be closed.
+     * A {@link FileRegion} that never closes the underlying {@link FileChannel}.
      *
      * @author MJ Fang
      * @since 4.3
@@ -483,94 +476,6 @@ public class ServeStatic implements Middleware {
         @Override
         protected void deallocate() {
             // Never close the underlying channel.
-        }
-    }
-
-    /**
-     * A {@link ChunkedInput} that streams a {@code multipart/byteranges} body from a
-     * single shared {@link FileChannel}.
-     * <p>
-     * The {@link ChunkedNioFile} of each part is created lazily right before that part
-     * is read, so the shared channel is always positioned at the correct offset of the
-     * part being transferred, and the shared channel is closed exactly once when the
-     * whole body has been consumed.
-     */
-    private static final class MultipartChunkedInput implements ChunkedInput<ByteBuf> {
-
-        private final FileChannel file;
-        private final List<Range> ranges;
-        private final byte[][] partHeaders;
-        private final byte[] closing;
-        private final int chunkSize;
-
-        private int index;
-        private boolean headerPending = true;
-        private boolean closingEmitted;
-        private ChunkedNioFile currentFile;
-
-        MultipartChunkedInput(FileChannel file, List<Range> ranges, byte[][] partHeaders, byte[] closing,
-                              int chunkSize) {
-            this.file = file;
-            this.ranges = ranges;
-            this.partHeaders = partHeaders;
-            this.closing = closing;
-            this.chunkSize = chunkSize;
-        }
-
-        @Override
-        public boolean isEndOfInput() {
-            return index >= ranges.size() && closingEmitted;
-        }
-
-        @Override
-        public void close() throws Exception {
-            file.close();
-        }
-
-        @Override
-        public ByteBuf readChunk(ChannelHandlerContext ctx) throws Exception {
-            return readChunk(ctx.alloc());
-        }
-
-        @Override
-        public ByteBuf readChunk(ByteBufAllocator allocator) throws Exception {
-            for (;;) {
-                if (index < ranges.size()) {
-                    if (headerPending) {
-                        var header = partHeaders[index];
-                        var range = ranges.get(index);
-                        // Create this part's file input lazily, so that the shared channel
-                        // is positioned at the part's offset right before it is read.
-                        currentFile = new ChunkedNioFile(file, range.start(), range.length(), chunkSize);
-                        headerPending = false;
-                        return allocator.buffer(header.length).writeBytes(header);
-                    }
-                    if (currentFile.isEndOfInput()) {
-                        // The current part has been fully read; move on to the next part.
-                        index++;
-                        headerPending = true;
-                        currentFile = null;
-                        continue;
-                    }
-                    return currentFile.readChunk(allocator);
-                }
-                if (!closingEmitted) {
-                    closingEmitted = true;
-                    return allocator.buffer(closing.length).writeBytes(closing);
-                }
-                return Unpooled.EMPTY_BUFFER;
-            }
-        }
-
-        @Override
-        public long length() {
-            // The content-length is set on the response explicitly, so it is unknown here.
-            return -1;
-        }
-
-        @Override
-        public long progress() {
-            return index;
         }
     }
 
@@ -1049,6 +954,152 @@ public class ServeStatic implements Middleware {
         public long length() {
             return end - start + 1;
         }
+    }
+
+    /**
+     * A {@link ChunkedNioFile} that never closes the underlying {@link FileChannel}.
+     *
+     * @author MJ Fang
+     * @since 4.3
+     */
+    private static final class SharedChunkedNioFile extends ChunkedNioFile {
+
+        private SharedChunkedNioFile(FileChannel in, long offset, long length, int chunkSize) throws IOException {
+            super(in, offset, length, chunkSize);
+        }
+
+        @Override
+        public void close() {
+            // Never close the underlying FileChannel
+        }
+    }
+
+    /**
+     * A {@link ChunkedInput} that streams a {@code multipart/byteranges} body from a
+     * single shared {@link FileChannel}.
+     * <p>
+     * The {@link ChunkedNioFile} of each part is created lazily right before that part
+     * is read, so the shared channel is always positioned at the correct offset of the
+     * part being transferred, and the shared channel is closed exactly once when the
+     * whole body has been consumed.
+     */
+    private static final class HttpMultipartRangesChunkedInput implements ChunkedInput<HttpContent> {
+
+        // Internal state machine
+        private enum State {
+            WRITE_BOUNDARY_HEADER,
+            WRITE_FILE_RANGE,
+            WRITE_END_BOUNDARY,
+            WRITE_LAST_CONTENT,
+            DONE,
+        }
+
+        private final FileChannel file;
+        private final List<Range> ranges;
+        private final byte[][] partHeaders;
+        private final byte[] closing;
+        private final long length;
+        private final int chunkSize;
+
+        private State state = State.WRITE_BOUNDARY_HEADER;
+        private int currentRangeIndex;
+        private SharedChunkedNioFile currentFileChunk;
+        private long progress;
+
+        private HttpMultipartRangesChunkedInput(FileChannel file, List<Range> ranges, byte[][] partHeaders,
+                                                byte[] closing, long length, int chunkSize) {
+            this.file = file;
+            this.ranges = ranges;
+            this.partHeaders = partHeaders;
+            this.closing = closing;
+            this.length = length;
+            this.chunkSize = chunkSize;
+        }
+
+        @Override
+        public boolean isEndOfInput() {
+            return state == State.DONE;
+        }
+
+        @Override
+        public void close() throws Exception {
+            try {
+                if (currentFileChunk != null) {
+                    currentFileChunk.close();
+                }
+            } finally {
+                var file = this.file;
+                if (file != null && file.isOpen()) {
+                    file.close();
+                }
+            }
+        }
+
+        @Deprecated
+        @Override
+        public HttpContent readChunk(ChannelHandlerContext ctx) throws Exception {
+            return readChunk(ctx.alloc());
+        }
+
+        @Override
+        public HttpContent readChunk(ByteBufAllocator allocator) throws Exception {
+            return switch (state) {
+                case WRITE_BOUNDARY_HEADER -> {
+                    if (currentRangeIndex >= ranges.size()) {
+                        state = State.WRITE_END_BOUNDARY;
+                        yield readChunk(allocator);
+                    }
+                    var currentRange = ranges.get(currentRangeIndex);
+                    currentFileChunk = new SharedChunkedNioFile(file, currentRange.start(), currentRange.length(), chunkSize);
+                    var partHeader = partHeaders[currentRangeIndex++];
+                    var partHeaderBuffer = allocator.buffer(partHeader.length).writeBytes(partHeader);
+                    state = State.WRITE_FILE_RANGE;
+                    progress += partHeaderBuffer.readableBytes();
+                    yield new DefaultHttpContent(partHeaderBuffer);
+                }
+
+                case WRITE_FILE_RANGE -> {
+                    if (currentFileChunk.isEndOfInput()) {
+                        currentFileChunk.close();
+                        currentFileChunk = null;
+                        currentRangeIndex++;
+                        state = State.WRITE_BOUNDARY_HEADER;
+                        yield readChunk(allocator);
+                    }
+                    var fileChunk = currentFileChunk.readChunk(allocator);
+                    if (fileChunk == null) {
+                        yield null;
+                    }
+                    progress += fileChunk.readableBytes();
+                    yield new DefaultHttpContent(fileChunk);
+                }
+
+                case WRITE_END_BOUNDARY -> {
+                    var endBuf = allocator.buffer(closing.length).writeBytes(closing);
+                    state = State.WRITE_LAST_CONTENT;
+                    progress += endBuf.readableBytes();
+                    yield new DefaultHttpContent(endBuf);
+                }
+
+                case WRITE_LAST_CONTENT -> {
+                    state = State.DONE;
+                    yield LastHttpContent.EMPTY_LAST_CONTENT;
+                }
+
+                case DONE -> null;
+            };
+        }
+
+        @Override
+        public long length() {
+            return length;
+        }
+
+        @Override
+        public long progress() {
+            return progress;
+        }
+
     }
 
 }
