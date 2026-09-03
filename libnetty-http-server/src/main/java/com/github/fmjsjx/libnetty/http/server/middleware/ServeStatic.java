@@ -5,13 +5,13 @@ import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpServerHandler;
 import com.github.fmjsjx.libnetty.http.server.util.MimeTypesUtil;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.DefaultFileRegion;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.*;
 import io.netty.handler.codec.DateFormatter;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http2.Http2StreamChannel;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedInput;
 import io.netty.handler.stream.ChunkedNioFile;
 import io.netty.util.AsciiString;
 import io.netty.util.internal.StringUtil;
@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,6 +30,7 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -52,7 +54,7 @@ public class ServeStatic implements Middleware {
 
     private static final Logger logger = LoggerFactory.getLogger(ServeStatic.class);
 
-    private static final LinkedHashMap<String, String> toLinkedHashN(String... kvs) {
+    private static LinkedHashMap<String, String> toLinkedHashN(String... kvs) {
         if (kvs.length % 2 != 0) {
             throw new IllegalArgumentException("number of arguments must be even");
         }
@@ -140,7 +142,8 @@ public class ServeStatic implements Middleware {
         this(locationMappings, Optional.ofNullable(options));
     }
 
-    private ServeStatic(Map<String, String> locationMappings, Optional<Options> options) {
+    private ServeStatic(Map<String, String> locationMappings,
+                        @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Options> options) {
         Options opt = options.orElseGet(Options::new);
         mappings = locationMappings.entrySet().stream().map(StaticLocationMapping::new).collect(Collectors.toList());
         logger.debug("ServeStatic: locationMappings={}, options={}", mappings, opt);
@@ -173,6 +176,7 @@ public class ServeStatic implements Middleware {
         if (isRange) {
             ranges = parseRange(rangeHeader);
         }
+        logger.debug("ranges: {}", ranges);
         List<StaticLocationMapping> mappings = this.mappings;
         for (StaticLocationMapping mapping : mappings) {
             String uri = mapping.uri;
@@ -282,7 +286,9 @@ public class ServeStatic implements Middleware {
                         return sendResponse(ctx, response, contentLength, isHead, fileSize, keepAlive, p, offset);
                     }
                     // multipart/byteranges
-                    // TODO implement multipart/byteranges feature in next version
+                    setDateAndCacheHeaders(now, etag, lastModified, expires, response.headers());
+                    response.headers().set(ACCEPT_RANGES, BYTES);
+                    return sendMultipartResponse(ctx, response, ranges, contentType, isHead, fileSize, keepAlive, p);
                 }
                 var response = new DefaultHttpResponse(version, OK);
                 HttpUtil.setKeepAlive(response, keepAlive);
@@ -308,20 +314,9 @@ public class ServeStatic implements Middleware {
         HttpUtil.setContentLength(response, contentLength);
         CompletableFuture<HttpResult> future = new CompletableFuture<>();
         var resultLength = isHead ? 0 : fileSize;
-        ChannelFutureListener[] cbs = new ChannelFutureListener[]{cf -> {
-            if (cf.isSuccess()) {
-                future.complete(new DefaultHttpResult(ctx, resultLength, OK));
-            } else if (cf.cause() != null) {
-                future.completeExceptionally(cf.cause());
-            }
-        }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE};
+        ChannelFutureListener[] cbs = initListeners(ctx, OK, keepAlive, future, resultLength);
         Channel channel = ctx.channel();
-        var noSsl = channel.pipeline().get(SslHandler.class) == null;
-        var useZeroCopy = noSsl && supportZeroCopyTransfer(channel);
-        if (useZeroCopy) {
-            // disable compression feature
-            response.headers().set(CONTENT_ENCODING, IDENTITY);
-        }
+        var useZeroCopy = checkZeroCopyAvailable(response, channel);
         channel.write(response);
         if (isHead) {
             channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
@@ -339,6 +334,151 @@ public class ServeStatic implements Middleware {
             }
         }
         return future;
+    }
+
+    private boolean checkZeroCopyAvailable(DefaultHttpResponse response, Channel channel) {
+        var noSsl = channel.pipeline().get(SslHandler.class) == null;
+        var useZeroCopy = noSsl && supportZeroCopyTransfer(channel);
+        if (useZeroCopy) {
+            // disable compression feature
+            response.headers().set(CONTENT_ENCODING, IDENTITY);
+        }
+        return useZeroCopy;
+    }
+
+    private ChannelFutureListener[] initListeners(HttpRequestContext ctx, HttpResponseStatus status, boolean keepAlive,
+                                                  CompletableFuture<HttpResult> future, long resultLength) {
+        return new ChannelFutureListener[]{cf -> {
+            if (cf.isSuccess()) {
+                future.complete(new DefaultHttpResult(ctx, resultLength, status));
+            } else if (cf.cause() != null) {
+                future.completeExceptionally(cf.cause());
+            }
+        }, keepAlive ? HttpServerHandler.READ_NEXT : CLOSE};
+    }
+
+    private CompletableFuture<HttpResult> sendMultipartResponse(HttpRequestContext ctx, DefaultHttpResponse response,
+                                                                List<Range> ranges, CharSequence contentType,
+                                                                boolean isHead, long fileSize, boolean keepAlive,
+                                                                Path path) throws IOException {
+        var boundary = generateBoundary();
+        var size = ranges.size();
+        var normalizedRanges = new ArrayList<Range>(size);
+        var partHeaders = new byte[size][];
+        // Calculate the total length of all the parts (boundaries, part headers and
+        // file chunks) accurately so that the content-length header can be set.
+        long contentLength = 0;
+        for (int i = 0; i < size; i++) {
+            var range = ranges.get(i).normalize(fileSize);
+            normalizedRanges.add(range);
+            var sb = new StringBuilder();
+            if (i > 0) {
+                // The leading CRLF belongs to the delimiter that closes the previous
+                // part, as required by the multipart syntax (RFC 7233 / RFC 2046).
+                sb.append("\r\n");
+            }
+            sb.append("--").append(boundary).append("\r\n")
+                    .append("Content-Type: ").append(contentType).append("\r\n")
+                    .append("Content-Range: bytes ").append(range.start()).append('-').append(range.end())
+                    .append('/').append(fileSize).append("\r\n\r\n");
+            var headerBytes = sb.toString().getBytes(StandardCharsets.US_ASCII);
+            partHeaders[i] = headerBytes;
+            contentLength += headerBytes.length + range.length();
+        }
+        logger.debug("Normalized ranges: {}", normalizedRanges);
+        // The close-delimiter, prefixed with the CRLF that terminates the last part.
+        var closingBytes = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.US_ASCII);
+        contentLength += closingBytes.length;
+        response.headers().set(CONTENT_TYPE, "multipart/byteranges; boundary=" + boundary);
+        HttpUtil.setContentLength(response, contentLength);
+        var future = new CompletableFuture<HttpResult>();
+        var resultLength = isHead ? 0 : contentLength;
+        var cbs = initListeners(ctx, PARTIAL_CONTENT, keepAlive, future, resultLength);
+        Channel channel = ctx.channel();
+        var useZeroCopy = checkZeroCopyAvailable(response, channel);
+        if (isHead) {
+            channel.write(response);
+            channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListeners(cbs);
+            return future;
+        }
+        // All the parts come from the same file, so a single shared FileChannel is used
+        // for all of them. It is opened before any response byte is written, so that an
+        // I/O failure keeps the response consistent.
+        FileChannel file = FileChannel.open(path, READ);
+        channel.write(response);
+        if (useZeroCopy) {
+            // Zero-copy transfer: alternately write the boundary/headers ByteBuf and a
+            // SharedFileRegion of each part over the shared FileChannel. A SharedFileRegion
+            // never closes the shared channel when Netty releases it right after
+            // transferring it, so the channel stays open until all the parts are sent.
+            // The shared channel is then closed exactly once in the callback attached to
+            // the end marker.
+            var failed = true;
+            try {
+                for (int i = 0; i < size; i++) {
+                    var range = normalizedRanges.get(i);
+                    channel.write(ctx.alloc().buffer(partHeaders[i].length).writeBytes(partHeaders[i]));
+                    // Flush each file part individually, unlike the single-region branches.
+                    channel.writeAndFlush(new SharedFileRegion(file, range.start(), range.length()));
+                }
+                channel.write(ctx.alloc().buffer(closingBytes.length).writeBytes(closingBytes));
+                // Write the end marker, then close the shared channel exactly once.
+                var lastWrite = channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+                // The close listener takes over ownership of the shared channel, so from
+                // here on the finally block must not close it again.
+                lastWrite.addListener((ChannelFuture cf) -> closeQuietly(file));
+                failed = false;
+                lastWrite.addListeners(cbs);
+            } finally {
+                if (failed) {
+                    // Close the shared channel if the writes failed before the end-marker
+                    // listener took over ownership.
+                    closeQuietly(file);
+                }
+            }
+        } else {
+            // Chunked transfer (e.g. TLS or HTTP/2): the whole multipart body is streamed by
+            // a single HttpMultipartRangesChunkedInput over the shared FileChannel. It emits
+            // each part's boundary/headers and file bytes as HttpContent and appends the end
+            // marker (LastHttpContent) itself, so it is written directly as one ChunkedInput
+            // (no HttpChunkedInput wrapper) to preserve the strict write order. The shared
+            // FileChannel is closed exactly once by its close(), which the ChunkedWriteHandler
+            // invokes once the body has been fully consumed or the transfer fails.
+            channel.writeAndFlush(new HttpMultipartRangesChunkedInput(
+                            file, normalizedRanges, partHeaders, closingBytes, contentLength, chunkSize))
+                    .addListeners(cbs);
+        }
+        return future;
+    }
+
+    private static String generateBoundary() {
+        return "--" + Long.toHexString(ThreadLocalRandom.current().nextLong()) + Long.toHexString(System.currentTimeMillis()) + "--";
+    }
+
+    private static void closeQuietly(FileChannel file) {
+        try {
+            file.close();
+        } catch (IOException e) {
+            logger.warn("Failed to close the shared FileChannel: {}", file, e);
+        }
+    }
+
+    /**
+     * A {@link FileRegion} that never closes the underlying {@link FileChannel}.
+     *
+     * @author MJ Fang
+     * @since 4.3
+     */
+    private static final class SharedFileRegion extends DefaultFileRegion {
+
+        private SharedFileRegion(FileChannel fileChannel, long position, long count) {
+            super(fileChannel, position, count);
+        }
+
+        @Override
+        protected void deallocate() {
+            // Never close the underlying channel.
+        }
     }
 
     private FullHttpResponse checkRange(List<Range> ranges, HttpRequestContext ctx, Instant now, String etag,
@@ -403,11 +543,11 @@ public class ServeStatic implements Middleware {
             this.location = validateLocation(location);
         }
 
-        private static final String validateLocation(String location) {
+        private static String validateLocation(String location) {
             return Objects.requireNonNull(location, "location must not be null");
         }
 
-        private static final String validateUri(String uri) {
+        private static String validateUri(String uri) {
             Objects.requireNonNull(uri, "uri must not be null");
             if (!uri.endsWith("/")) {
                 uri = uri + "/";
@@ -759,8 +899,6 @@ public class ServeStatic implements Middleware {
                     }
                     start = Long.parseLong(startStr);
                     end = Long.parseLong(endStr);
-                    System.err.println(endStr);
-                    System.err.println(end);
                 }
             } catch (NumberFormatException e) {
                 // numeric overflow is treated as a malformed range
@@ -800,10 +938,7 @@ public class ServeStatic implements Middleware {
             if (end < 0) {
                 return start >= 0 ? start >= fileSize : Math.abs(start) > fileSize;
             }
-            System.err.println(this);
-            var r = end >= fileSize || start >= fileSize;
-            System.err.println(r);
-            return r;
+            return end >= fileSize || start >= fileSize;
         }
 
         private Range normalize(long fileSize) {
@@ -821,6 +956,152 @@ public class ServeStatic implements Middleware {
         public long length() {
             return end - start + 1;
         }
+    }
+
+    /**
+     * A {@link ChunkedNioFile} that never closes the underlying {@link FileChannel}.
+     *
+     * @author MJ Fang
+     * @since 4.3
+     */
+    private static final class SharedChunkedNioFile extends ChunkedNioFile {
+
+        private SharedChunkedNioFile(FileChannel in, long offset, long length, int chunkSize) throws IOException {
+            super(in, offset, length, chunkSize);
+        }
+
+        @Override
+        public void close() {
+            // Never close the underlying FileChannel
+        }
+    }
+
+    /**
+     * A {@link ChunkedInput} that streams a {@code multipart/byteranges} body from a
+     * single shared {@link FileChannel}.
+     * <p>
+     * The {@link ChunkedNioFile} of each part is created lazily right before that part
+     * is read, so the shared channel is always positioned at the correct offset of the
+     * part being transferred, and the shared channel is closed exactly once when the
+     * whole body has been consumed.
+     */
+    private static final class HttpMultipartRangesChunkedInput implements ChunkedInput<HttpContent> {
+
+        // Internal state machine
+        private enum State {
+            WRITE_BOUNDARY_HEADER,
+            WRITE_FILE_RANGE,
+            WRITE_END_BOUNDARY,
+            WRITE_LAST_CONTENT,
+            DONE,
+        }
+
+        private final FileChannel file;
+        private final List<Range> ranges;
+        private final byte[][] partHeaders;
+        private final byte[] closing;
+        private final long length;
+        private final int chunkSize;
+
+        private State state = State.WRITE_BOUNDARY_HEADER;
+        private int currentRangeIndex;
+        private SharedChunkedNioFile currentFileChunk;
+        private long progress;
+
+        private HttpMultipartRangesChunkedInput(FileChannel file, List<Range> ranges, byte[][] partHeaders,
+                                                byte[] closing, long length, int chunkSize) {
+            this.file = file;
+            this.ranges = ranges;
+            this.partHeaders = partHeaders;
+            this.closing = closing;
+            this.length = length;
+            this.chunkSize = chunkSize;
+        }
+
+        @Override
+        public boolean isEndOfInput() {
+            return state == State.DONE;
+        }
+
+        @Override
+        public void close() throws Exception {
+            try {
+                if (currentFileChunk != null) {
+                    currentFileChunk.close();
+                }
+            } finally {
+                var file = this.file;
+                if (file != null && file.isOpen()) {
+                    file.close();
+                }
+            }
+        }
+
+        @Deprecated
+        @Override
+        public HttpContent readChunk(ChannelHandlerContext ctx) throws Exception {
+            return readChunk(ctx.alloc());
+        }
+
+        @Override
+        public HttpContent readChunk(ByteBufAllocator allocator) throws Exception {
+            return switch (state) {
+                case WRITE_BOUNDARY_HEADER -> {
+                    if (currentRangeIndex >= ranges.size()) {
+                        state = State.WRITE_END_BOUNDARY;
+                        yield readChunk(allocator);
+                    }
+                    var currentRange = ranges.get(currentRangeIndex);
+                    currentFileChunk = new SharedChunkedNioFile(file, currentRange.start(), currentRange.length(), chunkSize);
+                    var partHeader = partHeaders[currentRangeIndex];
+                    var partHeaderBuffer = allocator.buffer(partHeader.length).writeBytes(partHeader);
+                    state = State.WRITE_FILE_RANGE;
+                    progress += partHeaderBuffer.readableBytes();
+                    yield new DefaultHttpContent(partHeaderBuffer);
+                }
+
+                case WRITE_FILE_RANGE -> {
+                    if (currentFileChunk.isEndOfInput()) {
+                        currentFileChunk.close();
+                        currentFileChunk = null;
+                        currentRangeIndex++;
+                        state = State.WRITE_BOUNDARY_HEADER;
+                        yield readChunk(allocator);
+                    }
+                    var fileChunk = currentFileChunk.readChunk(allocator);
+                    if (fileChunk == null) {
+                        yield null;
+                    }
+                    progress += fileChunk.readableBytes();
+                    yield new DefaultHttpContent(fileChunk);
+                }
+
+                case WRITE_END_BOUNDARY -> {
+                    var endBuf = allocator.buffer(closing.length).writeBytes(closing);
+                    state = State.WRITE_LAST_CONTENT;
+                    progress += endBuf.readableBytes();
+                    yield new DefaultHttpContent(endBuf);
+                }
+
+                case WRITE_LAST_CONTENT -> {
+                    state = State.DONE;
+                    yield LastHttpContent.EMPTY_LAST_CONTENT;
+                }
+
+                case DONE -> null;
+            };
+        }
+
+        @Override
+        public long length() {
+            return length;
+        }
+
+        @Override
+        public long progress() {
+            return progress;
+        }
+
     }
 
 }

@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
+import static io.netty.handler.codec.http.HttpHeaderNames.RANGE;
 
 /**
  * Test class for default client.
@@ -38,7 +39,9 @@ public class TestDefaultClient {
         try (HttpClient client = DefaultHttpClient.builder()
                 .sslContextProvider(SslContextProviders.insecureForClient())
                 .enableCompression().maxCachedSizeEachDomain(32).build()) {
-            testLineStreamM(client, 18,1000);
+            testGetByteRanges(client);
+            // test line stream multiple
+            testLineStreamM(client, 18, 1000);
             // Synchronous API
             testSynchronousApi(client);
             // Asynchronous API
@@ -50,13 +53,13 @@ public class TestDefaultClient {
             // Upload API
             testUpload(client);
             // test line stream
-            testLineStream(client, 18,null);
+            testLineStream(client, 18, null);
             // test line flux
-            testLineFlux(client, 15,null);
+            testLineFlux(client, 15, null);
             // test line stream
-            testLineStreamTrailing(client, 12,1);
+            testLineStreamTrailing(client, 12, 1);
             // test line flux
-            testLineFluxTrailing(client, 8,2);
+            testLineFluxTrailing(client, 8, 2);
             try {
                 // test line stream
                 testLineStream(client, 64, 8);
@@ -70,9 +73,9 @@ public class TestDefaultClient {
                 logger.info("Should ignore this error in testLineFlux", e);
             }
             // test line flux
-            testLineFlux(client, 12,null);
+            testLineFlux(client, 12, null);
             // test line stream
-            testLineStream(client, 12,null);
+            testLineStream(client, 12, null);
             // Synchronous API
             testSynchronousApi(client);
             // Asynchronous API
@@ -190,7 +193,7 @@ public class TestDefaultClient {
                 .doOnError(e -> logger.error("Error occurs when processing lines in flux", e))
                 .doOnComplete(() -> logger.info("Completed line flux")).blockLast();
     }
-    
+
     static void testTrailingHeaders(HttpClient client) throws IOException, InterruptedException, TimeoutException {
         var resp = client.request(URI.create("https://localhost:8443/api/test/trailing")).get().send(HttpContentHandlers.ofString());
         if (resp.statusCode() == 200) {
@@ -224,7 +227,7 @@ public class TestDefaultClient {
     }
 
     static void testLineStreamTrailing(HttpClient client, int len, int trailingMode) throws IOException, InterruptedException, TimeoutException {
-        URI uri= URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len + "&trailing=" + trailingMode);
+        URI uri = URI.create("https://localhost:8443/api/test/sse-event-stream?len=" + len + "&trailing=" + trailingMode);
         var resp = client.request(uri).setHeader(ACCEPT, TEXT_EVENT_STREAM).get().send(HttpContentHandlers.ofLines());
         try (var lineStream = resp.content()) {
             lineStream.forEach(System.out::print);
@@ -243,6 +246,23 @@ public class TestDefaultClient {
                 .doOnError(e -> logger.error("Error occurs when processing lines in flux", e))
                 .doOnComplete(() -> logger.info("Completed line flux with trailing headers: {}", resp.trailingHeaders()))
                 .blockLast();
+    }
+
+    static void testGetByteRanges(HttpClient client) throws IOException, InterruptedException, TimeoutException {
+        URI uri = URI.create("https://localhost:8443/static/test-ranges.txt");
+//        URI uri = URI.create("http://localhost:8080/static/test-ranges.txt");
+        var response = client.request(uri)
+                .header(RANGE, "bytes=999-1000,1999-2000,2999-3000,3999-4000,4999-5000,5999-6000,6999-7000,7999-8000,8999-9000,9999-")
+                .get().send(HttpContentHandlers.ofString());
+        logger.info("Response of byte ranges: {}", response);
+        var response2 = client.request(uri)
+                .header(RANGE, "bytes=0-1,999-1000,998-1001,997-1002,9999-")
+                .get().send(HttpContentHandlers.ofString());
+        logger.info("Response of byte ranges 2: {}", response2);
+        var response3 = client.request(uri)
+                .header(RANGE, "bytes=0-1000,999-2000,1998-3001,2997-4002")
+                .get().send(HttpContentHandlers.ofString());
+        logger.info("Response of byte ranges 3: {}", response3);
     }
 
     private TestDefaultClient() {

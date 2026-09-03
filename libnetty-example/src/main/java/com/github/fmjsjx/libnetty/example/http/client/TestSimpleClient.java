@@ -26,6 +26,7 @@ public class TestSimpleClient {
                 .enableCompression().build()) {
             // class com.github.fmjsjx.libnetty.http.client.SimpleHttpClient
             logger.info("client class: {}", client.getClass());
+            testGetByteRanges(client);
             // SimpleHttpClient always creates and closes channel for each request.
             testLineStreamM(client, 12,999);
             // Synchronous API

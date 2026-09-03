@@ -27,17 +27,41 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.io.path.deleteIfExists
+import kotlin.io.path.outputStream
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @HttpPath("/api/kotlin")
-class KotlinController {
+class KotlinController : AutoCloseable {
 
     companion object {
+
         private val logger = LoggerFactory.getLogger(KotlinController::class.java)!!
+
+        private val TEST_RANGES_PATH = Path.of("libnetty-example/src/main/resources/static", "test-ranges.txt")
+
+    }
+
+    init {
+        TEST_RANGES_PATH.outputStream(
+            StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE,
+        ).bufferedWriter().use { writer ->
+            (0..9).forEach { n ->
+                repeat(1000) {
+                    writer.write("$n")
+                }
+            }
+        }
+    }
+
+    override fun close() {
+        TEST_RANGES_PATH.deleteIfExists()
     }
 
     @HttpGet("/jsons")

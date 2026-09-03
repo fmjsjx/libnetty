@@ -41,47 +41,49 @@ public class TestHttp2Server {
      */
     public static void main(String[] args) throws Exception {
         var controller = new TestController();
-        var kotlinController = new KotlinController();
-        var corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
-                .allowedRequestHeaders("*").allowNullOrigin().build();
-        var sslCtxProvider = SslContextProviders.selfSignedForH2Server();
-        var server = new DefaultHttpServer("test", 8443) // server name and port
-                .enableSsl(ChannelSslInitializer.of(sslCtxProvider)) // SSL
-                .corsConfig(corsConfig) // CORS support
-                .ioThreads(1) // IO threads (event loop)
-                .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
-                .enableHttp2()
-                .enableLazyLoading()
-                // support JSON using MixedJsonLibrary
-                .component(MixedJsonLibrary.Builder.recommended().emptyWay(JsonLibrary.EmptyWay.EMPTY)
-                        .beforeWrite((ctx, content) -> content.replace("test", "hello"))
-                        .build())
-                .component(new TestExceptionHandler()) // Support test exception
-                // Support web socket
-                .component(WebSocketSupport.build(
-                        WebSocketServerProtocolConfig.newBuilder().websocketPath("/ws").subprotocols("sp1,sp2").checkStartsWith(true).allowExtensions(true).build(),
-                        EchoWebSocketFrameHandler::new))
-                .soBackLog(1024).tcpNoDelay() // channel options
-                // compression support
-                .applyCompressionOptions(HttpContentCompressorProvider.defaultOptions());
-        server.defaultHandlerProvider()
-                .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
-                .addLast("/static/auth", new AuthBasic(passwords(), "test")) // HTTP Basic Authentication
-                .addLast(new ServeStatic("/static/", "libnetty-example/src/main/resources/static/")) // static resources
-                .addLast(new Router().register(controller).register(kotlinController).init()) // router
-        ;
-        //noinspection DuplicatedCode
-        try {
-            server.startup();
-            log.info("Server {} started.", server);
-            //noinspection ResultOfMethodCallIgnored
-            System.in.read();
-        } catch (Exception e) {
-            log.error("Unexpected error occurs when startup {}", server, e);
-        } finally {
-            if (server.isRunning()) {
-                server.shutdown();
-                log.info("Server {} stopped.", server);
+        try (var kotlinController = new KotlinController()) {
+            var corsConfig = CorsConfigBuilder.forAnyOrigin().allowedRequestMethods(GET, POST, PUT, PATCH, DELETE)
+                    .allowedRequestHeaders("*").allowNullOrigin().build();
+            var sslCtxProvider = SslContextProviders.selfSignedForH2Server();
+            var server = new DefaultHttpServer("test", 8443) // server name and port
+                    .enableSsl(ChannelSslInitializer.of(sslCtxProvider)) // SSL
+//            var server = new DefaultHttpServer("test", 8080) // server name and port
+                    .corsConfig(corsConfig) // CORS support
+                    .ioThreads(1) // IO threads (event loop)
+                    .maxContentLength(10 * 1024 * 1024) // MAX content length -> 10 MB
+                    .enableHttp2()
+                    .enableLazyLoading()
+                    // support JSON using MixedJsonLibrary
+                    .component(MixedJsonLibrary.Builder.recommended().emptyWay(JsonLibrary.EmptyWay.EMPTY)
+                            .beforeWrite((ctx, content) -> content.replace("test", "hello"))
+                            .build())
+                    .component(new TestExceptionHandler()) // Support test exception
+                    // Support web socket
+                    .component(WebSocketSupport.build(
+                            WebSocketServerProtocolConfig.newBuilder().websocketPath("/ws").subprotocols("sp1,sp2").checkStartsWith(true).allowExtensions(true).build(),
+                            EchoWebSocketFrameHandler::new))
+                    .soBackLog(1024).tcpNoDelay() // channel options
+                    // compression support
+                    .applyCompressionOptions(HttpContentCompressorProvider.defaultOptions());
+            server.defaultHandlerProvider()
+                    .addLast(new AccessLogger(new Slf4jLoggerWrapper("accessLogger"), LogFormat.BASIC2)) // access logger
+                    .addLast("/static/auth", new AuthBasic(passwords(), "test")) // HTTP Basic Authentication
+                    .addLast(new ServeStatic("/static/", "libnetty-example/src/main/resources/static/", new ServeStatic.Options().enableRange())) // static resources
+                    .addLast(new Router().register(controller).register(kotlinController).init()) // router
+            ;
+            //noinspection DuplicatedCode
+            try {
+                server.startup();
+                log.info("Server {} started.", server);
+                //noinspection ResultOfMethodCallIgnored
+                System.in.read();
+            } catch (Exception e) {
+                log.error("Unexpected error occurs when startup {}", server, e);
+            } finally {
+                if (server.isRunning()) {
+                    server.shutdown();
+                    log.info("Server {} stopped.", server);
+                }
             }
         }
     }
