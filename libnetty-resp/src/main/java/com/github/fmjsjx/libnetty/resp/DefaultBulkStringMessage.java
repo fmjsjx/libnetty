@@ -81,10 +81,9 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
      */
     public static final DefaultBulkStringMessage create(ByteBufAllocator alloc, int value) {
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
-        System.err.println("-- number length " + bytes.length + " --");
         ByteBuf content = alloc.buffer(bytes.length).writeBytes(bytes);
         AsciiString ascii = new AsciiString(bytes, false);
-        return new DefaultBulkStringMessage(content, Integer.valueOf(value), null, null, ascii);
+        return new DefaultBulkStringMessage(content, value, null, null, ascii);
     }
 
     /**
@@ -98,7 +97,7 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
         byte[] bytes = RespCodecUtil.longToAsciiBytes(value);
         ByteBuf content = alloc.buffer(bytes.length).writeBytes(bytes);
         AsciiString ascii = new AsciiString(bytes, false);
-        return new DefaultBulkStringMessage(content, Long.valueOf(value), null, null, ascii);
+        return new DefaultBulkStringMessage(content, value, null, null, ascii);
     }
 
     /**
@@ -113,7 +112,7 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
         byte[] bytes = RespCodecUtil.doubleToAsciiBytes(value);
         ByteBuf content = alloc.buffer(bytes.length).writeBytes(bytes);
         AsciiString ascii = new AsciiString(bytes, false);
-        return new DefaultBulkStringMessage(content, Double.valueOf(value), null, null, ascii);
+        return new DefaultBulkStringMessage(content, value, null, null, ascii);
     }
 
     private Number cachedNumber;
@@ -171,7 +170,7 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
 
     @Override
     public long longValue() {
-        if (cachedNumber == null || !(cachedNumber instanceof Long) || !(cachedNumber instanceof Integer)) {
+        if (cachedNumber == null || !(cachedNumber instanceof Long || cachedNumber instanceof Integer)) {
             cachedNumber = toLong();
         }
         return cachedNumber.longValue();
@@ -200,7 +199,7 @@ public class DefaultBulkStringMessage extends AbstractContentRespMessage<Default
     @Override
     public BigDecimal bigDecimalValue() {
         if (cachedNumber == null) {
-            cachedNumber = toBigInteger();
+            cachedNumber = toBigDecimal();
         } else if (cachedNumber instanceof Integer || cachedNumber instanceof Long) {
             return BigDecimal.valueOf(cachedNumber.longValue());
         } else if (cachedNumber instanceof Double) {
