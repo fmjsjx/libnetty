@@ -32,13 +32,13 @@ dependencies {
     // log4j2
     implementation(platform("org.apache.logging.log4j:log4j-bom:2.26.1"))
     // kotlin coroutines
-    implementation(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.11.0"))
+    api(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.11.0"))
     // brotli4j
-    implementation(platform("com.aayushatharva.brotli4j:all:1.23.0"))
+    api(platform("com.aayushatharva.brotli4j:all:1.23.0"))
     // kotlin
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.4.10"))
+    api(platform("org.jetbrains.kotlin:kotlin-bom:2.4.10"))
     // bouncy castle
-    implementation(platform("org.bouncycastle:bc-jdk18on-bom:1.85"))
+    api(platform("org.bouncycastle:bc-jdk18on-bom:1.85"))
 
     constraints {
         api("org.slf4j:slf4j-api:2.0.18")
@@ -46,12 +46,12 @@ dependencies {
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
         implementation("ch.qos.logback:logback-classic:1.6.1")
-        implementation("com.jcraft:jzlib:1.1.3")
-        implementation("org.brotli:dec:0.1.2")
+        api("com.jcraft:jzlib:1.1.3")
+        api("org.brotli:dec:0.1.2")
         val fastjson2Version = "2.0.62"
         api("com.alibaba.fastjson2:fastjson2:$fastjson2Version")
         api("com.alibaba.fastjson2:fastjson2-kotlin:$fastjson2Version")
-        implementation("com.github.luben:zstd-jni:1.5.7-13")
+        api("com.github.luben:zstd-jni:1.5.7-13")
 	}
 
 }
