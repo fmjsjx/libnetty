@@ -170,6 +170,13 @@ public class TestController {
         return CompletableFuture.completedStage(result);
     }
 
+    /**
+     * POST /api/test/forms
+     *
+     * @param name name
+     * @param age  age
+     * @return result
+     */
     @HttpPost("/test/forms")
     @JsonBody
     public CompletionStage<?> postTestForm(@FormVar("name") String name, @FormVar("age") int age) {
