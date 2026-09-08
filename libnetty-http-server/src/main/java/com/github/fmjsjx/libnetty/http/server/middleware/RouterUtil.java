@@ -18,6 +18,10 @@ import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.multipart.Attribute;
+import io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder;
+import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
+import io.netty.handler.codec.http.multipart.MemoryAttribute;
 import io.netty.util.AsciiString;
 import io.netty.util.internal.StringUtil;
 import kotlin.coroutines.Continuation;
@@ -28,6 +32,7 @@ import kotlinx.coroutines.future.FutureKt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.math.BigDecimal;
@@ -114,12 +119,12 @@ public class RouterUtil {
         return num;
     }
 
-    private static final String httpPathJoin(String pathPrefix, String[] value) {
+    private static String httpPathJoin(String pathPrefix, String[] value) {
         return (pathPrefix + "/" + String.join("/", value)).replaceAll("//+", "/");
     }
 
-    private static final void registerMethod(Router router, Object controller, Method method, String path,
-            HttpMethod[] httpMethods) {
+    private static void registerMethod(Router router, Object controller, Method method, String path,
+                                       HttpMethod[] httpMethods) {
         logger.debug("Register method: {}, {}, {}, {}, {}", router, controller, method, path, httpMethods);
         method.setAccessible(true);
         if (KotlinUtil.isKotlinPresent()) {
@@ -178,7 +183,7 @@ public class RouterUtil {
 
     }
 
-    private static final BiFunction<Void, Throwable, CompletionStage<HttpResult>> voidResponseHandler(
+    private static BiFunction<Void, Throwable, CompletionStage<HttpResult>> voidResponseHandler(
             HttpRequestContext ctx) {
         return (nil, cause) -> {
             if (cause != null) {
@@ -198,7 +203,7 @@ public class RouterUtil {
         };
     }
 
-    private static final BiFunction<Object, Throwable, CompletionStage<HttpResult>> jsonResponseHandler(
+    private static BiFunction<Object, Throwable, CompletionStage<HttpResult>> jsonResponseHandler(
             HttpRequestContext ctx) {
         return (result, cause) -> {
             if (cause != null) {
@@ -220,7 +225,7 @@ public class RouterUtil {
         };
     }
 
-    private static final BiFunction<Object, Throwable, CompletionStage<HttpResult>> stringResponseHandler(
+    private static BiFunction<Object, Throwable, CompletionStage<HttpResult>> stringResponseHandler(
             HttpRequestContext ctx) {
         return (result, cause) -> {
             if (cause != null) {
@@ -241,7 +246,7 @@ public class RouterUtil {
         };
     }
 
-    private static final BiFunction<SseEventStream, Throwable, CompletionStage<HttpResult>> eventStreamResponseHandler(
+    private static BiFunction<SseEventStream, Throwable, CompletionStage<HttpResult>> eventStreamResponseHandler(
             HttpRequestContext ctx) {
         return (result, cause) -> {
             if (cause != null) {
@@ -261,7 +266,7 @@ public class RouterUtil {
         };
     }
 
-    private static final BiFunction<HttpResult, Throwable, CompletionStage<HttpResult>> httpResultHandler(
+    private static BiFunction<HttpResult, Throwable, CompletionStage<HttpResult>> httpResultHandler(
             HttpRequestContext ctx) {
         return (result, cause) -> {
             if (cause != null) {
@@ -298,11 +303,11 @@ public class RouterUtil {
         private static final Supplier<IllegalArgumentException> MISSING_WORKER_POOL = () -> MISSING_WORKER_POOL_EXCEPTION;
     }
 
-    private static final CompletionException fromTarget(InvocationTargetException e) {
+    private static CompletionException fromTarget(InvocationTargetException e) {
         return valueOf(e.getTargetException());
     }
 
-    private static final CompletionException valueOf(Throwable e) {
+    private static CompletionException valueOf(Throwable e) {
         if (e instanceof CompletionException) {
             return (CompletionException) e;
         } else {
@@ -310,15 +315,15 @@ public class RouterUtil {
         }
     }
 
-    private static final Type[] getActualTypeArguments(Type type) {
+    private static Type[] getActualTypeArguments(Type type) {
         return ((ParameterizedType) type).getActualTypeArguments();
     }
 
-    private static final boolean isVoidType(Type type) {
+    private static boolean isVoidType(Type type) {
         return type == void.class || type == Void.class;
     }
 
-    private static final CompletionStage<HttpResult> handleError(HttpRequestContext ctx, Throwable cause) {
+    private static CompletionStage<HttpResult> handleError(HttpRequestContext ctx, Throwable cause) {
         var handler = ctx.component(ExceptionHandler.class);
         if (handler.isPresent()) {
             var result = handler.get().handle(ctx, cause);
@@ -509,7 +514,7 @@ public class RouterUtil {
     }
 
     @SuppressWarnings("unchecked")
-    private static final Function<HttpRequestContext, Object[]> toParametersMapper(Parameter[] params) {
+    private static Function<HttpRequestContext, Object[]> toParametersMapper(Parameter[] params) {
         Function<HttpRequestContext, Object>[] parameterMappers = Arrays.stream(params)
                 .map(RouterUtil::toParameterMapper).toArray(Function[]::new);
         return toParametersMapper(parameterMappers);
@@ -605,14 +610,14 @@ public class RouterUtil {
         };
     }
 
-    private static final void requireContext(Parameter[] params) {
+    private static void requireContext(Parameter[] params) {
         if (Arrays.stream(params).map(Parameter::getType).noneMatch(Predicate.isEqual(HttpRequestContext.class))) {
             throw new IllegalArgumentException("missing parameter as type HttpRequestContext");
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static final HttpServiceInvoker toSimpleInvoker(Object controller, Method method) {
+    private static HttpServiceInvoker toSimpleInvoker(Object controller, Method method) {
         if (Modifier.isStatic(method.getModifiers())) {
             return ctx -> {
                 try {
@@ -636,7 +641,7 @@ public class RouterUtil {
     }
 
     @SuppressWarnings("unchecked")
-    private static final HttpServiceInvoker toParamsInvoker(Object controller, Method method, Parameter[] params) {
+    private static HttpServiceInvoker toParamsInvoker(Object controller, Method method, Parameter[] params) {
         Function<HttpRequestContext, Object[]> parametersMapper = toParametersMapper(params);
         if (Modifier.isStatic(method.getModifiers())) {
             return ctx -> {
@@ -673,8 +678,9 @@ public class RouterUtil {
     private static final Function<HttpRequestContext, Object> queryMapper = HttpRequestContext::queryStringDecoder;
     private static final Function<HttpRequestContext, Object> eventLoopMapper = HttpRequestContext::eventLoop;
     private static final Function<HttpRequestContext, Object> remoteAddrMapper = HttpRequestContext::remoteAddress;
+    private static final Function<HttpRequestContext, Object> postRequestDecoderMapper = HttpRequestContext::postRequestDecoder;
 
-    private static final Function<HttpRequestContext, Object> toParameterMapper(Parameter param) {
+    private static Function<HttpRequestContext, Object> toParameterMapper(Parameter param) {
         if (param.getType() == LazyLoadingHttpRequestContext.class) {
             return lazyLoadingContextMapper;
         } else if (param.getType() == HttpRequestContext.class || param.getType() == HttpResponder.class) {
@@ -689,6 +695,16 @@ public class RouterUtil {
             return queryMapper;
         } else if (param.getType().isAssignableFrom(EventLoop.class)) {
             return eventLoopMapper;
+        } else if (param.getType() == InterfaceHttpPostRequestDecoder.class) {
+            return postRequestDecoderMapper;
+        } else if (param.getType() == HttpPostStandardRequestDecoder.class) {
+            return postRequestDecoderMapper;
+        } else if (param.getType() == Attribute.class || param.getType() == MemoryAttribute.class) {
+            var formVar = param.getAnnotation(FormVar.class);
+            if (formVar != null) {
+                return toFormVarMapper(param, formVar);
+            }
+            return toFormVarSimpleMapper(param.getType(), param.getName(), true);
         }
         PathVar pathVar = param.getAnnotation(PathVar.class);
         if (pathVar != null) {
@@ -721,6 +737,10 @@ public class RouterUtil {
                         "unsupported type " + param.getType() + " for @RemoteAddr, only support String");
             }
             return remoteAddrMapper;
+        }
+        var formVar = param.getAnnotation(FormVar.class);
+        if (formVar != null) {
+            return toFormVarMapper(param, formVar);
         }
         ComponentValue componentValue = param.getAnnotation(ComponentValue.class);
         if (componentValue != null) {
@@ -766,14 +786,14 @@ public class RouterUtil {
     private static final ConcurrentMap<String, IllegalArgumentException> illegalArgumentExceptions = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Supplier<IllegalArgumentException>> illegalArgumentSuppliers = new ConcurrentHashMap<>();
 
-    private static final Supplier<IllegalArgumentException> noSuchPathVariable(String name) {
+    private static Supplier<IllegalArgumentException> noSuchPathVariable(String name) {
         String message = "missing path variable " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
         return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
-    private static final Function<HttpRequestContext, Object> toQueryVarMapper(Parameter param, QueryVar queryVar) {
+    private static Function<HttpRequestContext, Object> toQueryVarMapper(Parameter param, QueryVar queryVar) {
         Type type = param.getParameterizedType();
         String name = StringUtil.isNullOrEmpty(queryVar.value()) ? param.getName() : queryVar.value();
         if (type instanceof Class<?>) {
@@ -823,7 +843,7 @@ public class RouterUtil {
         queryValueMappers = map;
     }
 
-    private static final Function<HttpRequestContext, Object> toArrayMapper(QueryVar queryVar, Type type, String name) {
+    private static Function<HttpRequestContext, Object> toArrayMapper(QueryVar queryVar, Type type, String name) {
         Function<List<String>, Object> mapper = queryValueMappers.get(type == Object[].class ? String[].class : type);
         if (mapper == null) {
             throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
@@ -878,7 +898,7 @@ public class RouterUtil {
         }
     }
 
-    private static final Supplier<IllegalArgumentException> noSuchQueryVariable(String name) {
+    private static Supplier<IllegalArgumentException> noSuchQueryVariable(String name) {
         String message = "missing query variable " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
@@ -903,8 +923,8 @@ public class RouterUtil {
         queryListValueMappers = map;
     }
 
-    private static final Function<HttpRequestContext, Object> toListMapper(QueryVar queryVar, ParameterizedType type,
-            String name) {
+    private static Function<HttpRequestContext, Object> toListMapper(QueryVar queryVar, ParameterizedType type,
+                                                                     String name) {
         Type atype = type.getActualTypeArguments()[0];
         Function<List<String>, Object> mapper = queryListValueMappers.get(atype == Object.class ? String.class : atype);
         if (mapper == null) {
@@ -936,8 +956,8 @@ public class RouterUtil {
         querySetValueMappers = map;
     }
 
-    private static final Function<HttpRequestContext, Object> toSetMapper(QueryVar queryVar, ParameterizedType type,
-            String name) {
+    private static Function<HttpRequestContext, Object> toSetMapper(QueryVar queryVar, ParameterizedType type,
+                                                                    String name) {
         Type atype = type.getActualTypeArguments()[0];
         Function<List<String>, Object> mapper = querySetValueMappers.get(atype == Object.class ? String.class : atype);
         if (mapper == null) {
@@ -951,8 +971,8 @@ public class RouterUtil {
         }
     }
 
-    private static final Function<HttpRequestContext, Object> toOptionalMapper(@SuppressWarnings("unused") QueryVar queryVar,
-            ParameterizedType type, String name) {
+    private static Function<HttpRequestContext, Object> toOptionalMapper(@SuppressWarnings("unused") QueryVar queryVar,
+                                                                         ParameterizedType type, String name) {
         Type atype = type.getActualTypeArguments()[0];
         Function<List<String>, Object> mapper = queryValueMappers.get(atype == Object.class ? String.class : atype);
         if (mapper == null) {
@@ -974,7 +994,7 @@ public class RouterUtil {
     private static final ByteBuf EMPTY_JSON_ARRAY = Unpooled.unreleasableBuffer(
             UnpooledByteBufAllocator.DEFAULT.buffer(2).writeBytes("[]".getBytes()).asReadOnly());
 
-    private static final Function<HttpRequestContext, Object> toJsonBodyMapper(Parameter param, @SuppressWarnings("unused") JsonBody jsonBody) {
+    private static Function<HttpRequestContext, Object> toJsonBodyMapper(Parameter param, @SuppressWarnings("unused") JsonBody jsonBody) {
         Type type = param.getParameterizedType();
         if (type == String.class) {
             return contentToStringMapper;
@@ -1021,8 +1041,8 @@ public class RouterUtil {
         return Collection.class.isAssignableFrom(param.getType());
     }
 
-    private static final Function<HttpRequestContext, Object> toStringBodyMapper(Parameter param,
-            @SuppressWarnings("unused") StringBody strongBody) {
+    private static Function<HttpRequestContext, Object> toStringBodyMapper(Parameter param,
+                                                                           @SuppressWarnings("unused") StringBody strongBody) {
         Type type = param.getParameterizedType();
         if (type == String.class || type == CharSequence.class) {
             return contentToStringMapper;
@@ -1033,15 +1053,15 @@ public class RouterUtil {
         }
     }
 
-    private static final Supplier<IllegalArgumentException> noSuchHeader(String name) {
+    private static Supplier<IllegalArgumentException> noSuchHeader(String name) {
         String message = "missing header " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
         return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
-    private static final Function<HttpRequestContext, Object> toHeaderValueMapper(Parameter param,
-            HeaderValue headerValue) {
+    private static Function<HttpRequestContext, Object> toHeaderValueMapper(Parameter param,
+                                                                            HeaderValue headerValue) {
         Type type = param.getParameterizedType();
         String name = headerValue.value();
         if (type instanceof Class<?>) {
@@ -1053,15 +1073,15 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
     }
 
-    private static final Supplier<IllegalArgumentException> noSuchCookie(String name) {
+    private static Supplier<IllegalArgumentException> noSuchCookie(String name) {
         String message = "missing cookie " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
         return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
-    private static final Function<HttpRequestContext, Object> toCookieValueMapper(Parameter param,
-            CookieValue cookieValue) {
+    private static Function<HttpRequestContext, Object> toCookieValueMapper(Parameter param,
+                                                                            CookieValue cookieValue) {
         Type type = param.getParameterizedType();
         String name = cookieValue.value();
         if (type instanceof Class<?>) {
@@ -1073,9 +1093,229 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @CookieValue");
     }
 
+    private static Function<HttpRequestContext, Object> toFormVarMapper(Parameter param, FormVar formVar) {
+        Type type = param.getParameterizedType();
+        String name = StringUtil.isNullOrEmpty(formVar.value()) ? param.getName() : formVar.value();
+        if (type instanceof Class<?>) {
+            if (((Class<?>) type).isArray()) {
+                return toArrayMapper(formVar, type, name);
+            } else {
+                return toSimpleMapper(formVar, type, name);
+            }
+        }
+        if (List.class == param.getType()) {
+            return toListMapper(formVar, (ParameterizedType) type, name);
+        }
+        if (Set.class == param.getType()) {
+            return toSetMapper(formVar, (ParameterizedType) type, name);
+        }
+        if (Optional.class == param.getType()) {
+            return toOptionalMapper(formVar, (ParameterizedType) type, name);
+        }
+        throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
+    }
+
+    private static final Map<Class<?>, Function<List<Attribute>, Object>> formVarArrayMappers;
+
+    private static final Function<Attribute, String> attributeValueMapper = attribute -> {
+        try {
+            return attribute.getValue();
+        } catch (IOException e) {
+            // NOOP
+            // Can't reach this line because the type of the Attribute is always MemoryAttribute.
+            return "";
+        }
+    };
+
+    static {
+        Map<Class<?>, Function<List<Attribute>, Object>> map = new HashMap<>();
+        // arrays
+        map.put(Attribute[].class, attributes -> attributes.toArray(Attribute[]::new));
+        map.put(Object[].class,attributes -> attributes.stream().map(attributeValueMapper).toArray(Object[]::new));
+        map.put(String[].class, attributes -> attributes.stream().map(attributeValueMapper).toArray(String[]::new));
+        map.put(int[].class, attributes -> attributes.stream().map(attributeValueMapper).mapToInt(Integer::parseInt).toArray());
+        map.put(long[].class, attributes -> attributes.stream().map(attributeValueMapper).mapToLong(Long::parseLong).toArray());
+        map.put(Integer[].class, attributes -> attributes.stream().map(attributeValueMapper).map(Integer::valueOf).toArray(Integer[]::new));
+        map.put(Long[].class, attributes -> attributes.stream().map(attributeValueMapper).map(Long::valueOf).toArray(Long[]::new));
+        formVarArrayMappers = map;
+    }
+
+    private static Function<HttpRequestContext, Object> toArrayMapper(FormVar formVar, Type type, String name) {
+        Function<List<Attribute>, Object> mapper = formVarArrayMappers.get(type == Object[].class ? String[].class : type);
+        if (mapper == null) {
+            throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
+        }
+        if (formVar.required()) {
+            Supplier<IllegalArgumentException> noSuchFormVariable = noSuchFormVariable(name);
+            return ctx -> ctx.formParameters(name).map(mapper).orElseThrow(noSuchFormVariable);
+        } else {
+            return ctx -> ctx.formParameters(name).map(mapper).orElse(null);
+        }
+    }
+
+    private static Supplier<IllegalArgumentException> noSuchFormVariable(String name) {
+        String message = "missing form variable " + name;
+        IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
+                IllegalArgumentException::new);
+        return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
+    }
+
+    private static final Map<Class<?>, Function<Attribute, Object>> formVarSimpleMappers;
+
+    static {
+        Map<Class<?>, Function<Attribute, Object>> map = new HashMap<>();
+        // simples
+        map.put(Attribute.class, attribute -> attribute);
+        map.put(MemoryAttribute.class, attribute -> attribute);
+        map.put(Object.class, attributeValueMapper::apply);
+        map.put(String.class, attributeValueMapper::apply);
+        map.put(Boolean.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? null : Boolean.valueOf(value)));
+        map.put(Byte.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? null : Byte.valueOf(value)));
+        map.put(Short.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? null : Short.valueOf(value)));
+        map.put(Integer.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? null : Integer.valueOf(value)));
+        map.put(Long.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? null : Long.valueOf(value)));
+        map.put(Float.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? null : Float.valueOf(value)));
+        map.put(Double.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? null : Double.valueOf(value)));
+        map.put(BigInteger.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? null : new BigInteger(value)));
+        map.put(BigDecimal.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? null : new BigDecimal(value)));
+        map.put(OptionalInt.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? OptionalInt.empty() : OptionalInt.of(Integer.parseInt(value))));
+        map.put(OptionalLong.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? OptionalLong.empty() : OptionalLong.of(Long.parseLong(value))));
+        map.put(OptionalDouble.class, attributeValueMapper.andThen(value -> StringUtil.isNullOrEmpty(value) ? OptionalDouble.empty() : OptionalDouble.of(Double.parseDouble(value))));
+        formVarSimpleMappers = map;
+    }
+
+    private static Function<HttpRequestContext, Object> toSimpleMapper(FormVar formVar, Type type, String name) {
+        return toFormVarSimpleMapper(type, name, formVar.required());
+    }
+
+    private static Function<HttpRequestContext, Object> toFormVarSimpleMapper(Type type, String name, boolean required) {
+        Function<Attribute, Object> mapper;
+        if (type == String.class || type == Object.class) {
+            mapper = formVarSimpleMappers.get(String.class);
+        } else if (type == int.class || type == Integer.class) {
+            mapper = formVarSimpleMappers.get(Integer.class);
+        } else if (type == long.class || type == Long.class) {
+            mapper = formVarSimpleMappers.get(Long.class);
+        } else if (type == double.class || type == Double.class) {
+            mapper = formVarSimpleMappers.get(Double.class);
+        } else if (type == boolean.class || type == Boolean.class) {
+            mapper = formVarSimpleMappers.get(Boolean.class);
+        } else if (type == byte.class || type == Byte.class) {
+            mapper = formVarSimpleMappers.get(Byte.class);
+        } else if (type == short.class || type == Short.class) {
+            mapper = formVarSimpleMappers.get(Short.class);
+        } else if (type == float.class || type == Float.class) {
+            mapper = formVarSimpleMappers.get(Float.class);
+        } else if (type == BigInteger.class) {
+            mapper = formVarSimpleMappers.get(BigInteger.class);
+        } else if (type == BigDecimal.class) {
+            mapper = formVarSimpleMappers.get(BigDecimal.class);
+        } else if (type == OptionalInt.class) {
+            mapper = formVarSimpleMappers.get(OptionalInt.class);
+            return ctx -> ctx.formParameter(name).map(mapper).orElse(OptionalInt.empty());
+        } else if (type == OptionalLong.class) {
+            mapper = formVarSimpleMappers.get(OptionalLong.class);
+            return ctx -> ctx.formParameter(name).map(mapper).orElse(OptionalLong.empty());
+        } else if (type == OptionalDouble.class) {
+            mapper = formVarSimpleMappers.get(OptionalDouble.class);
+            return ctx -> ctx.formParameter(name).map(mapper).orElse(OptionalDouble.empty());
+        } else {
+            throw new IllegalArgumentException("unsupported type " + type + " for @QueryVar");
+        }
+        if (required) {
+            Supplier<IllegalArgumentException> noSuchQueryVariable = noSuchQueryVariable(name);
+            return ctx -> ctx.formParameter(name).map(mapper).orElseThrow(noSuchQueryVariable);
+        } else {
+            return ctx -> ctx.formParameter(name).map(mapper).orElse(null);
+        }
+    }
+
+    private static final Map<Class<?>, Function<List<Attribute>, Object>> formVarListMappers;
+
+    static {
+        Map<Class<?>, Function<List<Attribute>, Object>> map = new HashMap<>();
+        map.put(Attribute.class, attributes -> attributes);
+        map.put(MemoryAttribute.class, attributes -> attributes);
+        map.put(String.class, attributes -> attributes.stream().map(attributeValueMapper).toList());
+        map.put(Byte.class, attributes -> attributes.stream().map(attributeValueMapper).map(Byte::valueOf).toList());
+        map.put(Short.class, attributes -> attributes.stream().map(attributeValueMapper).map(Short::valueOf).toList());
+        map.put(Integer.class, attributes -> attributes.stream().map(attributeValueMapper).map(Integer::valueOf).toList());
+        map.put(Long.class, attributes -> attributes.stream().map(attributeValueMapper).map(Long::valueOf).toList());
+        map.put(Float.class, attributes -> attributes.stream().map(attributeValueMapper).map(Float::valueOf).toList());
+        map.put(Double.class, attributes -> attributes.stream().map(attributeValueMapper).map(Double::valueOf).toList());
+        map.put(Boolean.class, attributes -> attributes.stream().map(attributeValueMapper).map(Boolean::valueOf).toList());
+        map.put(BigInteger.class, attributes -> attributes.stream().map(attributeValueMapper).map(BigInteger::new).toList());
+        map.put(BigDecimal.class, attributes -> attributes.stream().map(attributeValueMapper).map(BigDecimal::new).toList());
+        formVarListMappers = map;
+    }
+
+    private static Function<HttpRequestContext, Object> toListMapper(FormVar formVar, ParameterizedType type,
+                                                                     String name) {
+        Type atype = type.getActualTypeArguments()[0];
+        Function<List<Attribute>, Object> mapper = formVarListMappers.get(atype == Object.class ? String.class : atype);
+        if (mapper == null) {
+            throw new IllegalArgumentException("unsupported type " + type + " for @FormVar");
+        }
+        if (formVar.required()) {
+            Supplier<IllegalArgumentException> noSuchFormVariable = noSuchFormVariable(name);
+            return ctx -> ctx.formParameters(name).map(mapper).orElseThrow(noSuchFormVariable);
+        } else {
+            return ctx -> ctx.formParameters(name).map(mapper).orElse(null);
+        }
+    }
+
+    private static final Map<Class<?>, Function<List<Attribute>, Object>> formVarSetMappers;
+
+    static {
+        Map<Class<?>, Function<List<Attribute>, Object>> map = new HashMap<>();
+        Collector<Object, ?, ?> toSet = Collectors.toCollection(LinkedHashSet::new);
+        map.put(Attribute.class, LinkedHashSet::new);
+        map.put(MemoryAttribute.class, LinkedHashSet::new);
+        map.put(String.class, attributes -> attributes.stream().map(attributeValueMapper).collect(toSet));
+        map.put(Byte.class, attributes -> attributes.stream().map(attributeValueMapper).map(Byte::valueOf).collect(toSet));
+        map.put(Short.class, attributes -> attributes.stream().map(attributeValueMapper).map(Short::valueOf).collect(toSet));
+        map.put(Integer.class, attributes -> attributes.stream().map(attributeValueMapper).map(Integer::valueOf).collect(toSet));
+        map.put(Long.class, attributes -> attributes.stream().map(attributeValueMapper).map(Long::valueOf).collect(toSet));
+        map.put(Float.class, attributes -> attributes.stream().map(attributeValueMapper).map(Float::valueOf).collect(toSet));
+        map.put(Double.class, attributes -> attributes.stream().map(attributeValueMapper).map(Double::valueOf).collect(toSet));
+        map.put(Boolean.class, attributes -> attributes.stream().map(attributeValueMapper).map(Boolean::valueOf).collect(toSet));
+        map.put(BigInteger.class, attributes -> attributes.stream().map(attributeValueMapper).map(BigInteger::new).collect(toSet));
+        map.put(BigDecimal.class, attributes -> attributes.stream().map(attributeValueMapper).map(BigDecimal::new).collect(toSet));
+        formVarSetMappers = map;
+    }
+
+    private static Function<HttpRequestContext, Object> toSetMapper(FormVar formVar, ParameterizedType type,
+                                                                    String name) {
+        Type atype = type.getActualTypeArguments()[0];
+        Function<List<Attribute>, Object> mapper = formVarSetMappers.get(atype == Object.class ? String.class : atype);
+        if (mapper == null) {
+            throw new IllegalArgumentException("unsupported type " + type + " for @FormVar");
+        }
+        if (formVar.required()) {
+            Supplier<IllegalArgumentException> noSuchFormVariable = noSuchFormVariable(name);
+            return ctx -> ctx.formParameters(name).map(mapper).orElseThrow(noSuchFormVariable);
+        } else {
+            return ctx -> ctx.formParameters(name).map(mapper).orElse(null);
+        }
+    }
+
+    private static Function<HttpRequestContext, Object> toOptionalMapper(@SuppressWarnings("unused") FormVar formVar,
+                                                                         ParameterizedType type, String name) {
+        Type atype = type.getActualTypeArguments()[0];
+        if (atype instanceof Class<?> clazz && clazz.isArray()) {
+            Function<List<Attribute>, Object> mapper = formVarArrayMappers.get(atype == Object.class ? String.class : atype);
+            if (mapper == null) {
+                throw new IllegalArgumentException("unsupported type " + type + " for @FormVar");
+            }
+            return ctx -> ctx.formParameters(name).map(mapper);
+        }
+        Function<Attribute, Object> mapper = formVarSimpleMappers.get(atype == Object.class ? String.class : atype);
+        return ctx -> ctx.formParameter(name).map(mapper);
+    }
+
     @SuppressWarnings("unchecked")
-    private static final Function<HttpRequestContext, Object> toComponentValueMapper(Parameter param,
-            ComponentValue componentValue) {
+    private static Function<HttpRequestContext, Object> toComponentValueMapper(Parameter param,
+                                                                               ComponentValue componentValue) {
         Type type = param.getParameterizedType();
         if (componentValue.value() == HttpServerComponent.class) {
             if (type instanceof Class<?>) {
@@ -1113,8 +1353,8 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @PropertyValue");
     }
 
-    private static final Function<HttpRequestContext, Object> toPropertyValueMapper(Parameter param,
-            PropertyValue propertyValue) {
+    private static Function<HttpRequestContext, Object> toPropertyValueMapper(Parameter param,
+                                                                              PropertyValue propertyValue) {
         Type type = param.getParameterizedType();
         if (StringUtil.isNullOrEmpty(propertyValue.value())) {
             if (type instanceof Class<?>) {
@@ -1152,14 +1392,14 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @PropertyValue");
     }
 
-    private static final Supplier<IllegalArgumentException> noSuchComponentValue(String name) {
+    private static Supplier<IllegalArgumentException> noSuchComponentValue(String name) {
         String message = "missing component value " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
         return illegalArgumentSuppliers.computeIfAbsent(message, k -> () -> error);
     }
 
-    private static final Supplier<IllegalArgumentException> noSuchPropertyValue(String name) {
+    private static Supplier<IllegalArgumentException> noSuchPropertyValue(String name) {
         String message = "missing property value " + name;
         IllegalArgumentException error = illegalArgumentExceptions.computeIfAbsent(message,
                 IllegalArgumentException::new);
@@ -1296,7 +1536,7 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @HeaderValue");
     }
 
-    private static final Function<HttpRequestContext, Object> toOptionalMapper(
+    private static Function<HttpRequestContext, Object> toOptionalMapper(
             @SuppressWarnings("unused") HeaderValue headerValue, ParameterizedType type, String name) {
         Type atype = type.getActualTypeArguments()[0];
         if (atype == String.class || atype == Object.class) {
@@ -1352,7 +1592,7 @@ public class RouterUtil {
         throw new IllegalArgumentException("unsupported type " + type + " for @CookieValue");
     }
 
-    private static final Function<HttpRequestContext, Object> toOptionalMapper(
+    private static Function<HttpRequestContext, Object> toOptionalMapper(
             @SuppressWarnings("unused") CookieValue cookieValue, ParameterizedType type, String name) {
         Type atype = type.getActualTypeArguments()[0];
         if (atype == Cookie.class) {
@@ -1385,7 +1625,7 @@ public class RouterUtil {
         zeroValueMappers = map;
     }
 
-    private static final Function<HttpRequestContext, Object> toZeroValueMapper(Parameter param) {
+    private static Function<HttpRequestContext, Object> toZeroValueMapper(Parameter param) {
         Class<?> type = param.getType();
         if (type.isPrimitive()) {
             return zeroValueMappers.get(type);
@@ -1394,7 +1634,7 @@ public class RouterUtil {
         }
     }
 
-    private static final Function<HttpRequestContext, Object[]> toParametersMapper(
+    private static Function<HttpRequestContext, Object[]> toParametersMapper(
             Function<HttpRequestContext, Object>[] parameterMappers) {
         return ctx -> {
             try {
@@ -1409,14 +1649,14 @@ public class RouterUtil {
         };
     }
 
-    private static final void checkReturnType(Method method) {
+    private static void checkReturnType(Method method) {
         ParameterizedType returnType = (ParameterizedType) method.getGenericReturnType();
         if (!HttpResult.class.isAssignableFrom((Class<?>) returnType.getActualTypeArguments()[0])) {
             throw new IllegalArgumentException("the return type must be a CompletionStage<HttpResult>");
         }
     }
 
-    private static final String[] routeValue(Annotation ma) {
+    private static String[] routeValue(Annotation ma) {
         try {
             return (String[]) ma.annotationType().getMethod("value").invoke(ma);
         } catch (Exception e) {
@@ -1424,7 +1664,7 @@ public class RouterUtil {
         }
     }
 
-    private static final String getPathPrefix(Class<?> clazz) {
+    private static String getPathPrefix(Class<?> clazz) {
         HttpPath path = clazz.getAnnotation(HttpPath.class);
         if (path != null) {
             return "/" + String.join("/", path.value());
@@ -1432,7 +1672,7 @@ public class RouterUtil {
         return "/";
     }
 
-    private static final List<String> getPathPrefixes(Class<?> clazz) {
+    private static List<String> getPathPrefixes(Class<?> clazz) {
         var httpPaths = clazz.getAnnotation(HttpPaths.class);
         if (httpPaths != null) {
             var paths = Arrays.stream(httpPaths.value()).map(path -> "/" + String.join("/", path.value())).toList();
@@ -1477,8 +1717,8 @@ public class RouterUtil {
 
     private static final class KotlinSuspendingFunctionUtil {
 
-        private static final void register(Router router, Object controller, Method method,
-                                           String path, HttpMethod[] httpMethods) {
+        private static void register(Router router, Object controller, Method method,
+                                     String path, HttpMethod[] httpMethods) {
             var params = method.getParameters();
             var returnType = KotlinReflectionUtil.getReturnType(method);
             if (returnType == kotlin.Unit.class) {
@@ -1543,7 +1783,7 @@ public class RouterUtil {
 
         }
 
-        private static final HttpServiceInvoker toUnitResultInvoker(Object controller, Method method) {
+        private static HttpServiceInvoker toUnitResultInvoker(Object controller, Method method) {
             return ctx -> FutureKt.<Void>future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
                         try {
@@ -1557,7 +1797,7 @@ public class RouterUtil {
                     }).handle(voidResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
-        private static final HttpServiceInvoker toUnitResultInvoker(Object controller, Method method, Parameter[] params) {
+        private static HttpServiceInvoker toUnitResultInvoker(Object controller, Method method, Parameter[] params) {
             var parametersMapper = toParametersMapper(params);
             return ctx -> FutureKt.<Void>future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
@@ -1573,7 +1813,7 @@ public class RouterUtil {
         }
 
         @SuppressWarnings("unchecked")
-        private static final BiFunction<HttpRequestContext, Continuation<?>, Object[]> toParametersMapper(Parameter[] params) {
+        private static BiFunction<HttpRequestContext, Continuation<?>, Object[]> toParametersMapper(Parameter[] params) {
             var parameterMappers = Arrays.stream(params).limit(params.length - 1).map(RouterUtil::toParameterMapper)
                     .toArray(Function[]::new);
             return (ctx, continuation) -> {
@@ -1590,7 +1830,7 @@ public class RouterUtil {
             };
         }
 
-        private static final HttpServiceInvoker toJsonResultInvoker(Object controller, Method method) {
+        private static HttpServiceInvoker toJsonResultInvoker(Object controller, Method method) {
             return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
                         try {
@@ -1603,7 +1843,7 @@ public class RouterUtil {
                     }).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
-        private static final HttpServiceInvoker toJsonResultInvoker(Object controller, Method method, Parameter[] params) {
+        private static HttpServiceInvoker toJsonResultInvoker(Object controller, Method method, Parameter[] params) {
             var parametersMapper = toParametersMapper(params);
             return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
@@ -1617,7 +1857,7 @@ public class RouterUtil {
                     }).handle(jsonResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
-        private static final HttpServiceInvoker toStringResultInvoker(Object controller, Method method) {
+        private static HttpServiceInvoker toStringResultInvoker(Object controller, Method method) {
             return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
                         try {
@@ -1630,7 +1870,7 @@ public class RouterUtil {
                     }).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
-        private static final HttpServiceInvoker toStringResultInvoker(Object controller, Method method, Parameter[] params) {
+        private static HttpServiceInvoker toStringResultInvoker(Object controller, Method method, Parameter[] params) {
             var parametersMapper = toParametersMapper(params);
             return ctx -> FutureKt.future(GlobalScope.INSTANCE, ExecutorsKt.from(ctx.eventLoop()),
                     CoroutineStart.DEFAULT, (coroutineScope, continuation) -> {
@@ -1644,7 +1884,7 @@ public class RouterUtil {
                     }).handle(stringResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
-        private static final HttpServiceInvoker toEventStreamResultInvoker(Object controller, Method method) {
+        private static HttpServiceInvoker toEventStreamResultInvoker(Object controller, Method method) {
             return ctx -> FutureKt.<SseEventStream>future(
                     GlobalScope.INSTANCE,
                     ExecutorsKt.from(ctx.eventLoop()),
@@ -1661,7 +1901,7 @@ public class RouterUtil {
             ).handle(eventStreamResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
-        private static final HttpServiceInvoker toEventStreamResultInvoker(Object controller, Method method, Parameter[] params) {
+        private static HttpServiceInvoker toEventStreamResultInvoker(Object controller, Method method, Parameter[] params) {
             var parametersMapper = toParametersMapper(params);
             return ctx -> FutureKt.<SseEventStream>future(
                     GlobalScope.INSTANCE,
@@ -1680,7 +1920,7 @@ public class RouterUtil {
             ).handle(eventStreamResponseHandler(ctx)).thenCompose(Function.identity());
         }
 
-        private static final HttpServiceInvoker toHttpResultInvoker(Object controller, Method method) {
+        private static HttpServiceInvoker toHttpResultInvoker(Object controller, Method method) {
             return ctx -> FutureKt.<HttpResult>future(
                     GlobalScope.INSTANCE,
                     ExecutorsKt.from(ctx.eventLoop()),
@@ -1697,7 +1937,7 @@ public class RouterUtil {
             ).handle(httpResultHandler(ctx)).thenCompose(Function.identity());
         }
 
-        private static final HttpServiceInvoker toHttpResultInvoker(Object controller, Method method, Parameter[] params) {
+        private static HttpServiceInvoker toHttpResultInvoker(Object controller, Method method, Parameter[] params) {
             var parametersMapper = toParametersMapper(params);
             return ctx -> FutureKt.<HttpResult>future(
                     GlobalScope.INSTANCE,

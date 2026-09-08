@@ -30,15 +30,7 @@ import com.github.fmjsjx.libnetty.http.server.DefaultHttpResult;
 import com.github.fmjsjx.libnetty.http.server.HttpRequestContext;
 import com.github.fmjsjx.libnetty.http.server.HttpResult;
 import com.github.fmjsjx.libnetty.http.server.LazyLoadingHttpRequestContext;
-import com.github.fmjsjx.libnetty.http.server.annotation.HeaderValue;
-import com.github.fmjsjx.libnetty.http.server.annotation.HttpGet;
-import com.github.fmjsjx.libnetty.http.server.annotation.HttpPath;
-import com.github.fmjsjx.libnetty.http.server.annotation.HttpPost;
-import com.github.fmjsjx.libnetty.http.server.annotation.JsonBody;
-import com.github.fmjsjx.libnetty.http.server.annotation.PathVar;
-import com.github.fmjsjx.libnetty.http.server.annotation.QueryVar;
-import com.github.fmjsjx.libnetty.http.server.annotation.RemoteAddr;
-import com.github.fmjsjx.libnetty.http.server.annotation.StringBody;
+import com.github.fmjsjx.libnetty.http.server.annotation.*;
 import com.github.fmjsjx.libnetty.http.server.exception.ManualHttpFailureException;
 
 import com.github.fmjsjx.libnetty.http.server.exception.SimpleHttpFailureException;
@@ -157,29 +149,34 @@ public class TestController {
         logger.info("-- jsons form --");
         logger.info("form channel: {}", ctx.channel());
         var result = new LinkedHashMap<String, Object>();
-        var decoder = new HttpPostRequestDecoder(ctx.request());
-        try {
-            for (var ihd : decoder.getBodyHttpDatas()) {
-                if (ihd instanceof Attribute attr) {
-                    var val = result.get(attr.getName());
-                    if (val == null) {
-                        result.put(attr.getName(), attr.getValue());
+        var decoder = ctx.postRequestDecoder().orElseThrow();
+        for (var ihd : decoder.getBodyHttpDatas()) {
+            if (ihd instanceof Attribute attr) {
+                var val = result.get(attr.getName());
+                if (val == null) {
+                    result.put(attr.getName(), attr.getValue());
+                } else {
+                    if (val instanceof List list) {
+                        list.add(attr.getValue());
                     } else {
-                        if (val instanceof List list) {
-                            list.add(attr.getValue());
-                        } else {
-                            var list = new ArrayList<>();
-                            list.add(val);
-                            list.add(attr.getValue());
-                            result.put(attr.getName(), list);
-                        }
+                        var list = new ArrayList<>();
+                        list.add(val);
+                        list.add(attr.getValue());
+                        result.put(attr.getName(), list);
                     }
                 }
             }
-            return CompletableFuture.completedStage(result);
-        } finally {
-            decoder.destroy();
         }
+        return CompletableFuture.completedStage(result);
+    }
+
+    @HttpPost("/test/forms")
+    @JsonBody
+    public CompletionStage<?> postTestForm(@FormVar("name") String name, @FormVar("age") int age) {
+        logger.info("-- test form --");
+        logger.info("name: {}", name);
+        logger.info("age: {}", age);
+        return CompletableFuture.completedStage(Map.of("name", name, "age", age));
     }
 
     /**
@@ -265,23 +262,21 @@ public class TestController {
                 cause.printStackTrace(System.err);
                 return cause.toString();
             }
-            try {
-                var fileUpload = decoder.getBodyHttpData("file");
-                if (fileUpload == null || fileUpload.getHttpDataType() != FileUpload) {
-                    throw new SimpleHttpFailureException(BAD_REQUEST, "invalid file");
-                }
-                if (fileUpload instanceof FileUpload file) {
-                    var dfile = new File(file.getFilename());
-                    file.renameTo(dfile);
-                    logger.info("-- file --");
-                    logger.info("direct file: {}", dfile);
-                }
-                return ASCII_OK;
-            } catch (IOException e) {
-                return e.toString();
-            } finally {
-                ctx.destroy();
+            var fileUpload = decoder.getBodyHttpData("file");
+            if (fileUpload == null || fileUpload.getHttpDataType() != FileUpload) {
+                throw new SimpleHttpFailureException(BAD_REQUEST, "invalid file");
             }
+            if (fileUpload instanceof FileUpload file) {
+                var dfile = new File(file.getFilename());
+                logger.info("-- file --");
+                logger.info("direct file: {}", dfile);
+                try {
+                    file.renameTo(dfile);
+                } catch (IOException e) {
+                    logger.warn("Failed to rename the file: {} --> {}", file, dfile, e);
+                }
+            }
+            return ASCII_OK;
         }, ctx.eventLoop());
     }
 

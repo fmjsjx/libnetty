@@ -99,10 +99,18 @@ public class TestDefaultClient {
             String body = response2.content();
             logger.info("response for sync json form: {}", body);
         }
+        // POST test form
+        String formBody = "name=abe&age=18";
+        Response<String> formResponse = client.request(URI.create("https://localhost:8443/api/test/forms"))
+                .post(HttpContentHolders.ofUtf8(formBody)).send(HttpContentHandlers.ofString());
+        if (formResponse.statusCode() == 200) {
+            String body = formResponse.content();
+            logger.info("response for sync test form: {}", body);
+        }
     }
 
     static void testAsynchronousApi(HttpClient client) throws InterruptedException {
-        CountDownLatch cd = new CountDownLatch(2);
+        CountDownLatch cd = new CountDownLatch(3);
         // GET
         CompletableFuture<Response<String>> future1 = client.request(URI.create("https://localhost:8443/api/test")).get()
                 .sendAsync(HttpContentHandlers.ofString());
@@ -120,6 +128,16 @@ public class TestDefaultClient {
             if (response.statusCode() == 200) {
                 String body = response.content();
                 logger.info("response for async json form: {}", body);
+            }
+        }).whenComplete((v, e) -> cd.countDown());
+        // POST test form
+        String formBody = "name=abe&age=18";
+        CompletableFuture<Response<String>> formFuture = client.request(URI.create("https://localhost:8443/api/test/forms"))
+                .post(HttpContentHolders.ofUtf8(formBody)).sendAsync(HttpContentHandlers.ofString());
+        formFuture.thenAccept(response -> {
+            if (response.statusCode() == 200) {
+                String body = response.content();
+                logger.info("response for async test form: {}", body);
             }
         }).whenComplete((v, e) -> cd.countDown());
         // wait requests completed

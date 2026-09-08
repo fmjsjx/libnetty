@@ -1,20 +1,18 @@
 package com.github.fmjsjx.libnetty.http.server;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.BiConsumer;
-
 import com.github.fmjsjx.libnetty.http.exception.HttpRuntimeException;
 import com.github.fmjsjx.libnetty.http.exception.MultiErrorsException;
 import com.github.fmjsjx.libnetty.http.server.middleware.Middleware;
 import com.github.fmjsjx.libnetty.http.server.middleware.MiddlewareChain;
 import com.github.fmjsjx.libnetty.http.server.middleware.MiddlewareChains;
-
 import io.netty.channel.ChannelHandler.Sharable;
-import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
-import io.netty.util.ReferenceCountUtil;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.ReferenceCountUtil;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.BiConsumer;
 
 @Sharable
 class DefaultHttpServerHandler extends HttpRequestContextHandler {
@@ -49,13 +47,10 @@ class DefaultHttpServerHandler extends HttpRequestContextHandler {
     void destroy(HttpRequestContext msg) {
         // Destroy the HTTP request context
         ReferenceCountUtil.safeRelease(msg);
-        if (msg instanceof LazyLoadingHttpRequestContext lazy) {
-            try {
-                // Also destroy the post data if present
-                lazy.postData().ifPresent(InterfaceHttpPostRequestDecoder::destroy);
-            } catch (Exception e) {
-                // ignore error here
-            }
+        try {
+            msg.destroy();
+        } catch (Exception e) {
+            // NOOP
         }
     }
 

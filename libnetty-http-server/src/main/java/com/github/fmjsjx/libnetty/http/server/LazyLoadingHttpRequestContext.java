@@ -42,9 +42,4 @@ public interface LazyLoadingHttpRequestContext extends HttpRequestContext {
      */
     Optional<? extends InterfaceHttpPostRequestDecoder> postData();
 
-    /**
-     * Destroys this context.
-     */
-    void destroy();
-
 }

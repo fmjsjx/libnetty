@@ -4,6 +4,8 @@ import static com.github.fmjsjx.libnetty.http.server.middleware.PathFilterMiddle
 
 import java.util.LinkedList;
 import java.util.Objects;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
@@ -38,6 +40,7 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
     private BiConsumer<ChannelHandlerContext, Throwable> exceptionHandler = DEFAULT_EXCEPTION_HANDLER;
 
     private volatile DefaultHttpServerHandler value;
+    private final Lock lock = new ReentrantLock();
 
     /**
      * Constructs a new {@link DefaultHttpServerHandlerProvider} instance.
@@ -49,10 +52,13 @@ public class DefaultHttpServerHandlerProvider implements HttpServerHandlerProvid
     public HttpServerHandler get() {
         DefaultHttpServerHandler value = this.value;
         if (value == null) {
-            synchronized (this) {
+            lock.lock();
+            try {
                 if ((value = this.value) == null) {
                     this.value = value = initHandler();
                 }
+            } finally {
+                lock.unlock();
             }
         }
         return value;
