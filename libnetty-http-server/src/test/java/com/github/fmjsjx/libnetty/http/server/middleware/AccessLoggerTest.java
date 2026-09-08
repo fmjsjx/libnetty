@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder;
 import org.junit.jupiter.api.Test;
 
 import com.github.fmjsjx.libnetty.http.HttpCommonUtil;
@@ -184,6 +185,15 @@ public class AccessLoggerTest {
             public boolean sslEnabled() {
                 return false;
             }
+
+            @Override
+            public void destroy() {}
+
+            @Override
+            public Optional<HttpPostStandardRequestDecoder> postRequestDecoder() {
+                return Optional.empty();
+            }
+
         };
     }
 
