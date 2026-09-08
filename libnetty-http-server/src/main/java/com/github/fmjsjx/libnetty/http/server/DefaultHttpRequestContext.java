@@ -22,15 +22,9 @@ import com.github.fmjsjx.libnetty.http.server.component.HttpServerComponent;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder;
 import io.netty.handler.codec.http2.Http2StreamChannel;
 
 /**
@@ -39,6 +33,7 @@ import io.netty.handler.codec.http2.Http2StreamChannel;
  * @author MJ Fang
  * @since 1.1
  */
+@SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "OptionalAssignedToNull"})
 class DefaultHttpRequestContext implements HttpRequestContext {
 
     private static final Function<Object, String> PROPERTY_KEY_ENCODER = String::valueOf;
@@ -53,17 +48,16 @@ class DefaultHttpRequestContext implements HttpRequestContext {
 
     private String remoteAddress;
     private int keepAliveFlag = -1;
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private Optional<CharSequence> contentType;
     private QueryStringDecoder queryStringDecoder;
     private String rawPath;
     private String rawQuery;
+    private Optional<HttpPostStandardRequestDecoder> postRequestDecoder;
     private final AtomicReference<PathVariables> pathVariablesRef = new AtomicReference<>();
 
     private final Map<Class<?>, Object> components;
     private final ConcurrentMap<Object, Object> properties = new ConcurrentHashMap<>();
     private final HttpResponseFactoryImpl responseFactory = new HttpResponseFactoryImpl();
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Consumer<HttpHeaders>> addHeaders;
     private final boolean sslEnabled;
     private final String protocolVersion;
@@ -180,6 +174,39 @@ class DefaultHttpRequestContext implements HttpRequestContext {
             this.rawQuery = rawQuery = queryStringDecoder().rawQuery();
         }
         return rawQuery;
+    }
+
+    @Override
+    public Optional<HttpPostStandardRequestDecoder> postRequestDecoder() {
+        var postRequestDecoder = this.postRequestDecoder;
+        if (postRequestDecoder == null) {
+            var mimeType = HttpUtil.getMimeType(request);
+            if (mimeType != null && APPLICATION_X_WWW_FORM_URLENCODED.contentEqualsIgnoreCase(mimeType)) {
+                try {
+                    var httpDataFactory = new DefaultHttpDataFactory(false);
+                    var decoder = new HttpPostStandardRequestDecoder(httpDataFactory, request);
+                    this.postRequestDecoder = postRequestDecoder = Optional.of(decoder);
+                } catch (Exception e) {
+                    this.postRequestDecoder = postRequestDecoder = Optional.empty();
+                }
+            } else {
+                this.postRequestDecoder = postRequestDecoder = Optional.empty();
+            }
+        }
+        return postRequestDecoder;
+    }
+
+    @Override
+    public void destroy() {
+        var postRequestDecoder = this.postRequestDecoder;
+        if (postRequestDecoder != null) {
+            this.postRequestDecoder = null;
+            try {
+                postRequestDecoder.ifPresent(HttpPostStandardRequestDecoder::destroy);
+            } catch (Exception e) {
+                // NOOP
+            }
+        }
     }
 
     @Override

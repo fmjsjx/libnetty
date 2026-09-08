@@ -23,18 +23,18 @@ import java.lang.annotation.Target;
 public @interface QueryVar {
 
     /**
-     * Returns the name of the path variable.
+     * Returns the name of the query variable.
      * 
-     * @return the name of the path variable
+     * @return the name of the query variable
      */
     String value() default "";
 
     /**
-     * Returns whether the path variable is required.
+     * Returns whether the query variable is required.
      * <p>
      * The default is {@code true}.
      * 
-     * @return whether the path variable is required
+     * @return whether the query variable is required
      */
     boolean required() default true;
 

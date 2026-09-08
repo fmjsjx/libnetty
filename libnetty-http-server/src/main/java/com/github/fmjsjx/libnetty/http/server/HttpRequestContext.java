@@ -14,6 +14,8 @@ import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
+import io.netty.handler.codec.http.multipart.Attribute;
+import io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder;
 import io.netty.handler.codec.http2.Http2StreamChannel;
 import io.netty.handler.stream.ChunkedNioFile;
 import io.netty.util.AsciiString;
@@ -314,6 +316,63 @@ public interface HttpRequestContext extends ReferenceCounted, HttpResponder {
         return Optional.ofNullable(queryParameters().get(name));
     }
 
+    /**
+     * Returns the {@code Optional} {@link HttpPostStandardRequestDecoder} which is
+     * bound to the {@link HttpRequestContext} if the content type of the HTTP
+     * request is {@code "application/x-www-form-urlencoded"}.
+     *
+     * @return an {@code Optional<HttpPostStandardRequestDecoder>}
+     * @since 4.3
+     */
+    Optional<HttpPostStandardRequestDecoder> postRequestDecoder();
+
+    /**
+     * Returns the first {@link Attribute} with the given name from the form body.
+     *
+     * @param name the name of the form parameter
+     * @return an {@code Optional<Attribute>}
+     */
+    default Optional<Attribute> formParameter(String name) {
+        return postRequestDecoder().flatMap(decoder -> {
+            var data = decoder.getBodyHttpData(name);
+            if (data instanceof Attribute attribute) {
+                return Optional.of(attribute);
+            }
+            return Optional.empty();
+        });
+    }
+
+    /**
+     * Returns a list of all {@link Attribute} with the given name from the form body.
+     *
+     * @param name the name of the form parameter
+     * @return an {@code Optional<List<Attribute>>}
+     * @since 4.3
+     */
+    default Optional<List<Attribute>> formParameters(String name) {
+        return postRequestDecoder().flatMap(decoder -> {
+            var dataList = decoder.getBodyHttpDatas(name);
+            if (dataList == null) {
+                return Optional.empty();
+            } else {
+                var attributes = new ArrayList<Attribute>(dataList.size());
+                for (var i = 0; i < dataList.size(); i++) {
+                    var data = dataList.get(i);
+                    if (data instanceof Attribute attribute) {
+                        attributes.add(attribute);
+                    }
+                }
+                return Optional.of(Collections.unmodifiableList(attributes));
+            }
+        });
+    }
+
+    /**
+     * Destroys this context.
+     *
+     * @since 4.3
+     */
+    void destroy();
 
     /**
      * Returns the path variables.
