@@ -41,7 +41,7 @@ dependencies {
     api(platform("org.bouncycastle:bc-jdk18on-bom:1.86.1"))
 
     constraints {
-        api("org.slf4j:slf4j-api:2.0.18")
+        api("org.slf4j:slf4j-api:2.0.19")
         val lombokVersion = "1.18.48"
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
