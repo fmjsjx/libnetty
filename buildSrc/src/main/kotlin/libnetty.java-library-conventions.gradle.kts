@@ -36,7 +36,7 @@ dependencies {
     // brotli4j
     api(platform("com.aayushatharva.brotli4j:all:1.23.0"))
     // kotlin
-    api(platform("org.jetbrains.kotlin:kotlin-bom:2.4.10"))
+    api(platform("org.jetbrains.kotlin:kotlin-bom:2.4.20"))
     // bouncy castle
     api(platform("org.bouncycastle:bc-jdk18on-bom:1.85"))
 
