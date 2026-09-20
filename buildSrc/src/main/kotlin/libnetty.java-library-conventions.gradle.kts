@@ -42,7 +42,7 @@ dependencies {
 
     constraints {
         api("org.slf4j:slf4j-api:2.0.18")
-        val lombokVersion = "1.18.46"
+        val lombokVersion = "1.18.48"
         compileOnly("org.projectlombok:lombok:$lombokVersion")
         annotationProcessor("org.projectlombok:lombok:$lombokVersion")
         implementation("ch.qos.logback:logback-classic:1.6.1")
