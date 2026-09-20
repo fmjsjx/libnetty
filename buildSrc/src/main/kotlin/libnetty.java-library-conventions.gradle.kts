@@ -38,7 +38,7 @@ dependencies {
     // kotlin
     api(platform("org.jetbrains.kotlin:kotlin-bom:2.4.20"))
     // bouncy castle
-    api(platform("org.bouncycastle:bc-jdk18on-bom:1.85"))
+    api(platform("org.bouncycastle:bc-jdk18on-bom:1.86.1"))
 
     constraints {
         api("org.slf4j:slf4j-api:2.0.18")
