@@ -453,6 +453,14 @@ public final class HttpContentHandlers {
 
         @Override
         public void onComplete() {
+            // Flush the remaining bytes in the line buffer as the last line,
+            // because the response content may end without a trailing LF
+            var lineBuffer = this.lineBuffer;
+            if (lineBuffer != null) {
+                queue.offer(lineBuffer.toString(charset));
+                this.lineBuffer = null;
+            }
+            // Offer EOF to indicate the end of the stream
             queue.offer(EOF);
             backpressure.afterProduce();
             backpressure.onTerminal();
