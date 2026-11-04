@@ -22,7 +22,7 @@ dependencies {
     // jackson2-bom
     api(platform("com.fasterxml.jackson:jackson-bom:2.22.4"))
     // jackson3-bom
-    api(platform("tools.jackson:jackson-bom:3.2.2"))
+    api(platform("tools.jackson:jackson-bom:3.2.4"))
     // reactor-bom
     api(platform("io.projectreactor:reactor-bom:2025.0.7"))
     // junit-bom
