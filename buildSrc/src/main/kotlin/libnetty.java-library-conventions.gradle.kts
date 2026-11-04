@@ -20,7 +20,7 @@ dependencies {
     // libcommon-bom
     api(platform("com.github.fmjsjx:libcommon-bom:4.3.1"))
     // jackson2-bom
-    api(platform("com.fasterxml.jackson:jackson-bom:2.22.2"))
+    api(platform("com.fasterxml.jackson:jackson-bom:2.22.4"))
     // jackson3-bom
     api(platform("tools.jackson:jackson-bom:3.2.2"))
     // reactor-bom
