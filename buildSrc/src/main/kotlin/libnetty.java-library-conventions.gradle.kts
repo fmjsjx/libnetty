@@ -34,7 +34,7 @@ dependencies {
     // kotlin coroutines
     api(platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.11.0"))
     // brotli4j
-    api(platform("com.aayushatharva.brotli4j:all:1.23.0"))
+    api(platform("com.aayushatharva.brotli4j:all:1.24.0"))
     // kotlin
     api(platform("org.jetbrains.kotlin:kotlin-bom:2.4.20"))
     // bouncy castle
