@@ -24,7 +24,7 @@ dependencies {
     // jackson3-bom
     api(platform("tools.jackson:jackson-bom:3.2.4"))
     // reactor-bom
-    api(platform("io.projectreactor:reactor-bom:2025.0.7"))
+    api(platform("io.projectreactor:reactor-bom:2025.0.8"))
     // junit-bom
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     // mockito
