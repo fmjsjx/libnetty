@@ -28,7 +28,7 @@ dependencies {
     // junit-bom
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     // mockito
-    testImplementation(platform("org.mockito:mockito-bom:5.23.0"))
+    testImplementation(platform("org.mockito:mockito-bom:5.24.0"))
     // log4j2
     implementation(platform("org.apache.logging.log4j:log4j-bom:2.26.1"))
     // kotlin coroutines
